@@ -14,19 +14,24 @@ But I soon found that there are some cons:
 
 We've talked about which edge device we are working on, as we thought we can only get data exported by Apple Watch, some of the data types definitely have already been processed by watch itself. Though the conclusion is it doesn't matter, if we have a chance to get original data from watch's sensors, we are pleased to use it.
 
-Thankfully, we found [Motion and heart rate from a wrist-worn wearable and labeled sleep from polysomnography v1.0.0](https://physionet.org/content/sleep-accel/1.0.0/). They designed a simple app to scrape acceleration data from an Apple Watch, also achieved continuous heart rate monitoring.
+Thankfully, we found:
 
-And we also found a dataset from [In-situ wearable-based dataset of continuous heart rate variability monitoring accompanied by sleep diaries](https://springernature.figshare.com/articles/dataset/In-situ_wearable-based_dataset_of_continuous_heart_rate_variability_monitoring_accompanied_by_sleep_diaries/28509740). They chose the Samsung Galaxy Active 2, also developed a wearable device application named “Heart+” to facilitate data collection.
+- [Motion and heart rate from a wrist-worn wearable and labeled sleep from polysomnography v1.0.0](https://physionet.org/content/sleep-accel/1.0.0/): They designed a simple app to scrape acceleration data from an Apple Watch, also achieved continuous heart rate monitoring.
+- [In-situ wearable-based dataset of continuous heart rate variability monitoring accompanied by sleep diaries](https://springernature.figshare.com/articles/dataset/In-situ_wearable-based_dataset_of_continuous_heart_rate_variability_monitoring_accompanied_by_sleep_diaries/28509740): They chose the Samsung Galaxy Active 2, also developed a wearable device application named “Heart+” to facilitate data collection.
+
+All of them have original data from sensors, which is suitable for project studying on embedded devices. We could do research on many scenarios, like sleep scenario, daily scenario, exercise scenario.
+
+I choose to use [In-situ wearable-based dataset of continuous heart rate variability monitoring accompanied by sleep diaries](https://springernature.figshare.com/articles/dataset/In-situ_wearable-based_dataset_of_continuous_heart_rate_variability_monitoring_accompanied_by_sleep_diaries/28509740) and sleep scenario for showing the whole process.
 
 ## Sleep Scenario Analysis
 
 Actigraphy-like sleep analysis vs  Polysomnography (PSG)
 
-Learned from [Motion and heart rate from a wrist-worn wearable and labeled sleep from polysomnography v1.0.0](https://physionet.org/content/sleep-accel/1.0.0/), I know that PSG is the gold standard for sleep assessment, recording brain, eye, muscle, heart, respiratory, and oxygen signals overnight. It enables precise sleep staging and diagnosis of sleep disorders but is costly and limited to laboratory settings.
+> PSG is the gold standard for sleep assessment, recording brain, eye, muscle, heart, respiratory, and oxygen signals overnight. It enables precise sleep staging and diagnosis of sleep disorders but is costly and limited to laboratory settings.
 
 So if we want to do some analysis only on watch, maybe we can try Actigraphy-like sleep analysis.
 
-Use [In-situ wearable-based dataset of continuous heart rate variability monitoring accompanied by sleep diaries](https://springernature.figshare.com/articles/dataset/In-situ_wearable-based_dataset_of_continuous_heart_rate_variability_monitoring_accompanied_by_sleep_diaries/28509740) as **example**, they have original sensors' data:
+We have original sensors' data:
 
 - **ppg.csv.gz**: Photoplethysmography (green light reflection), the raw source for heart rate and HRV.
 - **hrm.csv.gz**: Heart rate (likely PPG processed by the smartwatch algorithm).
@@ -36,23 +41,33 @@ Use [In-situ wearable-based dataset of continuous heart rate variability monitor
 - **lit.csv.gz**: Ambient light intensity.
 - **ped.csv.gz**: Pedometer (walking steps, running steps, distance, calories).
 
+Note: not all of the data are original, like *sensor_hrv.csv*:
+
+> *sensor_hrv.csv* contains sensor and HRV measurements in 5-minute intervals, excluding periods when the device was off the wrist, no data was collected, or the signal was too noisy for reliable HRV extraction.
+
+So you will find that it has done what we want to do. But we can do the same thing again with the sensors' data!
+
+How to do these again: <https://www.nature.com/articles/s41597-025-05801-3>
+
 ### Sleep-related Metrics
 
 Having these, we can calculate many things, like:
 
 Sleep-related Metrics
 
-| Field                | Full Name                      | Meaning                                               | Calculation                                                  |
-| -------------------- | ------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------ |
-| **go2bed**           | Go-to-bed time                 | The time the participant went to bed                  | Start of the longest low-activity segment during the night   |
+Note: These fields are learned from *sensor_hrv.csv*!
+
+| Field                | Full Name                      | Meaning                                               | Calculation                                                                      |
+| -------------------- | ------------------------------ | ----------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **go2bed**           | Go-to-bed time                 | The time the participant went to bed                  | Start of the longest low-activity segment during the night                       |
 | **asleep**           | Sleep onset time               | Actual time of falling asleep                         | Detected when HR drops below threshold for several minutes, or fallback (+20min) |
-| **wakeup**           | Final wake-up time             | Final wake-up in the morning                          | End of the longest detected sleep segment                    |
-| **wakeup@night**     | Number of awakenings           | Number of awakenings during the night (≥5min)         | Count of wake episodes between asleep and wakeup             |
-| **waso**             | Wake After Sleep Onset (hours) | Total wake time after sleep onset until final wake-up | Sum of all wake episodes between asleep and wakeup           |
-| **sleep_duration**   | Total sleep duration (hours)   | Actual sleep time excluding wake episodes             | (wakeup – asleep) – WASO                                     |
-| **in_bed_duration**  | Time in bed (hours)            | Time from going to bed until final wake-up            | wakeup – go2bed                                              |
-| **sleep_latency**    | Sleep latency (hours)          | Time it took to fall asleep after going to bed        | asleep – go2bed                                              |
-| **sleep_efficiency** | Sleep efficiency               | Ratio of sleep duration to time in bed                | sleep_duration ÷ in_bed_duration                             |
+| **wakeup**           | Final wake-up time             | Final wake-up in the morning                          | End of the longest detected sleep segment                                        |
+| **wakeup@night**     | Number of awakenings           | Number of awakenings during the night (≥5min)         | Count of wake episodes between asleep and wakeup                                 |
+| **waso**             | Wake After Sleep Onset (hours) | Total wake time after sleep onset until final wake-up | Sum of all wake episodes between asleep and wakeup                               |
+| **sleep_duration**   | Total sleep duration (hours)   | Actual sleep time excluding wake episodes             | (wakeup – asleep) – WASO                                                         |
+| **in_bed_duration**  | Time in bed (hours)            | Time from going to bed until final wake-up            | wakeup – go2bed                                                                  |
+| **sleep_latency**    | Sleep latency (hours)          | Time it took to fall asleep after going to bed        | asleep – go2bed                                                                  |
+| **sleep_efficiency** | Sleep efficiency               | Ratio of sleep duration to time in bed                | sleep_duration ÷ in_bed_duration                                                 |
 
 Heart Rate Variability (HRV) Metrics
 
@@ -62,15 +77,15 @@ Note:
 - **NN Interval (Normal-to-Normal interval)**: a subset of RR intervals that only considers intervals between **normal sinus beats**. Abnormal beats (e.g., ectopic, missed, or artifact-related) are excluded. HRV metrics such as SDNN, RMSSD, pNN20, and pNN50 are conventionally defined on NN intervals.
 - **IBI (Inter-Beat Interval)**: the time interval between two successive detected heartbeats, often derived from **PPG (photoplethysmography)** instead of ECG. After artifact removal and cleaning, IBIs can be treated as equivalent to NN intervals for HRV analysis.
 
-| Field                 | Full Name                                    | Meaning                                                      | Aggregation                                  |
-| --------------------- | -------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| **sdnn_median_ms**    | Standard Deviation of NN intervals           | Overall HRV measure, standard deviation of RR intervals      | Computed per 5-min window, nightly median    |
-| **sdsd_median_ms**    | Standard Deviation of Successive Differences | Std. deviation of successive RR interval differences         | Computed per 5-min window, nightly median    |
+| Field                 | Full Name                                    | Meaning                                                                              | Aggregation                                  |
+| --------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------- |
+| **sdnn_median_ms**    | Standard Deviation of NN intervals           | Overall HRV measure, standard deviation of RR intervals                              | Computed per 5-min window, nightly median    |
+| **sdsd_median_ms**    | Standard Deviation of Successive Differences | Std. deviation of successive RR interval differences                                 | Computed per 5-min window, nightly median    |
 | **rmssd_median_ms**   | Root Mean Square of Successive Differences   | RMS of successive RR interval differences, reflects vagal (parasympathetic) activity | Computed per 5-min window, nightly median    |
-| **pnn20_mean_pct**    | Proportion of NN intervals >20ms             | Percentage of successive RR differences >20ms                | Computed per 5-min window, nightly mean      |
-| **pnn50_mean_pct**    | Proportion of NN intervals >50ms             | Percentage of successive RR differences >50ms                | Computed per 5-min window, nightly mean      |
-| **hrv_valid_minutes** | Valid minutes of HRV analysis                | Total valid minutes included in HRV computation              | Sum of valid 5-min windows’ duration         |
-| **hrv_coverage_pct**  | HRV coverage percentage                      | Percentage of valid HRV minutes relative to total sleep time | hrv_valid_minutes ÷ (wakeup – asleep) × 100% |
+| **pnn20_mean_pct**    | Proportion of NN intervals >20ms             | Percentage of successive RR differences >20ms                                        | Computed per 5-min window, nightly mean      |
+| **pnn50_mean_pct**    | Proportion of NN intervals >50ms             | Percentage of successive RR differences >50ms                                        | Computed per 5-min window, nightly mean      |
+| **hrv_valid_minutes** | Valid minutes of HRV analysis                | Total valid minutes included in HRV computation                                      | Sum of valid 5-min windows’ duration         |
+| **hrv_coverage_pct**  | HRV coverage percentage                      | Percentage of valid HRV minutes relative to total sleep time                         | hrv_valid_minutes ÷ (wakeup – asleep) × 100% |
 
 ### A Sample Explanation
 
@@ -109,9 +124,19 @@ Simulated Analysis
 
 ## Initial Implementation
 
-Keep in mind that what we need to do is do research about database + data format + query on embedded devices.
+Keep in mind that what we need to do is do research about **database + data format + query on embedded devices**.
 
 Input: from ppg, hrm, acc, grv, lit sensors, offer data per ms (for example)
+
+In this scenario, we have a edge device and a server:
+
+- Edge will gather data from sensors, do aggregation (in certain time window) and some calculation (like calculate HRV)
+- Server will send queries to the edge / receive data from edge, and do more analytics.
+
+However, in this project we focus on **edge**, so there will be some key points:
+
+- We only care about edge device's aggregation and calculation tasks (leaving queries from server / send data to the server)'
+- We don't need to implement a server.
 
 ### Step 0. Raw Dataset Preprocessing
 
