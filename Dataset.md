@@ -169,6 +169,16 @@ Before streaming or database ingestion, we need to prepare the large dataset (�
 
 [data_preprocess.py](Galaxy_Watch/data_preprocess.py)
 
+```shell
+python data_preprocess.py --input input/ppg.csv.gz --sensor ppg --out data_per_user --chunksize 1000000
+python data_preprocess.py --input input/hrm.csv.gz --sensor hrm --out data_per_user --chunksize 1000000
+python data_preprocess.py --input input/acc.csv.gz --sensor acc --out data_per_user --chunksize 1000000
+python data_preprocess.py --input input/grv.csv.gz --sensor grv --out data_per_user --chunksize 1000000
+python data_preprocess.py --input input/gyr.csv.gz --sensor gyr --out data_per_user --chunksize 1000000
+python data_preprocess.py --input input/lit.csv.gz --sensor lit --out data_per_user --chunksize 1000000
+python data_preprocess.py --input input/ped.csv.gz --sensor ped --out data_per_user --chunksize 1000000
+```
+
 ---
 
 Simulated Data Generation (CSV → SQL → Kafka → Aggregator)

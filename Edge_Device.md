@@ -48,6 +48,8 @@ This separation allows compact on-device storage and flexible joins on the serve
 
 ### Table: `hrv_5min` (5-min HRV Aggregation)
 
+Many fields are calculated by [HeartPy](https://python-heart-rate-analysis-toolkit.readthedocs.io/).
+
 | Field               | Type   | Description                                                                                                                                                                                             | Source (code mapping)                |
 | ------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | `deviceId`          | TEXT   | Unique participant/device identifier                                                                                                                                                                    | From input data                      |
@@ -192,3 +194,15 @@ Your concise `hrv_5min` exposes **one quality metric**: `missingness_score` (PPG
 - **Invalid**: `missingness_score > 0.70`
 
 > Rationale: lower missingness = better coverage. These cutoffs mirror your earlier coverage idea but flipped to the missingness domain.
+
+## Benchmark
+
+- **Core Scenarios**:
+  - **Insertion stress test**: continuous ingestion of all 49 participants’ data into `sleep_activity_1min` and `hrv_5min`.
+  - **Aggregation latency test**: measure time from raw sensor streams to aggregated rows being stored.
+- **Key Metrics**:
+  - Throughput (rows/sec)
+  - Latency (aggregation completion time)
+  - Memory usage
+  - CPU utilization
+- **Note**: No query stress tests, and no separate HRV algorithm benchmarking.

@@ -2,28 +2,22 @@
 # -*- coding: utf-8 -*-
 
 """
-Split all raw sensor files (ppg, hrm, acc, grv, gyr, lit, ped)
+Split a single raw sensor file (ppg, hrm, acc, grv, gyr, lit, ped)
 into per-user gzipped CSVs under data_per_user/<deviceId>/.
 
 No cleaning is performed. This script groups by deviceId and appends
 rows into per-user files, while also collecting progress statistics.
 
-Inputs (gzipped CSVs):
-  - ppg.csv.gz : deviceId, ts, ppg
-  - hrm.csv.gz : deviceId, ts, HR
-  - acc.csv.gz : deviceId, ts, x, y, z
-  - grv.csv.gz : deviceId, ts, x, y, z, w
-  - gyr.csv.gz : deviceId, ts, x, y, z
-  - lit.csv.gz : deviceId, ts, ambient_light_intensity
-  - ped.csv.gz : deviceId, ts, steps, steps_walking, steps_running, distance, calories
+Input (gzipped CSV):
+  - Specified sensor file: e.g., ppg.csv.gz, hrm.csv.gz, etc.
 
-Outputs:
+Output:
   data_per_user/<deviceId>/<sensor>.csv.gz
 
 Summary:
   - Per-sensor total rows written
   - Per-sensor per-device row counts
-  - Cross-sensor per-device total row counts
+  - Cross-sensor per-device total row counts (for this sensor)
 """
 
 import gzip
@@ -178,14 +172,9 @@ def print_summary(
 # ------------------------------ CLI ------------------------------- #
 
 def main():
-    parser = argparse.ArgumentParser(description="Split mixed sensor CSV.GZ files into per-device gzipped CSVs (with progress summary).")
-    parser.add_argument("--ppg", type=str, required=True, help="Path to ppg.csv.gz")
-    parser.add_argument("--hrm", type=str, required=True, help="Path to hrm.csv.gz")
-    parser.add_argument("--acc", type=str, required=True, help="Path to acc.csv.gz")
-    parser.add_argument("--grv", type=str, required=True, help="Path to grv.csv.gz")
-    parser.add_argument("--gyr", type=str, required=True, help="Path to gyr.csv.gz")
-    parser.add_argument("--lit", type=str, required=True, help="Path to lit.csv.gz")
-    parser.add_argument("--ped", type=str, required=True, help="Path to ped.csv.gz")
+    parser = argparse.ArgumentParser(description="Split a single sensor CSV.GZ file into per-device gzipped CSVs (with progress summary).")
+    parser.add_argument("--input", type=str, required=True, help="Path to input sensor CSV.GZ file")
+    parser.add_argument("--sensor", type=str, required=True, choices=["ppg", "hrm", "acc", "grv", "gyr", "lit", "ped"], help="Sensor type")
     parser.add_argument("--out", type=str, default=DEFAULT_OUT_ROOT, help="Output root directory")
     parser.add_argument("--chunksize", type=int, default=DEFAULT_CHUNKSIZE, help="Rows per chunk (default: 1,000,000)")
     parser.add_argument("--devices", type=str, default="", help="Optional comma-separated deviceId whitelist")
@@ -199,33 +188,38 @@ def main():
     if args.devices.strip():
         only_devices = set(x.strip() for x in args.devices.split(",") if x.strip())
 
+    # sensor configurations
+    sensor_configs = {
+        "ppg": ("all_days_ppg.csv.gz", ["deviceId", "ts", "ppg"]),
+        "hrm": ("all_days_hrm.csv.gz", ["deviceId", "ts", "HR"]),
+        "acc": ("all_days_acc.csv.gz", ["deviceId", "ts", "x", "y", "z"]),
+        "grv": ("all_days_grv.csv.gz", ["deviceId", "ts", "x", "y", "z", "w"]),
+        "gyr": ("all_days_gyr.csv.gz", ["deviceId", "ts", "x", "y", "z"]),
+        "lit": ("all_days_lit.csv.gz", ["deviceId", "ts", "ambient_light_intensity"]),
+        "ped": ("all_days_ped.csv.gz", ["deviceId", "ts", "steps", "steps_walking", "steps_running", "distance", "calories"]),
+    }
+
+    if args.sensor not in sensor_configs:
+        raise ValueError(f"Invalid sensor type: {args.sensor}")
+
+    output_name, usecols = sensor_configs[args.sensor]
+
     # summary holders
     per_sensor_device_counts: Dict[str, Dict[str, int]] = {}
     per_sensor_totals: Dict[str, int] = {}
 
-    # mapping: input path -> (sensor_key, output filename, columns)
-    file_specs = [
-        (Path(args.ppg), "ppg", "all_days_ppg.csv.gz", ["deviceId", "ts", "ppg"]),
-        (Path(args.hrm), "hrm", "all_days_hrm.csv.gz", ["deviceId", "ts", "HR"]),
-        (Path(args.acc), "acc", "all_days_acc.csv.gz", ["deviceId", "ts", "x", "y", "z"]),
-        (Path(args.grv), "grv", "all_days_grv.csv.gz", ["deviceId", "ts", "x", "y", "z", "w"]),
-        (Path(args.gyr), "gyr", "all_days_gyr.csv.gz", ["deviceId", "ts", "x", "y", "z"]),
-        (Path(args.lit), "lit", "all_days_lit.csv.gz", ["deviceId", "ts", "ambient_light_intensity"]),
-        (Path(args.ped), "ped", "all_days_ped.csv.gz", ["deviceId", "ts", "steps", "steps_walking", "steps_running", "distance", "calories"]),
-    ]
-
-    for input_path, sensor_key, output_name, usecols in file_specs:
-        split_file_by_device(
-            input_path=input_path,
-            out_root=out_root,
-            output_name=output_name,
-            usecols=usecols,
-            sensor_key=sensor_key,
-            chunksize=args.chunksize,
-            only_devices=only_devices,
-            per_sensor_device_counts=per_sensor_device_counts,
-            per_sensor_totals=per_sensor_totals,
-        )
+    # process single file
+    split_file_by_device(
+        input_path=Path(args.input),
+        out_root=out_root,
+        output_name=output_name,
+        usecols=usecols,
+        sensor_key=args.sensor,
+        chunksize=args.chunksize,
+        only_devices=only_devices,
+        per_sensor_device_counts=per_sensor_device_counts,
+        per_sensor_totals=per_sensor_totals,
+    )
 
     # print summary
     print_summary(
