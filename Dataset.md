@@ -47,11 +47,14 @@ Note: not all of the data are original, like *sensor_hrv.csv*:
 
 So you will find that it has done what we want to do. But we can do the same thing again with the sensors' data!
 
-How to do these again: <https://www.nature.com/articles/s41597-025-05801-3>
+How to do these again:
 
-### Sleep-related Metrics
+- <https://www.nature.com/articles/s41597-025-05801-3>
+- [Edge Device](Edge_Device.md)
 
-Having these, we can calculate many things, like:
+### Sleep-related Metrics (not important)
+
+Having these, we can calculate many things **in the end** (on the server), like:
 
 Sleep-related Metrics
 
@@ -87,7 +90,7 @@ Note:
 | **hrv_valid_minutes** | Valid minutes of HRV analysis                | Total valid minutes included in HRV computation                                      | Sum of valid 5-min windows’ duration         |
 | **hrv_coverage_pct**  | HRV coverage percentage                      | Percentage of valid HRV minutes relative to total sleep time                         | hrv_valid_minutes ÷ (wakeup – asleep) × 100% |
 
-### A Sample Explanation
+### A Sample Explanation (not important)
 
 Note: Just tell us how we can explain the data (the data is fake).
 
