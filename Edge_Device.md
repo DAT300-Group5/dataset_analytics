@@ -157,7 +157,7 @@ LIMIT 1000;
 
 ## 5. Validity Rules (Post-hoc Filtering)
 
-Your concise `hrv_5min` exposes **one quality metric**: `missingness_score` (PPG-based, equals your code’s `missingness_ppg`). Define validity purely on this (optionally combine with HR plausibility and motion via join).
+`hrv_5min` exposes **one quality metric**: `missingness_score` (PPG-based, equals your code’s `missingness_ppg`). Define validity purely on this (optionally combine with HR plausibility and motion via join).
 
 ### Core rule (based on `missingness_score`)
 
