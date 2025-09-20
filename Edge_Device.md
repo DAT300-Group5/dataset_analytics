@@ -165,7 +165,7 @@ LIMIT 1000;
 - **Partial**: `0.30 < missingness_score ≤ 0.70`
 - **Invalid**: `missingness_score > 0.70`
 
-> Rationale: lower missingness = better coverage. These cutoffs mirror your earlier coverage idea but flipped to the missingness domain.
+> Rationale: lower missingness = better coverage.
 
 ## Benchmark
 
