@@ -141,6 +141,8 @@ However, in this project we focus on **edge**, so there will be some key points:
 - We only care about edge device's aggregation and calculation tasks (leaving queries from server / send data to the server)'
 - We don't need to implement a server.
 
+![structure](./pic/structure.png)
+
 ### Step 0. Raw Dataset Preprocessing
 
 Before streaming or database ingestion, we need to prepare the large dataset (≈18 GB). The goal is to **restructure raw files into subject-level, time-sorted, sensor-stream-compatible subsets**, so they can later be “replayed” to mimic real devices.
