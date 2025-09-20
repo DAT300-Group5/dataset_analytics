@@ -167,6 +167,8 @@ Before streaming or database ingestion, we need to prepare the large dataset (�
    - Store cleaned data in efficient files (Parquet/Feather) or pre-seeded DuckDB.
    - These can then feed a simulator (script) that “emits” rows at the sensor’s native frequency.
 
+[data_preprocess.py](Galaxy_Watch/data_preprocess.py)
+
 ---
 
 Simulated Data Generation (CSV → SQL → Kafka → Aggregator)
