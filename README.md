@@ -17,7 +17,7 @@ Therefore, we shifted to open datasets that provide **raw sensor data**. The fin
 This dataset is around **18 GB** and contains the following sensor files:
 
 - `ppg.csv.gz` — Photoplethysmography (PPG) signals.
-- `hrm.csv.gz` — Heart rate (likely PPG-derived via smartwatch algorithms).
+- `hrm.csv.gz` — Heart rate (from the heart rate monitor recorded by the smartwatch).
 - `acc.csv.gz` — 3-axis accelerometer.
 - `grv.csv.gz` — Gravity orientation and rotation angle.
 - `gyr.csv.gz` — 3-axis gyroscope.
