@@ -1,6 +1,6 @@
 # Edge Device
 
-## 1. Input Tables (Cleaned)
+## 1. Input Tables
 
 - **ppg**
   - `deviceId TEXT`
@@ -48,28 +48,28 @@ This separation allows compact on-device storage and flexible joins on the serve
 
 ### Table: `hrv_5min` (5-min HRV Aggregation)
 
-| Field          | Type    | Source  | Description                                     | Purpose            |
-| -------------- | ------- | ------- | ----------------------------------------------- | ------------------ |
-| `deviceId`     | TEXT    | hrm/ppg | Unique user/device ID                           | Multi-user support |
-| `window_start` | BIGINT  | ts      | 5-min window start (Unix ms, aligned to 5 min)  | Primary key        |
-| `hr_mean`      | REAL    | hrm/ppg | Mean HR in the window (bpm)                     | Physiological load |
-| `hr_median`    | REAL    | hrm/ppg | Median HR in the window (bpm)                   | Robust HR measure  |
-| `sdnn`         | REAL    | hrm/ppg | Standard deviation of NN intervals              | Total variability  |
-| `rmssd`        | REAL    | hrm/ppg | Root mean square of successive NN differences   | Vagal activity     |
-| `sdsd`         | REAL    | hrm/ppg | Standard deviation of successive NN differences | Beat-to-beat var.  |
-| `pnn20`        | REAL    | hrm/ppg | Proportion of                                   | ΔNN                |
-| `pnn50`        | REAL    | hrm/ppg | Proportion of                                   | ΔNN                |
-| `nn_count`     | INTEGER | hrm/ppg | Number of valid NN in window                    | Statistical base   |
-| `valid_ratio`  | REAL    | Derived | Ratio of valid duration / 300 s                 | Coverage           |
-| `valid_5m`     | TINYINT | Derived | Window validity: 0=invalid,1=partial,2=valid    | Quality control    |
-| `source`       | TINYINT | Derived | IBI source: 0=PPG, 1=HRM approximation          | Precision mark     |
-| `synced`       | BOOLEAN | System  | Whether uploaded to server                      | Incremental upload |
+| Field               | Type   | Description                                                                                                                                                                                             | Source (code mapping)                |
+| ------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `deviceId`          | TEXT   | Unique participant/device identifier                                                                                                                                                                    | From input data                      |
+| `ts_start`          | BIGINT | Unix epoch timestamp (ms) corresponding to the starting time of the slice/window                                                                                                                        | derived from code logic (slice boundary) |
+| `ts_end`            | BIGINT | Unix epoch timestamp (ms) corresponding to the ending time of the slice/window                                                                                                                          | derived from code logic (slice boundary) |
+| `missingness_score` | REAL   | HRV analysis missingness ratio:<br>`1 - (observed_ibi / (bpm × T/60))`, where:<br>• `observed_ibi = len(wd["RR_list_cor"])`<br>• `bpm = hrv["bpm"]`<br>• `T` = slice length in seconds (300s for 5-min) | Computed in code → `missingness_ppg` |
+| `HR`                | REAL   | Average heart rate (beats per minute) derived from IBI                                                                                                                                                  | Computed in code → `hrv["bpm"]`      |
+| `ibi`               | REAL   | Mean inter-beat interval (ms)                                                                                                                                                                           | Computed in code → `hrv["ibi"]`      |
+| `sdnn`              | REAL   | Standard deviation of NN intervals (overall variability)                                                                                                                                                | Computed in code → `hrv["sdnn"]`     |
+| `sdsd`              | REAL   | Standard deviation of successive NN interval differences                                                                                                                                                | Computed in code → `hrv["sdsd"]`     |
+| `rmssd`             | REAL   | Root mean square of successive NN interval differences (parasympathetic activity marker)                                                                                                                | Computed in code → `hrv["rmssd"]`    |
+| `pnn20`             | REAL   | Percentage of successive NN intervals differing by more than 20 ms                                                                                                                                      | Computed in code → `hrv["pnn20"]`    |
+| `pnn50`             | REAL   | Percentage of successive NN intervals differing by more than 50 ms                                                                                                                                      | Computed in code → `hrv["pnn50"]`    |
+| `lf`                | REAL   | Absolute power of the low-frequency band (0.04–0.15 Hz)                                                                                                                                                 | Computed in code → `hrv["lf"]`       |
+| `hf`                | REAL   | Absolute power of the high-frequency band (0.15–0.40 Hz)                                                                                                                                                | Computed in code → `hrv["hf"]`       |
+| `lf_hf`             | REAL   | Ratio of LF to HF power                                                                                                                                                                                 | Computed in code → `hrv["lf/hf"]`    |
 
-**Feature**: One row per 5 min, focusing only on HRV metrics and quality indicators. Context (activity, light, etc.) can be joined from `sleep_activity_1min` when needed.
+**Feature**: One row per 5 min, focusing only on HRV metrics and quality indicators.
 
 ## 3. Example SQL (SQLite/DuckDB Compatible)
 
-### 1-min Aggregation
+### 1-min Aggregation (`sleep_activity_1min`) — unchanged
 
 ```sql
 -- HR per minute
@@ -82,7 +82,7 @@ FROM hrm
 WHERE HR BETWEEN 30 AND 220
 GROUP BY 1,2;
 
--- Activity intensity
+-- Activity intensity (use SVM magnitude; you can refine to remove gravity if desired)
 SELECT
   deviceId,
   ts - (ts % 60000) AS minute_ts,
@@ -99,62 +99,96 @@ FROM lit
 GROUP BY 1,2;
 ```
 
-### 5-min HRV Aggregation (device-side)
+### 5-min HRV Aggregation (`hrv_5min`)
 
-> Note: `SDNN`, `RMSSD`, `SDSD`, `pNNx` should be computed in code (Welford/online algorithm), then inserted into `hrv_5min`. SQLite lacks built-in stddev functions.
+**Important:** All HRV metrics come from the HeartPy pipeline (code variables shown on the table). SQL only handles **time windowing** and **inserts**; the metrics are computed in code.
+
+#### Derive 5-min window boundaries via SQL (for convenience)
 
 ```sql
--- Example insert after computing in code
-INSERT INTO hrv_5min (
-  deviceId, window_start, hr_mean, hr_median, sdnn, rmssd, sdsd, pnn20, pnn50,
-  nn_count, valid_ratio, valid_5m, source, synced
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0);
+-- Compute 5-min window start/end aligned to 300000 ms
+-- You can use this to join raw rows to a window label if you need it
+SELECT
+  deviceId,
+  ts - (ts % 300000) AS ts_start,
+  ts - (ts % 300000) + 300000 AS ts_end
+FROM ppg
+GROUP BY 1,2,3;
 ```
+
+#### Insert rows after HeartPy computation (code → SQL)
+
+```sql
+-- The values (?, ?, ...) are produced by your HeartPy code:
+-- missingness_score = 1 - (len(wd["RR_list_cor"]) / (hrv["bpm"] * (T/60)))
+-- HR               = hrv["bpm"]
+-- ibi              = hrv["ibi"]
+-- sdnn             = hrv["sdnn"]
+-- sdsd             = hrv["sdsd"]
+-- rmssd            = hrv["rmssd"]
+-- pnn20            = hrv["pnn20"]
+-- pnn50            = hrv["pnn50"]
+-- lf               = hrv["lf"]
+-- hf               = hrv["hf"]
+-- lf_hf            = hrv["lf/hf"]
+
+INSERT INTO hrv_5min (
+  deviceId, ts_start, ts_end,
+  missingness_score, HR, ibi, sdnn, sdsd, rmssd, pnn20, pnn50, lf, hf, lf_hf
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+```
+
+> Tip: `ts_start` should be `min(ts)` of the slice/window and `ts_end = ts_start + 300000` for 5-min windows; if your slice is shorter (e.g., edge gaps), use the actual `max(ts)` you processed.
 
 ## 4. Edge Queries (Incremental Upload)
 
+You’re keeping `synced` on `sleep_activity_1min` but **not** on `hrv_5min`. Below are **consistent** examples:
+
+### Pull new minute-level rows (uses `synced`)
+
 ```sql
--- Fetch unsynced new minute-level data
 SELECT *
 FROM sleep_activity_1min
-WHERE synced = 0 AND deviceId = ? AND minute_ts > ?
+WHERE deviceId = ?
+  AND synced = 0
+  AND minute_ts > ?
 ORDER BY minute_ts
 LIMIT 2000;
-
--- Fetch unsynced new 5-min HRV data
-SELECT *
-FROM hrv_5min
-WHERE synced = 0 AND deviceId = ? AND window_start > ?
-ORDER BY window_start
-LIMIT 1000;
-
--- Mark as synced (wrap in transaction)
-UPDATE sleep_activity_1min
-SET synced = 1
-WHERE deviceId = ? AND minute_ts <= ?;
-
-UPDATE hrv_5min
-SET synced = 1
-WHERE deviceId = ? AND window_start <= ?;
 ```
 
-## 5. Validity Rules
+### Pull new 5-min HRV rows (stateless checkpoint using `ts_end`)
 
-- **Minute validity (`valid_1m`)**
-  - 2 (valid): sufficient NN, low activity, normal sensor quality.
-  - 1 (partial): some NN but low coverage or mild motion/noise.
-  - 0 (invalid): no NN or strong motion/artifact.
+Since `hrv_5min` is concise and has no `synced`, use a **checkpoint** (`last_uploaded_ts_end`) per device on the server:
 
-- **5-min validity (`valid_5m`)**
-  - Compute `valid_ratio = effective duration / 300 s`.
-  - Recommended thresholds:
-    - ≥0.70 and low motion → 2 (valid)
-    - 0.30–0.70 → 1 (partial)
-    - <0.30 → 0 (invalid)
+```sql
+SELECT *
+FROM hrv_5min
+WHERE deviceId = ?
+  AND ts_end > ?
+ORDER BY ts_end
+LIMIT 1000;
+```
 
-## 6. Indexing & Performance Recommendations
+### Mark minute-level rows as uploaded
 
-- **SQLite**: Create indexes on time/device columns for fast incremental queries.
-  - `CREATE INDEX idx_act_min_ts ON sleep_activity_1min(deviceId, minute_ts);`
-  - `CREATE INDEX idx_hrv5m_ts ON hrv_5min(deviceId, window_start);`
-- **Design principle**: Append-only tables, lightweight aggregation on device, complex analysis on server.
+```sql
+UPDATE sleep_activity_1min
+SET synced = 1
+WHERE deviceId = ?
+  AND minute_ts <= ?;
+```
+
+> Server side keeps (deviceId → last\_uploaded\_ts\_end) to advance HRV ingestion.
+> If you prefer symmetry, you can add a `synced BOOLEAN` to `hrv_5min` too, but your new concise schema works fine with a checkpoint.
+
+## 5. Validity Rules (Post-hoc Filtering)
+
+Your concise `hrv_5min` exposes **one quality metric**: `missingness_score` (PPG-based, equals your code’s `missingness_ppg`). Define validity purely on this (optionally combine with HR plausibility and motion via join).
+
+### Core rule (based on `missingness_score`)
+
+- **Valid**: `missingness_score ≤ 0.30`
+- **Partial**: `0.30 < missingness_score ≤ 0.70`
+- **Invalid**: `missingness_score > 0.70`
+
+> Rationale: lower missingness = better coverage. These cutoffs mirror your earlier coverage idea but flipped to the missingness domain.
