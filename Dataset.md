@@ -145,29 +145,7 @@ However, in this project we focus on **edge**, so there will be some key points:
 
 ### Step 0. Raw Dataset Preprocessing
 
-Before streaming or database ingestion, we need to prepare the large dataset (≈18 GB). The goal is to **restructure raw files into subject-level, time-sorted, sensor-stream-compatible subsets**, so they can later be “replayed” to mimic real devices.
-
-**Tasks:**
-
-1. **Split by subject**
-   - Separate each participant’s records into independent folders (e.g., `user01/ppg.csv.gz`, `user01/acc.csv.gz`).
-   - This mirrors the reality that data is generated per device/person.
-2. **Sort by timestamp & unify timezone**
-   - Ensure all records are sorted chronologically.
-   - Align timestamps to a single standard (e.g., UTC), correcting drift if needed.
-3. **Normalize formats**
-   - Convert to a common schema (e.g., `[ts, value1, value2, …]`) per sensor type.
-   - Drop unused metadata fields, compress if necessary.
-4. **Quality control & filtering**
-   - Remove duplicate rows.
-   - Handle missing or corrupted samples (NaN, impossible values).
-   - Mark artifact-prone windows (e.g., motion artifact in PPG).
-5. **Segment by session/day**
-   - Optionally split each subject’s data into nightly/daytime chunks.
-   - This helps later when replaying “one night of data” or evaluating batch processing.
-6. **Prepare streaming-ready format**
-   - Store cleaned data in efficient files (Parquet/Feather) or pre-seeded DuckDB.
-   - These can then feed a simulator (script) that “emits” rows at the sensor’s native frequency.
+Before streaming or database ingestion, we need to prepare the large dataset (≈18 GB). The goal is to **restructure raw files into participan-level subsets**, so they can later be “replayed” to mimic real devices.
 
 [data_preprocess.py](Galaxy_Watch/data_preprocess.py)
 
@@ -224,32 +202,10 @@ Simulated Data Generation (CSV → SQL → Kafka → Aggregator)
 
 **On-device (compact):**
 
-- **Minute-level table:** `(device_id, date, minute_ts, hr_avg, steps, activity_intensity, light, posture, validity)`
-- **5-min HRV table:** `(device_id, date, window_start_ts, rmssd, sdnn, coverage_ratio, validity)`
-- Designed for **incremental, bandwidth-friendly** uploads; rows marked as `synced` after success.
+- **Minute-level table**
+- **5-min HRV table**
 
 **Server-side (rich):**
 
 - Ingest edge summaries, then compute **advanced HRV** (pNN20/pNN50 distributions, nightly medians), **sleep metrics** (go2bed/asleep/wakeup/WASO/efficiency), and quality flags.
 - Produce the two **final report tables** referenced earlier (Sleep-related & HRV-related).
-
-### Step 3. Embedded Query & Storage Design (Edge)
-
-- **Storage choices:**
-  - *DuckDB (file-backed)* for simple SQL on summaries; *SQLite* for smallest footprint; *Parquet/Arrow* for append-only + fast upload.
-- **Append-only writes:** minute & 5-min rows are appended as produced; avoid rewriting history.
-- **Partitioning / keys:** primary keys by `(device_id, date, minute_ts)` / `(device_id, date, window_start_ts)`; partition by `date/user` for columnar files to simplify uploads.
-- **On-device queries (keep trivial):**
-  - Night low-activity scan; “upload only new rows” via `synced=false` or `ts > last_committed_ts`.
-- **Retention:** keep **7–14 days** of summaries; discard high-frequency raw buffers after aggregation.
-- **Quality, privacy:** per-row `validity/coverage_ratio`; daily `clock_drift_ms`; at-rest + in-transit encryption; PII-free (pseudonymous `device_id` only).
-
-### Step 4. Uplink, Validation & Final Outputs (Server)
-
-- **Uplink/ingestion:** accept Parquet/Arrow/SQL batches; idempotent upsert keyed by `(device_id, ts)`; return `last_committed_ts` for device sync.
-- **Enrichment & analysis:** recompute/extend HRV (pNN20/pNN50, nightly medians), detect **sleep windows** (go2bed/asleep/wakeup), compute **WASO/latency/efficiency**, and finalize **coverage**.
-- **Validation:** range/gap/monotonic checks; coverage thresholds (e.g., nightly HRV coverage ≥70% ⇒ “valid”); consistency of sleep windows.
-- **Outputs:**
-  - **Sleep-related table:** `go2bed, asleep, wakeup, wakeup@night, waso, sleep_duration, in_bed_duration, sleep_latency, sleep_efficiency`.
-  - **HRV-related table:** `sdnn_median_ms, sdsd_median_ms, rmssd_median_ms, pnn20_mean_pct, pnn50_mean_pct, hrv_valid_minutes, hrv_coverage_pct`.
-- **Lifecycle:** raw optional for reprocessing and later tiering; summaries stay hot for dashboards and nightly materialized views.

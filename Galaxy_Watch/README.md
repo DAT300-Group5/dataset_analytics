@@ -9,5 +9,4 @@ We care about (for sleep scenario):
 - **ppg.csv.gz**: Photoplethysmography (green light reflection), the raw source for heart rate and HRV.
 - **hrm.csv.gz**: Heart rate (likely PPG processed by the smartwatch algorithm).
 - **acc.csv.gz**: 3-axis accelerometer.
-- **grv.csv.gz**: Gravity orientation + rotation angle.
 - **lit.csv.gz**: Ambient light intensity.
