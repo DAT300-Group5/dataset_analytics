@@ -115,11 +115,9 @@ Two complementary objectives are defined:
 - If stress weaknesses are irrelevant to expected use (e.g., complex joins not needed), they can be ignored.
 - In some cases, a **hybrid strategy** is viable (e.g., SQLite for lightweight queries, DuckDB for batch analysis).
 
-
 ### Q4. Why is correctness validation required? Isn’t performance enough?
 
 **A:** Performance without correctness is meaningless. A system that returns “fast but wrong” results cannot be trusted. Golden outputs ensure all systems compute **semantically identical results** (same windowing, HRV scores, missingness thresholds). This prevents unfair advantages from semantic shortcuts.
-
 
 ### Q5. Why include microbenchmarks if they are not real workloads?
 
