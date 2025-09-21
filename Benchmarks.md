@@ -27,6 +27,13 @@ Two complementary objectives are defined:
     - Aggregate into `sleep_activity_1min` (1-minute summaries).
     - Aggregate into `hrv_5min` (5-minute HRV summaries).
   - Metrics: ingestion throughput, end-to-end aggregation latency, peak memory, CPU usage, energy per row (if supported).
+- **E2E Upload**
+  - Test the efficiency of different data formats when transferred over the network: JSON, Arrow IPC/Flight.
+  - Metrics:
+    - Throughput (MB/s)
+    - CPU utilization
+    - Network traffic volume (bytes transferred)
+    - Serialization/deserialization overhead
 - **Periodic Queries**
   - Operation: communication module fetches new rows every 30 minutes.
   - Queries:
