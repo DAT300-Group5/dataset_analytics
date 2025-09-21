@@ -23,6 +23,7 @@ All of them have original data from sensors, which is suitable for project study
 
 I choose to use [In-situ wearable-based dataset of continuous heart rate variability monitoring accompanied by sleep diaries](https://springernature.figshare.com/articles/dataset/In-situ_wearable-based_dataset_of_continuous_heart_rate_variability_monitoring_accompanied_by_sleep_diaries/28509740) and sleep scenario for showing the whole process.
 
+Since the raw data is very large in size, we split each category of data by deviceId and created a separate CSV file for each deviceId. The segmented data can be accessed via the following link: [Google Drive](https://drive.google.com/drive/folders/1mVqSyZ9wtxTrftwRxnFE4f0CQtuapSw0?usp=sharing)
 ## Sleep Scenario Analysis
 
 Actigraphy-like sleep analysis vs  Polysomnography (PSG)
