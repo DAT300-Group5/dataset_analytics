@@ -2,6 +2,7 @@
 
 - [Dataset](Dataset.md)
 - [Edge Device](Edge_Device.md)
+- [Benchmarks](Benchmarks.md)
 
 ## Dataset Selection
 
@@ -48,21 +49,7 @@ We simulate a **hybrid system** consisting of an **edge device** (the smartwatch
 
 This design is particularly suited for **sleep monitoring scenarios**: the edge device handles **real-time aggregation with low latency**, while the server runs **computationally heavy analyses**.
 
-## Benchmark Design
-
-The benchmark aims to evaluate the **database and aggregation performance on the edge device**, not the HRV algorithm itself.
-
-### Test Scenarios
-
-- **Insertion stress test**: continuous ingestion of 49 participants’ multi-sensor data (≈18 GB preprocessed and replayed).
-- **Aggregation latency test**: measure the delay from raw sensor streams to completed `sleep_activity_1min` and `hrv_5min` rows.
-
-### Key Metrics
-
-- **Throughput**: ingestion speed (rows/sec).
-- **Latency**: time to complete aggregation for each time window.
-- **Memory usage**: peak RAM consumption during aggregation.
-- **CPU utilization**: processor load under continuous ingestion and aggregation.
+## Benchmark Design (TODO)
 
 ### Notes
 
