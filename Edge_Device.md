@@ -166,15 +166,3 @@ LIMIT 1000;
 - **Invalid**: `missingness_score > 0.70`
 
 > Rationale: lower missingness = better coverage.
-
-## Benchmark
-
-- **Core Scenarios**:
-  - **Insertion stress test**: continuous ingestion of all 49 participants’ data into `sleep_activity_1min` and `hrv_5min`.
-  - **Aggregation latency test**: measure time from raw sensor streams to aggregated rows being stored.
-- **Key Metrics**:
-  - Throughput (rows/sec)
-  - Latency (aggregation completion time)
-  - Memory usage
-  - CPU utilization
-- **Note**: No query stress tests, and no separate HRV algorithm benchmarking.
