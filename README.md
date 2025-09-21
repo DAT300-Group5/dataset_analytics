@@ -59,7 +59,7 @@ The benchmark framework is derived from `Benchmarks.md`:
 ### Scenario workloads
 
 - **Ingestion + Aggregation:** PPG/ACC streams aggregated into `sleep_activity_1min` and `hrv_5min`.
-- **Upload efficiency:** compare JSON vs Arrow IPC.
+- **Upload efficiency:** compare JSON vs Arrow Flight, ...
 - **Periodic queries:** fetch new rows (every 30 min).
 
 ### Stress workloads
