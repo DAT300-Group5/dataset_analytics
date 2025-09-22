@@ -1,4 +1,4 @@
-# dataset analytics
+# High-performance Embedded​ Data Analytics
 
 - [Dataset](Dataset.md)
 - [Edge Device](Edge_Device.md)
@@ -88,3 +88,4 @@ Metrics include throughput, latency (avg, P95, P99), CPU/memory use, and correct
   - Parquet/Arrow for uploads.
   - Python (scipy, statsmodels) for advanced HRV/sleep metrics.
   - Grafana/matplotlib for visualization.
+
