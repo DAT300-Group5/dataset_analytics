@@ -1,30 +1,39 @@
 import sqlite3
-
+import argparse
 import pandas as pd
 
-def create(source_path, target_path, engine='duckdb'):
-    df = pd.read_csv(source_path)
+root_path = "../raw_data/"
+
+types = ["acc", "grv", "gyr", "lit", "ped", "ppg"]
+
+def create(target_path, device_id, engine='duckdb'):
+
     # Save as new CSV file
     if engine == 'duckdb':
         import duckdb
         conn = duckdb.connect(target_path)
-        conn.execute("CREATE TABLE data AS SELECT * FROM df")
-        print(conn.execute("SELECT COUNT(*) FROM data").fetchall())
+        for type in types:
+            source_path = "{}/{}/{}_{}.csv".format(root_path,type, type, device_id)
+            df = pd.read_csv(source_path)
+            conn.execute("CREATE TABLE {} AS SELECT * FROM df".format(type))
         conn.close()
     elif engine == 'sqlite':
         import sqlite3
         conn = sqlite3.connect(target_path)
-        df.to_sql('data', conn, index=False, if_exists='replace')
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM data")
-        print(cursor.fetchall())
+        for type in types:
+            source_path = "{}/{}/{}_{}.csv".format(root_path,type, type, device_id)
+            df = pd.read_csv(source_path)
+            df.to_sql(type, conn, index=False, if_exists='replace')
         conn.close()
-    print(f"Processed data saved to {target_path}")
+    print(f"Database created at {target_path} using {engine} for device {device_id}")
 
 if __name__ == "__main__":
-    conn = sqlite3.connect('./data_sqlite.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT deviceId FROM data")
-    print(cursor.fetchall())
-
-    conn.close()
+    parser = argparse.ArgumentParser(description='Create database from CSV files for a specific device')
+    parser.add_argument('device_id', help='Device ID to process (e.g., vs14, ab60)')
+    parser.add_argument('target_path', help='Path for the output database file (e.g., ./test.db)')
+    parser.add_argument('--engine', choices=['duckdb', 'sqlite'], default='duckdb', 
+                        help='Database engine to use (default: duckdb)')
+    
+    args = parser.parse_args()
+    
+    create(args.target_path, args.device_id, args.engine)

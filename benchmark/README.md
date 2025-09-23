@@ -40,30 +40,80 @@ pip install psutil pandas duckdb
 
 ## Usage
 
+### Database Creation
+
+Create databases from CSV data using `create_db.py`:
+
+```bash
+# Basic usage - create DuckDB database (default)
+python create_db.py <device_id> <target_path>
+
+# Examples
+python create_db.py vs14 ./test.db
+python create_db.py ab60 ./my_data.duckdb
+
+# Create SQLite database
+python create_db.py vs14 ./test.db --engine sqlite
+
+# Get help
+python create_db.py --help
+```
+
+**Parameters:**
+- `device_id` - user identifier
+- `target_path` - Path for the output database file
+- `--engine` - Database engine: `duckdb` (default) or `sqlite`
+
 ### Basic Benchmarking
 
-Run performance benchmark with default settings (DuckDB):
+Run performance benchmark with default database paths:
 ```bash
+# Use default DuckDB database (./data_duckdb.db)
 python benchmark.py
-```
 
-Compare SQLite vs DuckDB:
-```bash
-# Test SQLite
+# Use default SQLite database (./data_sqlite.db)
 python benchmark.py --engine sqlite
-
-# Test DuckDB
-python benchmark.py --engine duckdb
 ```
 
-### Advanced Options
+### Advanced Benchmarking Options
 
+Specify custom database paths:
 ```bash
+# Custom DuckDB database path
+python benchmark.py --engine duckdb --duckdb-path /path/to/my_data.duckdb
+
+# Custom SQLite database path
+python benchmark.py --engine sqlite --sqlite-path /path/to/my_data.db
+
 # Custom sampling interval (default: 0.2s)
 python benchmark.py --engine duckdb --interval 0.1
 
+# Complete example with all options
+python benchmark.py --engine sqlite --sqlite-path ./custom.db --duckdb-path ./custom.duckdb --interval 0.1
+
 # Get help
 python benchmark.py --help
+```
+
+**Benchmark Parameters:**
+- `--engine` - Database engine: `duckdb` (default) or `sqlite`
+- `--duckdb-path` - Path to DuckDB database file (default: `./data_duckdb.db`)
+- `--sqlite-path` - Path to SQLite database file (default: `./data_sqlite.db`)
+- `--interval` - Sampling interval in seconds (default: 0.2)
+
+### Complete Workflow Example
+
+Here's a complete example of creating databases and benchmarking them:
+
+```bash
+# Step 1: Create databases from device vs14 data
+python create_db.py vs14 ./vs14_data.duckdb --engine duckdb
+python create_db.py vs14 ./vs14_data.db --engine sqlite
+
+# Step 2: Benchmark both databases
+python benchmark.py --engine duckdb --duckdb-path ./vs14_data.duckdb
+python benchmark.py --engine sqlite --sqlite-path ./vs14_data.db
+
 ```
 
 ### Output Explanation
@@ -131,20 +181,6 @@ Features:
 - Executes transactional queries
 - Row-by-row processing
 - ACID compliance
-
-## Database Creation
-
-Use `create_db.py` to create test databases from CSV data:
-
-```python
-from create_db import create
-
-# Create SQLite database
-create('source.csv', 'data_sqlite.db', engine='sqlite')
-
-# Create DuckDB database
-create('source.csv', 'data_duckdb.db', engine='duckdb')
-```
 
 ## Monitoring Details
 

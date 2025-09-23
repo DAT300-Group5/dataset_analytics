@@ -14,14 +14,14 @@ import tracemalloc
 from query_duckdb import run_query_duckdb
 from query_sqlite import run_query_sqlite
 
-def run_query(engine='duckdb'):
+def run_query(engine='duckdb', db_path=None):
     """
     Run query according to the specified engine
     """
     if engine.lower() == 'duckdb':
-        return run_query_duckdb()
+        return run_query_duckdb(db_path)
     elif engine.lower() == 'sqlite':
-        return run_query_sqlite()
+        return run_query_sqlite(db_path)
     else:
         raise ValueError(f"Unsupported database engine: {engine}. Supported engines: duckdb, sqlite")
 # -------------------------------------------------------
@@ -63,7 +63,7 @@ def monitor_process(pid, interval, out_dict, stop_event):
     out_dict["cpu_avg_percent"] = (sum(cpu_series) / len(cpu_series)) if cpu_series else 0.0
     out_dict["cpu_series"] = cpu_series
 
-def mode_inproc(engine='duckdb', sample_interval=0.2):
+def mode_inproc(engine='duckdb', db_path=None, sample_interval=0.2):
     """
     Execute run_query() in the current process and record with psutil + tracemalloc:
       - Peak RSS (physical resident memory, bytes)
@@ -79,7 +79,7 @@ def mode_inproc(engine='duckdb', sample_interval=0.2):
 
     t0 = time.perf_counter()
     mon.start()
-    ret = run_query(engine=engine)
+    ret = run_query(engine=engine, db_path=db_path)
     stop_event.set()
     mon.join()
     t1 = time.perf_counter()
@@ -101,11 +101,18 @@ def main():
     ap = argparse.ArgumentParser(description="SQLite / DuckDB query CPU / memory measurement tool")
     ap.add_argument("--engine", choices=["duckdb", "sqlite"], default="duckdb", 
                     help="Choose database engine: duckdb or sqlite (default: duckdb)")
+    ap.add_argument("--duckdb-path", type=str, default="./data_duckdb.db",
+                    help="Path to DuckDB database file (default: ./data_duckdb.db)")
+    ap.add_argument("--sqlite-path", type=str, default="./data_sqlite.db", 
+                    help="Path to SQLite database file (default: ./data_sqlite.db)")
     ap.add_argument("--interval", type=float, default=0.2, help="Sampling interval seconds, default 0.2s")
     args = ap.parse_args()
 
-    print(f"Running query using {args.engine.upper()} engine...")
-    res = mode_inproc(engine=args.engine, sample_interval=args.interval)
+    # Select the appropriate database path based on engine
+    db_path = args.duckdb_path if args.engine == 'duckdb' else args.sqlite_path
+    
+    print(f"Running query using {args.engine.upper()} engine with database: {db_path}")
+    res = mode_inproc(engine=args.engine, db_path=db_path, sample_interval=args.interval)
     print("[{}] wall={:.3f}s  peak_rss={:.1f} MB  cpu_avg={:.1f}%  py_heap_peak={:.1f} MB  samples={}".format(
         args.engine.upper(),
         res["wall_time_seconds"],
