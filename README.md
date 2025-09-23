@@ -128,7 +128,8 @@ TODO:
 
 My opinion:
 
-We could give up this `hrv_5min` table, and try something else on raw data.
+We can use HeartPy to calculate the IBI, and then perform the subsequent calculations and queries in the database.
+~~We could give up this `hrv_5min` table, and try something else on raw data.~~
 
 ## Benchmark Design
 
