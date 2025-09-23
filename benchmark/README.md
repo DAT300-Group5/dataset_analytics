@@ -12,16 +12,19 @@ The benchmark suite provides:
 
 ## File Structure
 
+Before running benchmarks, ensure the following raw data files are present in the directory:
 ```
-benchmark/
-├── README.md           # This documentation
-├── benchmark.py        # Main benchmarking tool
-├── query_duckdb.py    # DuckDB query module
-├── query_sqlite.py    # SQLite query module
-├── create_db.py       # Database creation utilities
-├── data_sqlite.db     # SQLite test database
-└── data_duckdb.db     # DuckDB test database (when created)
+raw_data/
+├── acc
+│   ├── acc_vs14.csv
+│   └── acc_ab60.csv
+├── grv
+│   ├── grv_vs14.csv
+│   └── grv_ab60.csv
+└── ...
 ```
+
+Remember to specific root directories in 'create_db.py'.
 
 ## Installation
 
