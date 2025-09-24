@@ -120,15 +120,15 @@ GROUP BY deviceId, (ts / 60000) * 60000
 | `hf`                | REAL   | Absolute power of the high-frequency band (0.15–0.40 Hz)                                                                                                                                                | Computed in code → `hrv["hf"]`           |
 | `lf_hf`             | REAL   | Ratio of LF to HF power                                                                                                                                                                                 | Computed in code → `hrv["lf/hf"]`        |
 
-TODO:
+Findings:
 
 1. The informative HRV metrics (which is the main focus of what we are trying to get from raw data), like statistical features (SDNN, RMSSD, pNN20, pNN50, LF/HF), relay on IBI to be computed.
 2. The really important column inter-beat intervals (IBI) CANNOT be calculate using queries alone. IBI is calculated from the signal (PPG), and does go into the realm of biological signal processing, which is not the main focus of this particular course. (But technically, it would be feasible to do it on the edge device without a library like [HeartPy](https://python-heart-rate-analysis-toolkit.readthedocs.io/))
 
-My opinion:
+Approaches:
 
-We can use HeartPy to calculate the IBI, and then perform the subsequent calculations and queries in the database.
-~~We could give up this `hrv_5min` table, and try something else on raw data.~~
+1. We could give up this `hrv_5min` table, and try something else on raw data.
+2. Use HeartPy to calculate the IBI, and then perform the subsequent calculations and queries in the database.
 
 ## Benchmark Design
 
