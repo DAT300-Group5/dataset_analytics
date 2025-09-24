@@ -1,3 +1,4 @@
+import duckdb
 import sqlite3
 import argparse
 import pandas as pd
@@ -10,7 +11,6 @@ def create(target_path, device_id, engine='duckdb'):
 
     # Save as new CSV file
     if engine == 'duckdb':
-        import duckdb
         conn = duckdb.connect(target_path)
         for type in types:
             source_path = "{}/{}/{}_{}.csv".format(root_path,type, type, device_id)
@@ -18,7 +18,6 @@ def create(target_path, device_id, engine='duckdb'):
             conn.execute("CREATE TABLE {} AS SELECT * FROM df".format(type))
         conn.close()
     elif engine == 'sqlite':
-        import sqlite3
         conn = sqlite3.connect(target_path)
         for type in types:
             source_path = "{}/{}/{}_{}.csv".format(root_path,type, type, device_id)

@@ -5,20 +5,15 @@ SQLite Query Module
 Contains SQLite-related query logic and aggregation operation examples
 """
 
-def run_query_sqlite(db_path=None):
+import sqlite3
+
+def run_query_sqlite(query, db_path=None):
     """
     SQLite query example: create table, insert data, execute column aggregation query
     """
-    import sqlite3
-    
-    con = sqlite3.connect(db_path)
 
-    # Execute column aggregation query
-    result = con.execute("""
-        SELECT 
-            AVG(x) as avg_x
-        FROM acc
-    """).fetchall()
+    con = sqlite3.connect(db_path)
+    result = con.execute(query).fetchall()
     
     con.close()
     return len(result)

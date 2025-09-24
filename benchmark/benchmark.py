@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Usage example:
-  # Test in current process (replace run_query() with your DuckDB/SQLite code)
+  # TODO: modular support for different queries 
   python perf_probe.py
 """
 
@@ -14,14 +14,22 @@ import tracemalloc
 from query_duckdb import run_query_duckdb
 from query_sqlite import run_query_sqlite
 
-def run_query(engine='duckdb', db_path=None):
+def run_query(engine='duckdb', query='', db_path=None):
     """
     Run query according to the specified engine
     """
+
+    # TODO: right now example query, create support for actual queries - how would we store queries
+    example_query = """
+        SELECT 
+            AVG(x) as avg_x
+        FROM acc
+    """
+
     if engine.lower() == 'duckdb':
-        return run_query_duckdb(db_path)
+        return run_query_duckdb(example_query, db_path)
     elif engine.lower() == 'sqlite':
-        return run_query_sqlite(db_path)
+        return run_query_sqlite(example_query, db_path)
     else:
         raise ValueError(f"Unsupported database engine: {engine}. Supported engines: duckdb, sqlite")
 # -------------------------------------------------------
