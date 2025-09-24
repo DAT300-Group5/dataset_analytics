@@ -65,7 +65,6 @@ Do aggregation, output: 2 tables.
 | `light_avg`     | REAL    | lit     | Average light per minute (lux)                   | Circadian, sleep   |
 | `valid_1m`      | TINYINT | Derived | Minute validity: 0=invalid,1=partial,2=valid     | Quality control    |
 
-
 Sample SQL Queries:
 
 ```sql

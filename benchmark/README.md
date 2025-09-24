@@ -5,6 +5,7 @@ This directory contains tools for benchmarking and comparing the performance of 
 ## Overview
 
 The benchmark suite provides:
+
 - **Performance measurement tools** for CPU and memory usage
 - **Query modules** for DuckDB and SQLite
 - **Database creation utilities** for test data
@@ -13,7 +14,8 @@ The benchmark suite provides:
 ## File Structure
 
 Before running benchmarks, ensure the following raw data files are present in the directory:
-```
+
+```ascii
 raw_data/
 ├── acc
 │   ├── acc_vs14.csv
@@ -24,7 +26,7 @@ raw_data/
 └── ...
 ```
 
-Remember to specific root directories in 'create_db.py'.
+Remember to specific root directories in `create_db.py`.
 
 ## Installation
 
@@ -34,7 +36,8 @@ Remember to specific root directories in 'create_db.py'.
 pip install psutil pandas duckdb
 ```
 
-### Required Python Packages
+Required Python Packages
+
 - `psutil` - System and process utilities
 - `pandas` - Data manipulation and analysis
 - `duckdb` - DuckDB database engine
@@ -63,6 +66,7 @@ python create_db.py --help
 ```
 
 **Parameters:**
+
 - `device_id` - user identifier
 - `target_path` - Path for the output database file
 - `--engine` - Database engine: `duckdb` (default) or `sqlite`
@@ -70,6 +74,7 @@ python create_db.py --help
 ### Basic Benchmarking
 
 Run performance benchmark with default database paths:
+
 ```bash
 # Use default DuckDB database (./data_duckdb.db)
 python benchmark.py
@@ -81,6 +86,7 @@ python benchmark.py --engine sqlite
 ### Advanced Benchmarking Options
 
 Specify custom database paths:
+
 ```bash
 # Custom DuckDB database path
 python benchmark.py --engine duckdb --duckdb-path /path/to/my_data.duckdb
@@ -99,6 +105,7 @@ python benchmark.py --help
 ```
 
 **Benchmark Parameters:**
+
 - `--engine` - Database engine: `duckdb` (default) or `sqlite`
 - `--duckdb-path` - Path to DuckDB database file (default: `./data_duckdb.db`)
 - `--sqlite-path` - Path to SQLite database file (default: `./data_sqlite.db`)
@@ -172,6 +179,7 @@ Running query using DUCKDB engine...
 ### DuckDB Module (`query_duckdb.py`)
 
 Features:
+
 - Connects to DuckDB database
 - Executes analytical queries
 - Optimized for aggregation operations
@@ -180,6 +188,7 @@ Features:
 ### SQLite Module (`query_sqlite.py`)
 
 Features:
+
 - Connects to SQLite database
 - Executes transactional queries
 - Row-by-row processing
@@ -206,13 +215,15 @@ The benchmark tool monitors:
 
 ## Use Cases
 
-### Choose DuckDB when:
+### Choose DuckDB when
+
 - Performing data analysis and aggregation queries
 - Processing large datasets for statistics
 - Memory is sufficient and speed is priority
 - Data warehouse, BI, or scientific computing scenarios
 
-### Choose SQLite when:
+### Choose SQLite when
+
 - Performing transactional operations (CRUD)
 - Memory-constrained environments
 - High concurrency support needed
@@ -223,6 +234,7 @@ The benchmark tool monitors:
 ### Vectorized vs Row-based Processing
 
 **DuckDB Approach:**
+
 ```
 1. Allocate large memory buffer
 2. Batch read 1024 rows to buffer
@@ -233,6 +245,7 @@ The benchmark tool monitors:
 ```
 
 **SQLite Approach:**
+
 ```
 1. Allocate small buffer
 2. Read data row by row
