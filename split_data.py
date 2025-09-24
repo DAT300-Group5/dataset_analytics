@@ -2,7 +2,6 @@ import csv
 import os
 
 raw_data_dir = "28509740/raw_data"
-sqlite_file = "raw_data.sqlite"
 
 
 def split_file(input_file):
