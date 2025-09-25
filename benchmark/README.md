@@ -103,6 +103,14 @@ python benchmark.py --engine sqlite --sqlite-path ./custom.db --duckdb-path ./cu
 # Get help
 python benchmark.py --help
 
+**Benchmark Parameters:**
+
+- `--engine` - Database engine: `duckdb` (default) or `sqlite`
+- `--duckdb-path` - Path to DuckDB database file (default: `./data_duckdb.db`)
+- `--sqlite-path` - Path to SQLite database file (default: `./data_sqlite.db`)
+- `--query-file` - Path to SQL query file 
+- `--interval` - Sampling interval in seconds (default: 0.2)
+
 ### Complete Workflow Example
 
 Here's a complete example of creating databases and benchmarking them:
