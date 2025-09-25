@@ -36,7 +36,9 @@ Remember to specific root directories in `create_db.py`.
 pip install psutil pandas duckdb
 ```
 
-Required Python Packages
+> Both SQLite and DuckDB are database engines that are implemented as self-contained software libraries. In the Python ecosystem, they are distributed as wheel packages, so installing the corresponding Python package automatically provides the full database engine along with its Python bindings, without the need for any separate installation.
+
+Required Python Packages (Could use Conda)
 
 - `psutil` - System and process utilities
 - `pandas` - Data manipulation and analysis
@@ -48,68 +50,52 @@ Required Python Packages
 
 ### Database Creation
 
-Create databases from CSV data using `create_db.py`:
+Create databases from CSV data using `create_db.py`.
 
-```bash
-# Basic usage - create DuckDB database (default)
-python create_db.py <device_id> <target_path>
-
-# Examples
-python create_db.py vs14 ./test.db
-python create_db.py ab60 ./my_data.duckdb
-
-# Create SQLite database
-python create_db.py vs14 ./test.db --engine sqlite
-
-# Get help
-python create_db.py --help
-```
-
-**Parameters:**
+Parameters:
 
 - `device_id` - user identifier
 - `target_path` - Path for the output database file
 - `--engine` - Database engine: `duckdb` (default) or `sqlite`
 
-### Basic Benchmarking
-
-Run performance benchmark with default database paths:
-
 ```bash
-# Use default DuckDB database (./data_duckdb.db)
-python benchmark.py
+# Basic usage - create database
+python create_db.py <device_id> <target_path> --engine {sqlite,duckdb}
 
-# Use default SQLite database (./data_sqlite.db)
-python benchmark.py --engine sqlite
+# Get help
+python create_db.py --help
+
+# Examples 
+# .duckdb or .sqlite is used to distinguish DuckDB from SQLite.
+# will create DuckDB database in default.
+python create_db.py vs14 ./test.duckdb
+python create_db.py ab60 ./my_data.duckdb
+
+# Create SQLite database
+python create_db.py vs14 ./test.sqlite --engine sqlite
 ```
 
-### Advanced Benchmarking Options
+### Benchmarking
+
+Benchmark Parameters:
+
+- `--engine` - Database engine: `duckdb` (default) or `sqlite`
+- `--db-path` - Path to DuckDB/SQLite database file (default: `./data.duckdb`)
+- `--query-file` - Path to SQL query file
+- `--interval` - Sampling interval in seconds (default: 0.2)
 
 Specify custom database paths and query files:
 
 ```bash
-# Custom DuckDB database path
-python benchmark.py --engine duckdb --duckdb-path /path/to/my_data.duckdb --query-file ./query.sql
-
-# Custom SQLite database path
-python benchmark.py --engine sqlite --sqlite-path /path/to/my_data.db --query-file ./query.sql
-
-# Custom sampling interval (default: 0.2s)
-python benchmark.py --engine duckdb --query-file ./query.sql --interval 0.1
-
-# Complete example with all options
-python benchmark.py --engine sqlite --sqlite-path ./custom.db --duckdb-path ./custom.duckdb --query-file ./custom_query.sql --interval 0.1
-
 # Get help
 python benchmark.py --help
 
-**Benchmark Parameters:**
-
-- `--engine` - Database engine: `duckdb` (default) or `sqlite`
-- `--duckdb-path` - Path to DuckDB database file (default: `./data_duckdb.db`)
-- `--sqlite-path` - Path to SQLite database file (default: `./data_sqlite.db`)
-- `--query-file` - Path to SQL query file 
-- `--interval` - Sampling interval in seconds (default: 0.2)
+python benchmark.py \
+  --engine duckdb \
+  --db-path /path/to/data.duckdb \ # Custom database path
+  --query-file ./query.sql \
+  --interval 0.1 # Custom sampling interval (default: 0.2s)
+```
 
 ### Complete Workflow Example
 
@@ -118,12 +104,11 @@ Here's a complete example of creating databases and benchmarking them:
 ```bash
 # Step 1: Create databases from device vs14 data
 python create_db.py vs14 ./vs14_data.duckdb --engine duckdb
-python create_db.py vs14 ./vs14_data.db --engine sqlite
+python create_db.py vs14 ./vs14_data.sqlite --engine sqlite
 
 # Step 2: Benchmark both databases
-python benchmark.py --engine duckdb --duckdb-path ./vs14_data.duckdb
-python benchmark.py --engine sqlite --sqlite-path ./vs14_data.db
-
+python benchmark.py --engine duckdb --db-path ./vs14_data.duckdb --query-file queries/Q1.sql
+python benchmark.py --engine sqlite --db-path ./vs14_data.sqlite --query-file queries/Q1.sql
 ```
 
 ### Output Explanation
@@ -131,8 +116,8 @@ python benchmark.py --engine sqlite --sqlite-path ./vs14_data.db
 The benchmark outputs the following metrics:
 
 ```
-Running query using DUCKDB engine...
-[DUCKDB] wall=0.410s  peak_rss=89.9 MB  cpu_avg=51.0%  py_heap_peak=1.5 MB  samples=2
+Running query queries/Q1.sql using DUCKDB engine with database: ./vs14_data.duckdb
+[DUCKDB] wall=0.203s  peak_rss=57.3 MB  cpu_avg=54.7%  py_heap_peak=0.0 MB  samples=1
 ```
 
 - **wall**: Wall clock time (seconds)
@@ -271,12 +256,3 @@ The benchmark tool monitors:
    - Warm up databases before benchmarking
    - Run multiple iterations for average results
    - Consider data size and query complexity
-
-## New Database Engines
-
-When adding new database engines:
-
-1. Create `query_[engine].py` module
-2. Implement `run_query_[engine]()` function
-3. Add engine choice to `benchmark.py`
-4. Update this README with new comparisons
