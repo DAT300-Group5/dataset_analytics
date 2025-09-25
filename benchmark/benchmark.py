@@ -9,6 +9,7 @@ Usage example:
 import argparse, os, sys, threading, time
 import psutil
 import tracemalloc
+import json
 
 # ---------- Import query modules ----------
 from query_duckdb import run_query_duckdb
@@ -130,6 +131,9 @@ def main():
         res["python_heap_peak_bytes"] / (1024**2),
         res["samples"],
     ))
+    with open("{}_perf.json".format(args.engine), "w") as f:
+        json.dump(res, f, indent=2)
+        print("Written performance data to {}_perf.json".format(args.engine))
 
 if __name__ == "__main__":
     main()
