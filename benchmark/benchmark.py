@@ -9,22 +9,8 @@ import argparse, os, sys, threading, time
 import psutil
 import tracemalloc
 
-# ---------- QUERY MODULE IMPORT ------------------------
-from query_db import run_query_duckdb, run_query_sqlite
-
-
-def run_query(engine='duckdb', query='', db_path=None):
-    """
-    Run query according to the specified engine
-    """
-
-    if engine.lower() == 'duckdb':
-        return run_query_duckdb(query, db_path)
-    elif engine.lower() == 'sqlite':
-        return run_query_sqlite(query, db_path)
-    else:
-        raise ValueError(f"Unsupported database engine: {engine}. Supported engines: duckdb, sqlite.")
-# -------------------------------------------------------
+from utils import load_query_from_file
+from query_db import run_query
 
 
 def monitor_process(pid, interval, out_dict, stop_event):
@@ -116,11 +102,14 @@ def main():
         print(f"Error: Database file not found: {db_path}")
         sys.exit(1)
    
-    # GET WHICH QUERY TO RUN
-    sample_query = "SELECT * FROM acc LIMIT 10"
-    query = args.query_file if args.query_file!='' else sample_query 
+    sample_query_file = "queries/sample.sql"
+    if not os.path.exists(args.query_file):
+        query = load_query_from_file(sample_query_file)
+        print(f"Running query {sample_query_file} using {args.engine.upper()} engine with database: {db_path}")
+    else:
+        query = load_query_from_file(args.query_file)
+        print(f"Running query {args.query_file} using {args.engine.upper()} engine with database: {db_path}")
     
-    print(f"Running query {query} using {args.engine.upper()} engine with database: {db_path}")
     res = mode_inproc(engine=args.engine, db_path=db_path, sample_interval=args.interval, query=query)
     print("[{}] wall={:.3f}s  peak_rss={:.1f} MB  cpu_avg={:.1f}%  py_heap_peak={:.1f} MB  samples={}".format(
         args.engine.upper(),
