@@ -1,82 +1,184 @@
 import sqlite3
 import duckdb
+import time
 
-def run_query(engine='duckdb', query='', db_path=None):
-    """
-    Run query according to the specified engine
-    """
 
-    if engine.lower() == 'duckdb':
-        return run_query_duckdb(query, db_path)
-    elif engine.lower() == 'sqlite':
-        return run_query_sqlite(query, db_path)
+def _is_select_statement(stmt: str) -> bool:
+    s = stmt.lstrip().lower()
+    return s.startswith("select") or s.startswith("with")
+
+
+def _execute_select_statement(cursor_or_conn, stmt: str):
+    """
+    Execute a SELECT statement and calculate TTFR (Time To First Row).
+    
+    Args:
+        cursor_or_conn: Database cursor or connection
+        stmt: SQL SELECT statement
+        
+    Returns:
+        tuple: (ttfr_seconds, rows_returned)
+    """
+    t_start = time.perf_counter()
+    
+    # Handle different cursor types
+    if hasattr(cursor_or_conn, 'fetchmany'):  # SQLite cursor
+        cursor_or_conn.execute(stmt)
+        cur = cursor_or_conn
+    else:  # DuckDB connection
+        cur = cursor_or_conn.execute(stmt)
+    
+    first_batch = cur.fetchmany(10000)
+    t_first = time.perf_counter()
+    ttfr = t_first - t_start
+    
+    count = len(first_batch)
+    while True:
+        batch = cur.fetchmany(10000)
+        if not batch:
+            break
+        count += len(batch)
+    
+    return ttfr, count
+
+
+def _execute_non_select_statement(cursor_or_conn, stmt: str):
+    """
+    Execute a non-SELECT statement.
+    
+    Args:
+        cursor_or_conn: Database cursor or connection
+        stmt: SQL statement (non-SELECT)
+        
+    Returns:
+        str: "OK" to indicate successful execution
+    """
+    if hasattr(cursor_or_conn, 'execute') and hasattr(cursor_or_conn, 'fetchmany'):  # SQLite cursor
+        cursor_or_conn.execute(stmt)
+    else:  # DuckDB connection
+        cursor_or_conn.execute(stmt)
+    
+    return "OK"
+
+
+def _run_statements_duckdb(db_path: str, statements: list, duckdb_threads: int | None = None):
+    """
+    Execute statements using DuckDB engine.
+    
+    Args:
+        db_path: Path to DuckDB database
+        statements: List of SQL statements
+        duckdb_threads: Number of threads for DuckDB (optional)
+        
+    Returns:
+        tuple: (first_select_ttfr, rows_returned, statements_executed, select_statements, retval)
+    """
+    
+    rows_returned = 0
+    first_select_ttfr = None
+    statements_executed = 0
+    select_statements = 0
+    retval = None
+    
+    con = duckdb.connect(db_path)
+    try:
+        if duckdb_threads and duckdb_threads > 0:
+            con.execute(f"PRAGMA threads={duckdb_threads};")
+
+        for stmt in statements:
+            statements_executed += 1
+            if _is_select_statement(stmt):
+                select_statements += 1
+                ttfr, count = _execute_select_statement(con, stmt)
+                if first_select_ttfr is None:
+                    first_select_ttfr = ttfr
+                rows_returned = count
+                retval = rows_returned
+            else:
+                retval = _execute_non_select_statement(con, stmt)
+    finally:
+        con.close()
+    
+    return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
+
+def _run_statements_sqlite(db_path: str, statements: list, sqlite_pragmas: dict | None = None):
+    """
+    Execute statements using SQLite engine.
+    
+    Args:
+        db_path: Path to SQLite database
+        statements: List of SQL statements
+        sqlite_pragmas: SQLite pragma settings (optional)
+        
+    Returns:
+        tuple: (first_select_ttfr, rows_returned, statements_executed, select_statements, retval)
+    """
+    
+    rows_returned = 0
+    first_select_ttfr = None
+    statements_executed = 0
+    select_statements = 0
+    retval = None
+    
+    con = sqlite3.connect(db_path)
+    try:
+        con.isolation_level = None  # autocommit
+        if sqlite_pragmas:
+            for k, v in sqlite_pragmas.items():
+                con.execute(f"PRAGMA {k}={v};")
+
+        cur = con.cursor()
+        for stmt in statements:
+            statements_executed += 1
+            if _is_select_statement(stmt):
+                select_statements += 1
+                ttfr, count = _execute_select_statement(cur, stmt)
+                if first_select_ttfr is None:
+                    first_select_ttfr = ttfr
+                rows_returned = count
+                retval = rows_returned
+            else:
+                retval = _execute_non_select_statement(cur, stmt)
+    finally:
+        con.close()
+    
+    return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
+
+
+def run_query_with_ttfr(engine: str, db_path: str, query: str,
+                        duckdb_threads: int | None = None,
+                        sqlite_pragmas: dict | None = None):
+    """
+    Execute semicolon-separated SQL statements and collect:
+      - first_select_ttfr_seconds: TTFR of the FIRST SELECT (None if no SELECT)
+      - rows_returned: total rows returned by the LAST SELECT (0 if none)
+      - statements_executed, select_statements
+
+    TTFR definition:
+      time from execute() to fetching the first batch (fetchmany) of the SELECT.
+
+    Notes:
+      - We fetch in chunks (fetchmany(10000)) to avoid blowing memory.
+      - DuckDB threads can be controlled via PRAGMA threads=<k>.
+      - SQLite pragmas (journal_mode, synchronous, cache_size) can be set.
+    """
+    # Parse semicolon-separated statements
+    stmts = [s.strip() for s in query.split(";") if s.strip()]
+
+    # Execute statements using the appropriate engine
+    if engine == "duckdb":
+        first_select_ttfr, rows_returned, statements_executed, select_statements, retval = \
+            _run_statements_duckdb(db_path, stmts, duckdb_threads)
+    elif engine == "sqlite":
+        first_select_ttfr, rows_returned, statements_executed, select_statements, retval = \
+            _run_statements_sqlite(db_path, stmts, sqlite_pragmas)
     else:
-        raise ValueError(f"Unsupported database engine: {engine}. Supported engines: duckdb, sqlite.")
+        raise ValueError(f"Unsupported engine: {engine}")
 
-# RUN QUERY ON SQLITE DB ================================
-def run_query_sqlite(query, db_path=None):
-    """
-    Execute SQLite query and return the number of rows.
-    
-    Args:
-        query (str): SQL query string to execute OR path to SQL file
-        db_path (str, optional): Path to SQLite database file. Defaults to './data.sqlite'
-    
-    Returns:
-        int: Number of rows returned by the query
-        
-    Raises:
-        sqlite3.Error: If database operation fails
-        ValueError: If query is empty or None
-        FileNotFoundError: If SQL file is not found
-        IOError: If SQL file cannot be read
-    """
-    
-    if not query or not query.strip():
-        raise ValueError("SQL query cannot be empty")
-        
-    if db_path is None:
-        db_path = './data.sqlite'
-
-    try:
-        # Use context manager to ensure connection is properly closed
-        with sqlite3.connect(db_path) as con:
-            result = con.execute(query).fetchall()
-            return len(result) if result is not None else 0
-    except sqlite3.Error as e:
-        raise sqlite3.Error(f"SQLite error: {e}")
-    except Exception as e:
-        raise Exception(f"Unexpected error: {e}")
-
-
-# RUN QUERY ON DUCKDB DB ==============================
-def run_query_duckdb(query, db_path=None):
-    """
-    Execute DuckDB query and return the number of rows.
-    
-    Args:
-        query (str): SQL query string to execute OR path to SQL file
-        db_path (str, optional): Path to DuckDB database file. Defaults to './data.duckdb'
-    
-    Returns:
-        int: Number of rows returned by the query
-        
-    Raises:
-        duckdb.Error: If database operation fails
-        ValueError: If query is empty or None
-        FileNotFoundError: If SQL file is not found
-        IOError: If SQL file cannot be read
-    """
-    if not query or not query.strip():
-        raise ValueError("Query cannot be empty")
-        
-    if db_path is None:
-        db_path = './data.duckdb'
-    
-    try:
-        # Use context manager to ensure connection is properly closed
-        with duckdb.connect(db_path) as con:
-            result = con.execute(query).fetchall()
-            return len(result) if result is not None else 0
-    except Exception as e:  # DuckDB uses generic Exception for errors
-        raise Exception(f"DuckDB error: {e}")
+    return {
+        "retval": retval,
+        "first_select_ttfr_seconds": first_select_ttfr,
+        "rows_returned": rows_returned,
+        "statements_executed": statements_executed,
+        "select_statements": select_statements,
+    }
