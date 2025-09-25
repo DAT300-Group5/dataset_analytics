@@ -7,12 +7,15 @@ Contains SQLite-related query logic and aggregation operation examples
 
 import sqlite3
 
-def run_query_sqlite(query, db_path=None):
+def run_query_sqlite(query_file, db_path=None):
     """
     SQLite query example: create table, insert data, execute column aggregation query
     """
 
     con = sqlite3.connect(db_path)
+
+    with open(query_file, 'r') as f:
+        query = f.read()
     result = con.execute(query).fetchall()
     
     con.close()

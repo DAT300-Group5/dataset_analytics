@@ -7,7 +7,7 @@ Contains DuckDB-related query logic and aggregation operation examples
 
 import duckdb
 
-def run_query_duckdb(query, db_path=None, ):
+def run_query_duckdb(query_file, db_path=None):
     """
     DuckDB query example: create table, insert data, execute column aggregation query
     """
@@ -17,6 +17,9 @@ def run_query_duckdb(query, db_path=None, ):
         db_path = './data_duckdb.db'
     
     con = duckdb.connect(db_path)
+
+    with open(query_file, 'r') as f:
+        query = f.read()
     result = con.execute(query).fetchall()
     
     con.close()
