@@ -85,30 +85,30 @@ python benchmark.py --engine sqlite
 
 ### Advanced Benchmarking Options
 
-Specify custom database paths:
+Specify custom database paths and query files:
 
 ```bash
 # Custom DuckDB database path
-python benchmark.py --engine duckdb --duckdb-path /path/to/my_data.duckdb
+python benchmark.py --engine duckdb --duckdb-path /path/to/my_data.duckdb --query-file ./query.sql
 
 # Custom SQLite database path
-python benchmark.py --engine sqlite --sqlite-path /path/to/my_data.db
+python benchmark.py --engine sqlite --sqlite-path /path/to/my_data.db --query-file ./query.sql
 
 # Custom sampling interval (default: 0.2s)
-python benchmark.py --engine duckdb --interval 0.1
+python benchmark.py --engine duckdb --query-file ./query.sql --interval 0.1
 
 # Complete example with all options
-python benchmark.py --engine sqlite --sqlite-path ./custom.db --duckdb-path ./custom.duckdb --interval 0.1
+python benchmark.py --engine sqlite --sqlite-path ./custom.db --duckdb-path ./custom.duckdb --query-file ./custom_query.sql --interval 0.1
 
 # Get help
 python benchmark.py --help
-```
 
 **Benchmark Parameters:**
 
 - `--engine` - Database engine: `duckdb` (default) or `sqlite`
 - `--duckdb-path` - Path to DuckDB database file (default: `./data_duckdb.db`)
 - `--sqlite-path` - Path to SQLite database file (default: `./data_sqlite.db`)
+- `--query-file` - Path to SQL query file 
 - `--interval` - Sampling interval in seconds (default: 0.2)
 
 ### Complete Workflow Example
