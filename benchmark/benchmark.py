@@ -96,7 +96,7 @@ def mode_inproc(query_file, engine='duckdb', db_path=None, sample_interval=0.2):
     py_current, py_peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    result = {
+    res = {
         "retval": ret,
         "wall_time_seconds": t1 - t0,
         "peak_rss_bytes": stats.get("peak_rss_bytes", 0),
@@ -104,7 +104,18 @@ def mode_inproc(query_file, engine='duckdb', db_path=None, sample_interval=0.2):
         "samples": stats.get("samples", len(stats.get("cpu_series", []))),
         "python_heap_peak_bytes": py_peak,  # Python heap only; DuckDB/SQLite C layer not included
     }
-    return result
+
+    print("[{}] wall={:.3f}s  peak_rss={:.1f} MB  cpu_avg={:.1f}%  py_heap_peak={:.1f} MB  samples={}".format(
+        engine.upper(),
+        res["wall_time_seconds"],
+        res["peak_rss_bytes"] / (1024 ** 2),
+        res["cpu_avg_percent"],
+        res["python_heap_peak_bytes"] / (1024 ** 2),
+        res["samples"],
+    ))
+    with open("{}_perf.json".format(engine), "w") as f:
+        json.dump(res, f, indent=2)
+        print("Written performance data to {}_perf.json".format(engine))
 
 def main():
     ap = argparse.ArgumentParser(description="SQLite / DuckDB query CPU / memory measurement tool")
@@ -122,18 +133,7 @@ def main():
     db_path = args.duckdb_path if args.engine == 'duckdb' else args.sqlite_path
     
     print(f"Running query using {args.engine.upper()} engine with database: {db_path}")
-    res = mode_inproc(engine=args.engine, db_path=db_path, sample_interval=args.interval, query_file=args.query_file)
-    print("[{}] wall={:.3f}s  peak_rss={:.1f} MB  cpu_avg={:.1f}%  py_heap_peak={:.1f} MB  samples={}".format(
-        args.engine.upper(),
-        res["wall_time_seconds"],
-        res["peak_rss_bytes"] / (1024**2),
-        res["cpu_avg_percent"],
-        res["python_heap_peak_bytes"] / (1024**2),
-        res["samples"],
-    ))
-    with open("{}_perf.json".format(args.engine), "w") as f:
-        json.dump(res, f, indent=2)
-        print("Written performance data to {}_perf.json".format(args.engine))
+    mode_inproc(engine=args.engine, db_path=db_path, sample_interval=args.interval, query_file=args.query_file)
 
 if __name__ == "__main__":
     main()

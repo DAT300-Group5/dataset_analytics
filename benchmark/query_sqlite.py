@@ -14,9 +14,13 @@ def run_query_sqlite(query_file, db_path=None):
 
     con = sqlite3.connect(db_path)
 
+    result = None
     with open(query_file, 'r') as f:
         query = f.read()
-    result = con.executescript(query).fetchall()
+    for stmt in query.split(';'):
+        stmt = stmt.strip()
+        if stmt:
+            result = con.execute(stmt).fetchall()
     
     con.close()
     return len(result)
