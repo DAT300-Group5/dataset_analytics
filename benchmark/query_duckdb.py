@@ -12,15 +12,15 @@ def run_query_duckdb(query_file, db_path=None):
     DuckDB query example: create table, insert data, execute column aggregation query
     """
 
-    # Use provided path or default
-    if db_path is None:
-        db_path = './data_duckdb.db'
-    
     con = duckdb.connect(db_path)
 
+    result = None
     with open(query_file, 'r') as f:
         query = f.read()
-    result = con.execute(query).fetchall()
+    for stmt in query.split(';'):
+        stmt = stmt.strip()
+        if stmt:
+            result = con.execute(stmt).fetchall()
     
     con.close()
     return len(result)

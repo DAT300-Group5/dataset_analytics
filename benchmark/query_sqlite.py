@@ -16,7 +16,7 @@ def run_query_sqlite(query_file, db_path=None):
 
     with open(query_file, 'r') as f:
         query = f.read()
-    result = con.execute(query).fetchall()
+    result = con.executescript(query).fetchall()
     
     con.close()
     return len(result)
