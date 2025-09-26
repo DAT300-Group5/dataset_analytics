@@ -1,57 +1,62 @@
 WITH
--- 1) Per-minute aggregates on each table
 hrm_minute AS (
-  SELECT deviceId,
-         (ts/60000)*60000 AS minute_ms,
-         AVG(HR) AS avg_hr
+  SELECT
+    deviceId,
+    (CAST(ts AS INTEGER)/60000)*60000 AS minute_ms,
+    AVG(HR) AS avg_hr
   FROM hrm
-  GROUP BY 1,2
+  GROUP BY deviceId, minute_ms
 ),
 ppg_minute AS (
-  SELECT deviceId,
-         (ts/60000)*60000 AS minute_ms,
-         AVG(ppg) AS avg_ppg
+  SELECT
+    deviceId,
+    (CAST(ts AS INTEGER)/60000)*60000 AS minute_ms,
+    AVG(ppg) AS avg_ppg
   FROM ppg
-  GROUP BY 1,2
+  GROUP BY deviceId, minute_ms
 ),
 acc_minute AS (
-  SELECT deviceId,
-         (ts/60000)*60000 AS minute_ms,
-         -- True RMS of acceleration magnitude (change back if you intended avg|mag|)
-         sqrt(AVG(x*x + y*y + z*z)) AS rms_acc
+  SELECT
+    deviceId,
+    (CAST(ts AS INTEGER)/60000)*60000 AS minute_ms,
+    sqrt(AVG(x*x + y*y + z*z)) AS rms_acc
   FROM acc
-  GROUP BY 1,2
+  GROUP BY deviceId, minute_ms
 ),
 ped_minute AS (
-  SELECT deviceId,
-         (ts/60000)*60000 AS minute_ms,
-         SUM(steps) AS total_steps
+  SELECT
+    deviceId,
+    (CAST(ts AS INTEGER)/60000)*60000 AS minute_ms,
+    SUM(steps) AS steps_sum
   FROM ped
-  GROUP BY 1,2
+  GROUP BY deviceId, minute_ms
 ),
--- 2) Median for light per (device, minute) via window (kept, but index will help)
 lit_ranked AS (
   SELECT
     deviceId,
-    (ts/60000)*60000 AS minute_ms,
+    (CAST(ts AS INTEGER)/60000)*60000 AS minute_ms,
     ambient_light_intensity AS ali,
     ROW_NUMBER() OVER (
-      PARTITION BY deviceId, (ts/60000)*60000
+      PARTITION BY deviceId, (CAST(ts AS INTEGER)/60000)*60000
       ORDER BY ambient_light_intensity
     ) AS rn,
     COUNT(*) OVER (
-      PARTITION BY deviceId, (ts/60000)*60000
+      PARTITION BY deviceId, (CAST(ts AS INTEGER)/60000)*60000
     ) AS cnt
   FROM lit
 ),
 lit_minute AS (
-  SELECT deviceId, minute_ms,
-         AVG(ali) AS median_light
+  SELECT
+    deviceId,
+    minute_ms,
+    CASE
+      WHEN cnt % 2 = 1 THEN MAX(CASE WHEN rn = (cnt + 1)/2 THEN ali END)
+      ELSE (SUM(CASE WHEN rn = cnt/2 THEN ali END)
+            + SUM(CASE WHEN rn = cnt/2 + 1 THEN ali END)) / 2.0
+    END AS median_light
   FROM lit_ranked
-  WHERE rn IN ( (cnt+1)/2, (cnt+2)/2 )
-  GROUP BY 1,2
+  GROUP BY deviceId, minute_ms
 ),
--- 3) Build the superset of (deviceId, minute) from the already-aggregated CTEs
 minutes AS (
   SELECT deviceId, minute_ms FROM hrm_minute
   UNION
@@ -66,11 +71,16 @@ minutes AS (
 SELECT
   m.deviceId,
   datetime(m.minute_ms/1000, 'unixepoch') AS minute_ts,
-  h.avg_hr, p.avg_ppg, a.rms_acc, d.total_steps, l.median_light
-FROM minutes m
-LEFT JOIN hrm_minute h USING (deviceId, minute_ms)
-LEFT JOIN ppg_minute p USING (deviceId, minute_ms)
-LEFT JOIN acc_minute a USING (deviceId, minute_ms)
-LEFT JOIN ped_minute d USING (deviceId, minute_ms)
-LEFT JOIN lit_minute l USING (deviceId, minute_ms)
+  h.avg_hr,
+  p.avg_ppg,
+  a.rms_acc,
+  d.steps_sum,
+  l.median_light
+FROM minutes AS m
+LEFT JOIN hrm_minute AS h USING (deviceId, minute_ms)
+LEFT JOIN ppg_minute AS p USING (deviceId, minute_ms)
+LEFT JOIN acc_minute AS a USING (deviceId, minute_ms)
+LEFT JOIN ped_minute AS d USING (deviceId, minute_ms)
+LEFT JOIN lit_minute AS l USING (deviceId, minute_ms)
 ORDER BY m.deviceId, m.minute_ms;
+;
