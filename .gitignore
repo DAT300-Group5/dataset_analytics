@@ -5,3 +5,4 @@
 *.duckdb
 *.json
 __pycache__/
+db*/

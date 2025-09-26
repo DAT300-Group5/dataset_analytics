@@ -369,11 +369,11 @@ def _mean_or_none(lst):
 
 # -------------------------------------- main --------------------------------------
 def main():
-    ap = argparse.ArgumentParser(description="SQLite / DuckDB benchmark with CPU/RSS/TTFR + P95/P99 (DB-internal memory metrics removed)")
-    ap.add_argument("--engine", choices=["duckdb", "sqlite"], default="duckdb",
-                    help="Database engine: duckdb or sqlite (default: duckdb)")
+    ap = argparse.ArgumentParser(description="SQLite / DuckDB / chDB benchmark with CPU/RSS/TTFR + P95/P99 (DB-internal memory metrics removed)")
+    ap.add_argument("--engine", choices=["duckdb", "sqlite", "chdb"], default="duckdb",
+                    help="Database engine: duckdb | sqlite | chdb (default: duckdb)")
     ap.add_argument("--db-path", type=str, required=True,
-                    help="Path to database file (.duckdb or .sqlite)")
+                    help="Path to database file/dir (.duckdb / .sqlite / chdb directory)")
     ap.add_argument("--interval", type=float, default=0.2,
                     help="Sampling interval in seconds (default: 0.2)")
     ap.add_argument("--query-file", type=str, required=False, default="",
@@ -391,7 +391,7 @@ def main():
 
     # DuckDB/SQLite knobs (kept; they are performance knobs, not memory introspection)
     ap.add_argument("--threads", type=int, default=0,
-                    help="DuckDB PRAGMA threads (0=engine default)")
+                    help="DuckDB PRAGMA threads or chDB max_threads (0=engine default)")
     ap.add_argument("--sqlite-journal", type=str, default="",
                     help="SQLite PRAGMA journal_mode (e.g., WAL, OFF, DELETE)")
     ap.add_argument("--sqlite-sync", type=str, default="",
@@ -411,7 +411,7 @@ def main():
         sys.exit(1)
 
     if not os.path.exists(args.db_path):
-        print(f"Error: Database file not found: {args.db_path}", file=sys.stderr)
+        print(f"Error: Database path not found: {args.db_path}", file=sys.stderr)
         sys.exit(1)
 
     query_file = args.query_file.strip()
@@ -450,7 +450,7 @@ def main():
                 duckdb_threads=(args.threads if args.threads > 0 else None),
                 sqlite_pragmas=sqlite_pragmas,
             )
-            print(f"[Warmup {i+1}/{args.warmups}] done.")
+            print(f("[Warmup {i}/{n}] done.").format(i=i+1, n=args.warmups))
 
     # ---------------- Measured runs ----------------
     runs = []
@@ -518,11 +518,11 @@ def main():
                   ))
 
     # ---------------- Aggregation ----------------
-    wall_list = _collect(runs, "wall_time_seconds")
-    ttfr_list = _collect(runs, "ttfr_seconds")
-    rss_true_list = _collect(runs, "peak_rss_bytes_true")
-    cpu_avg_list = _collect(runs, "cpu_avg_percent")
-    rows_list = _collect(runs, "rows_returned")
+    wall_list = [r.get("wall_time_seconds") for r in runs if r.get("wall_time_seconds") is not None]
+    ttfr_list = [r.get("ttfr_seconds") for r in runs if r.get("ttfr_seconds") is not None]
+    rss_true_list = [r.get("peak_rss_bytes_true") for r in runs if r.get("peak_rss_bytes_true") is not None]
+    cpu_avg_list = [r.get("cpu_avg_percent") for r in runs if r.get("cpu_avg_percent") is not None]
+    rows_list = [r.get("rows_returned") for r in runs if r.get("rows_returned") is not None]
 
     wall_summary = summarize_percentiles(wall_list)
     ttfr_summary = summarize_percentiles(ttfr_list) if ttfr_list else {"mean": None, "p50": None, "p95": None, "p99": None}
@@ -539,9 +539,9 @@ def main():
         # Means
         "mean_wall_time_seconds": wall_summary["mean"],
         "mean_ttfr_seconds": ttfr_summary["mean"],
-        "mean_peak_rss_bytes_true": _mean_or_none(rss_true_list),
-        "mean_cpu_avg_percent": _mean_or_none(cpu_avg_list),
-        "mean_rows_returned": _mean_or_none(rows_list),
+        "mean_peak_rss_bytes_true": (sum(rss_true_list)/len(rss_true_list)) if rss_true_list else None,
+        "mean_cpu_avg_percent": (sum(cpu_avg_list)/len(cpu_avg_list)) if cpu_avg_list else None,
+        "mean_rows_returned": (sum(rows_list)/len(rows_list)) if rows_list else None,
         # Percentiles
         "p50_wall_time_seconds": wall_summary["p50"],
         "p95_wall_time_seconds": wall_summary["p95"],

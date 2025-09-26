@@ -33,16 +33,17 @@ Remember to specific root directories in `create_db.py`.
 ### Prerequisites
 
 ```bash
-pip install psutil pandas duckdb
+pip install psutil pandas duckdb chdb
 ```
 
-> Both SQLite and DuckDB are database engines that are implemented as self-contained software libraries. In the Python ecosystem, they are distributed as wheel packages, so installing the corresponding Python package automatically provides the full database engine along with its Python bindings, without the need for any separate installation.
+> Both SQLite and DuckDB (also chdb) are database engines that are implemented as self-contained software libraries. In the Python ecosystem, they are distributed as wheel packages, so installing the corresponding Python package automatically provides the full database engine along with its Python bindings, without the need for any separate installation.
 
 Required Python Packages (Could use Conda)
 
 - `psutil` - System and process utilities
 - `pandas` - Data manipulation and analysis
 - `duckdb` - DuckDB database engine
+- `chdb` - chDB database engine
 - `sqlite3` - SQLite database engine (built-in)
 - `tracemalloc` - Memory profiling (built-in)
 
@@ -55,12 +56,12 @@ Create databases from CSV data using `create_db.py`.
 Parameters:
 
 - `device_id` - user identifier
-- `target_path` - Path for the output database file
-- `--engine` - Database engine: `duckdb` (default) or `sqlite`
+- `target_path` - Path for the output database file/path
+- `--engine` - Database engine: `duckdb` (default), `sqlite` and `chdb`
 
 ```bash
 # Basic usage - create database
-python create_db.py <device_id> <target_path> --engine {sqlite,duckdb}
+python create_db.py <device_id> <target_path> --engine {sqlite,duckdb,chdb}
 
 # Get help
 python create_db.py --help
@@ -73,77 +74,74 @@ python create_db.py ab60 ./my_data.duckdb
 
 # Create SQLite database
 python create_db.py vs14 ./test.sqlite --engine sqlite
+
+# Create chDB database
+python create_db.py vs14 ./chdb --engine chdb
 ```
 
 ### Benchmarking
 
 Command-line Arguments (Inputs):
 
-| Argument                  | Type / Values                                    | Description                                                                                                                                                         |
-| ------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--engine`                | `duckdb` or `sqlite` (default: `duckdb`)         | Select the backend database engine. Always record the exact version in experiments.                                                                                 |
-| `--db-path PATH`          | String (required)                                | Path to the database file (`.duckdb` or `.sqlite`).                                                                                                                 |
-| `--query-file PATH`       | String (optional, default: `queries/sample.sql`) | Path to an SQL text file. Multiple statements allowed (semicolon-separated). TTFR is measured on the **first SELECT**; rows are counted for the **last SELECT**.    |
-| `--interval FLOAT`        | Seconds (default: 0.2)                           | Sampling interval for CPU% and RSS monitoring. Short queries require smaller values (e.g., 0.05s) to avoid missing spikes.                                          |
-| `--repeat INT`            | Default: 10                                      | Number of measured runs to record. Percentiles (P95/P99) are meaningful only if `repeat` is reasonably large (≥5).                                                  |
-| `--warmups INT`           | Default: 0                                       | Number of warm-up runs, executed but **not recorded**. Useful for “warm cache” scenarios.                                                                           |
-| `--child`                 | Flag                                             | Run each measured run in a fresh child process (new DB connection every run). Good isolation, but no connection-level caching.                                      |
-| `--child-persistent`      | Flag                                             | Run all warmups + repeats inside **one persistent child process/connection**. Allows connection/session-level caches to persist. Mutually exclusive with `--child`. |
-| `--threads INT`           | DuckDB only, default: 0                          | Sets `PRAGMA threads=<k>`. `0` means leave DuckDB’s default. Fix this for reproducibility.                                                                          |
-| `--sqlite-journal MODE`   | SQLite only                                      | Sets `PRAGMA journal_mode` (e.g., WAL, OFF, DELETE).                                                                                                                |
-| `--sqlite-sync MODE`      | SQLite only                                      | Sets `PRAGMA synchronous` (OFF, NORMAL, FULL, EXTRA).                                                                                                               |
-| `--sqlite-cache-size INT` | SQLite only                                      | Sets `PRAGMA cache_size`. Positive = number of pages; negative = size in KiB.                                                                                       |
-| `--out PATH`              | String                                           | If given, write per-run results (`runs`) and aggregated statistics (`summary`) to a JSON file.                                                                      |
+| Argument              | Type / Values   | Description                                                                |
+| --------------------- | --------------- | -------------------------------------------------------------------------- |
+| `--engine`            | `duckdb`,`sqlite`,`chdb`| Database engine to benchmark (default: `duckdb`).                  |
+| `--db-path`           | String (path)   | Path to database file/dir (`.duckdb` / `.sqlite` / chdb directory).        |
+| `--interval`          | Float (seconds) | Sampling interval in seconds for CPU/RSS monitoring (default: 0.2).        |
+| `--query-file`        | String (path)   | Path to SQL file. If omitted, fallback to `queries/sample.sql` if present. |
+| `--repeat`            | Integer         | Number of measured runs (default: 10).                                     |
+| `--warmups`           | Integer         | Number of warm-up runs not recorded (default: 0).                          |
+| `--child`             | Flag            | Run each measured run in a separate child process.                         |
+| `--child-persistent`  | Flag            | Run all warmups + repeats against one persistent child/connection.         |
+| `--threads`           | Integer         | DuckDB PRAGMA threads or chDB `max_threads` (0 = engine default).          |
+| `--sqlite-journal`    | String          | SQLite PRAGMA `journal_mode` (e.g., WAL, OFF, DELETE).                     |
+| `--sqlite-sync`       | String          | SQLite PRAGMA `synchronous` (OFF, NORMAL, FULL, EXTRA).                    |
+| `--sqlite-cache-size` | Integer         | SQLite PRAGMA `cache_size` (pages; negative means KiB).                    |
+| `--out`               | String (path)   | If set, write all measured runs and summary as JSON to this path.          |
 
 Each run produces a JSON object with these keys:
 
-| Field                       | Meaning                                                                                                                                               |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `retval`                    | Return value or status from `run_query_with_ttfr`.                                                                                                    |
-| `wall_time_seconds`         | Wall-clock time observed by the parent (start → end of monitoring). Includes monitoring overhead.                                                     |
-| `child_wall_time_seconds`   | (Child or persistent modes only) Pure workload wall time measured inside the child. Excludes parent overhead.                                         |
-| `ttfr_seconds`              | Time-to-first-result for the **first SELECT**. From `cursor.execute()` to fetching the first batch (`fetchmany(10000)`). Models “first page latency.” |
-| `rows_returned`             | Total number of rows returned by the **last SELECT**. Helps explain cases where TTFR is small but total wall time is large.                           |
-| `statements_executed`       | Total number of SQL statements executed from the file.                                                                                                |
-| `select_statements`         | Number of `SELECT` statements executed.                                                                                                               |
-| `peak_rss_bytes_sampled`    | Peak Resident Set Size observed from periodic sampling. May miss short spikes.                                                                        |
-| `peak_rss_bytes_true`       | True high-water mark of RSS: VmHWM on Linux, peak working set on Windows. More reliable than sampled.                                                 |
-| `cpu_avg_percent`           | Average process CPU% over all samples. Can exceed 100% on multi-core.                                                                                 |
-| `samples`                   | Number of samples collected during monitoring. ≈ 1 + floor(run_time / interval).                                                                      |
-| `python_heap_peak_bytes`    | Peak Python heap (from `tracemalloc`), Python objects only. Excludes DuckDB/SQLite C allocations and OS page cache.                                   |
-| `db_memory_used_bytes`      | (SQLite only) PRAGMA `memory_used`. Memory currently allocated by SQLite.                                                                             |
-| `db_memory_highwater_bytes` | (SQLite only) PRAGMA `memory_highwater`. Peak memory allocated by SQLite during the session.                                                          |
-| `db_memory_usage_bytes`     | (DuckDB only, best effort) PRAGMA `memory_usage`. Aggregated into one number if possible.                                                             |
-| `mode`                      | Run mode: `"inproc"`, `"child"`, or `"child-persistent"`.                                                                                             |
+| Field                     | Meaning                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| `retval`                  | Return code from query execution (0 = success).                                          |
+| `wall_time_seconds`       | Wall-clock time for the run (seconds, measured by parent).                               |
+| `ttfr_seconds`            | Time to first result (seconds).                                                          |
+| `rows_returned`           | Number of rows returned by the query.                                                    |
+| `statements_executed`     | Total number of SQL statements executed.                                                 |
+| `select_statements`       | Number of SELECT statements executed.                                                    |
+| `peak_rss_bytes_sampled`  | Peak Resident Set Size (RSS) sampled periodically.                                       |
+| `peak_rss_bytes_true`     | True high-water RSS (from `/proc/[pid]/status` on Linux or OS API; fallback to sampled). |
+| `cpu_avg_percent`         | Average CPU utilization during run (%).                                                  |
+| `samples`                 | Number of monitoring samples collected.                                                  |
+| `python_heap_peak_bytes`  | Peak Python heap usage (from `tracemalloc`; excludes DB C-layer memory).                 |
+| `child_wall_time_seconds` | (Child modes only) Wall-clock time observed inside child process.                        |
+| `mode`                    | Run mode: `"inproc"`, `"child"`, `"child-persistent"`.                                   |
 
 Summary Output Fields (summary object):
 
 Aggregated across all measured runs (warmups excluded):
 
-| Field                            | Meaning                                         |
-| -------------------------------- | ----------------------------------------------- |
-| `engine`                         | `"duckdb"` or `"sqlite"`.                       |
-| `mode`                           | `"inproc"`, `"child"`, or `"child-persistent"`. |
-| `db_path`                        | Path to the database file.                      |
-| `query_file`                     | Path to the SQL file used.                      |
-| `repeat`                         | Number of measured runs.                        |
-| `warmups`                        | Number of warmup runs.                          |
-| `threads`                        | DuckDB threads setting.                         |
-| `sqlite_pragmas`                 | Dictionary of PRAGMAs applied.                  |
-| `mean_wall_time_seconds`         | Average wall time across runs.                  |
-| `mean_ttfr_seconds`              | Average TTFR across runs.                       |
-| `mean_peak_rss_bytes_true`       | Average of true RSS peaks.                      |
-| `mean_cpu_avg_percent`           | Average CPU% across runs.                       |
-| `mean_rows_returned`             | Average rows returned.                          |
-| `p50_wall_time_seconds`          | Median wall time (50th percentile).             |
-| `p95_wall_time_seconds`          | 95th percentile wall time.                      |
-| `p99_wall_time_seconds`          | 99th percentile wall time.                      |
-| `p50_ttfr_seconds`               | Median TTFR.                                    |
-| `p95_ttfr_seconds`               | 95th percentile TTFR.                           |
-| `p99_ttfr_seconds`               | 99th percentile TTFR.                           |
-| `mean_db_memory_used_bytes`      | SQLite only. Mean `memory_used`.                |
-| `mean_db_memory_highwater_bytes` | SQLite only. Mean `memory_highwater`.           |
-| `mean_db_memory_usage_bytes`     | DuckDB only. Mean aggregated `memory_usage`.    |
+| Field                      | Meaning                                              |
+| -------------------------- | ---------------------------------------------------- |
+| `engine`                   | Database engine used.                                |
+| `mode`                     | Run mode (`inproc`, `child`, or `child-persistent`). |
+| `db_path`                  | Path to the database file/dir.                       |
+| `query_file`               | Path to SQL query file executed.                     |
+| `repeat`                   | Number of measured runs.                             |
+| `warmups`                  | Number of warm-up runs excluded.                     |
+| `threads`                  | Number of threads (DuckDB/chDB).                     |
+| `sqlite_pragmas`           | Dictionary of SQLite PRAGMA settings used.           |
+| `mean_wall_time_seconds`   | Mean wall time across measured runs.                 |
+| `mean_ttfr_seconds`        | Mean TTFR across measured runs.                      |
+| `mean_peak_rss_bytes_true` | Mean peak true RSS (bytes).                          |
+| `mean_cpu_avg_percent`     | Mean CPU average (%).                                |
+| `mean_rows_returned`       | Mean number of rows returned.                        |
+| `p50_wall_time_seconds`    | Median (P50) wall time.                              |
+| `p95_wall_time_seconds`    | 95th percentile wall time.                           |
+| `p99_wall_time_seconds`    | 99th percentile wall time.                           |
+| `p50_ttfr_seconds`         | Median (P50) TTFR.                                   |
+| `p95_ttfr_seconds`         | 95th percentile TTFR.                                |
+| `p99_ttfr_seconds`         | 99th percentile TTFR.                                |
 
 Example Commands:
 
@@ -156,18 +154,9 @@ python benchmark.py --engine duckdb --db-path ./data.duckdb \
   --out duckdb_q1_persistent.json
 ```
 
-SQLite: WAL mode, warm scenario, persistent child
-
-```shell
-python benchmark.py --engine sqlite --db-path ./foo.sqlite \
-  --query-file queries/Q2.sql \
-  --sqlite-journal WAL --sqlite-sync NORMAL --sqlite-cache-size 200000 \
-  --warmups 2 --repeat 7 --child-persistent --interval 0.2 \
-  --out sqlite_q2_persistent.json
-```
-
-```shell
 DuckDB: cold runs, one-shot child processes
+
+```shell
 python benchmark.py --engine duckdb --db-path ./data.duckdb \
   --query-file queries/Q1.sql \
   --repeat 10 --child --interval 0.1 \
@@ -189,19 +178,29 @@ Here's a complete example of creating databases and benchmarking them:
 
 ```bash
 # Step 1: Create databases from device vs14 data
-python create_db.py vs14 ./vs14_data.duckdb --engine duckdb
-python create_db.py vs14 ./vs14_data.sqlite --engine sqlite
+python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
+python create_db.py vs14 ./db_vs14/vs14_data.sqlite --engine sqlite
+python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
 
 # Step 2: Benchmark both databases
-python benchmark.py --engine duckdb --db-path ./vs14_data.duckdb \
+python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
   --query-file queries/Q1/Q1_duckdb.sql --threads 4 \
   --warmups 2 --repeat 1 --child-persistent --interval 0.2 \
   --out queries/Q1/duckdb_q1_persistent.json
 
-python benchmark.py --engine sqlite --db-path ./vs14_data.sqlite \
+python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
   --query-file queries/Q1/Q1_sqlite.sql \
   --warmups 2 --repeat 1 --child-persistent --interval 0.2 \
   --out queries/Q1/sqlite_q1_persistent.json
+
+python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
+  --query-file queries/sample.sql \
+  --out queries/sample_clickhouse.json
+
+python benchmark.py --engine chdb --db-path ./db_vs14/vs14_chdb \
+  --query-file queries/Q1/Q1_clickhouse.sql \
+  --warmups 2 --repeat 1 --child-persistent --interval 0.2 \
+  --out queries/Q1/clickhouse_q1_persistent.json
 ```
 
 ### Q & A

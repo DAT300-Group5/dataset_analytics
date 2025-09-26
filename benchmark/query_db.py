@@ -1,31 +1,34 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+query_db.py — Execute SQL queries with SQLite / DuckDB / chDB,
+measuring TTFR (time-to-first-result), row counts, etc.
+"""
+
 import sqlite3
 import duckdb
 import time
+from chdb import session as chs
 
 
 def _is_select_statement(stmt: str) -> bool:
     s = stmt.lstrip().lower()
-    return s.startswith("select") or s.startswith("with")
+    return s.startswith(("select", "with", "show", "describe", "explain"))
 
 
 def _execute_select_statement(cursor_or_conn, stmt: str):
     """
-    Execute a SELECT statement and calculate TTFR (Time To First Row).
-    
-    Args:
-        cursor_or_conn: Database cursor or connection
-        stmt: SQL SELECT statement
-        
-    Returns:
-        tuple: (ttfr_seconds, rows_returned)
+    Execute a SELECT using DB-API style fetchmany to compute TTFR and row count.
+    Works for SQLite cursor and DuckDB connection.
     """
     t_start = time.perf_counter()
     
     # Handle different cursor types
-    if hasattr(cursor_or_conn, 'fetchmany'):  # SQLite cursor
+    if hasattr(cursor_or_conn, "fetchmany"):  # SQLite cursor
         cursor_or_conn.execute(stmt)
         cur = cursor_or_conn
-    else:  # DuckDB connection
+    else:  # DuckDB connection returns a cursor
         cur = cursor_or_conn.execute(stmt)
     
     first_batch = cur.fetchmany(10000)
@@ -55,8 +58,8 @@ def _execute_non_select_statement(cursor_or_conn, stmt: str):
     """
     if hasattr(cursor_or_conn, 'execute') and hasattr(cursor_or_conn, 'fetchmany'):  # SQLite cursor
         cursor_or_conn.execute(stmt)
-    else:  # DuckDB connection
-        cursor_or_conn.execute(stmt)
+    else:
+        raise RuntimeError("Unsupported connection type")
     
     return "OK"
 
@@ -147,7 +150,60 @@ def _run_statements_sqlite(db_path: str, statements: list, sqlite_pragmas: dict 
                 retval = _execute_non_select_statement(cur, stmt)
     finally:
         con.close()
-    
+    return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
+
+
+def _run_statements_chdb(db_path: str, statements: list, max_threads: int | None = None):
+    """
+    Execute statements using chDB session.
+    - db_path: directory path for persistent session
+    - SELECT: use send_query streaming to measure TTFR and count rows
+    - Non-SELECT: sess.query()
+    """
+    rows_returned = 0
+    first_select_ttfr = None
+    statements_executed = 0
+    select_statements = 0
+    retval = None
+
+    sess = chs.Session(db_path) if db_path else chs.Session()
+    try:
+        if max_threads and max_threads > 0:
+            sess.query(f"SET max_threads = {int(max_threads)}")
+        
+        # Select the sensor database where tables were created
+        if db_path:
+            sess.query("USE sensor")
+
+        for stmt in statements:
+            statements_executed += 1
+            if _is_select_statement(stmt):
+                select_statements += 1
+                t_start = time.perf_counter()
+                rows = 0
+                first_seen = False
+                with sess.send_query(stmt, "CSV") as stream:
+                    for chunk in stream:
+                        if not first_seen:
+                            ttfr = time.perf_counter() - t_start
+                            if first_select_ttfr is None:
+                                first_select_ttfr = ttfr
+                            first_seen = True
+                        data = chunk.data()
+                        if data:
+                            lines = data.splitlines()
+                            rows += sum(1 for _ in lines if _)
+                rows_returned = rows
+                retval = rows_returned
+            else:
+                sess.query(stmt)
+                retval = "OK"
+    finally:
+        try:
+            sess.close()
+        except Exception:
+            pass
+
     return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
 
 
@@ -178,6 +234,9 @@ def run_query_with_ttfr(engine: str, db_path: str, query: str,
     elif engine == "sqlite":
         first_select_ttfr, rows_returned, statements_executed, select_statements, retval = \
             _run_statements_sqlite(db_path, stmts, sqlite_pragmas)
+    elif engine == "chdb":
+        first_select_ttfr, rows_returned, statements_executed, select_statements, retval = \
+            _run_statements_chdb(db_path, stmts, duckdb_threads)
     else:
         raise ValueError(f"Unsupported engine: {engine}")
 
