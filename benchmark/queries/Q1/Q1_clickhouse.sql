@@ -31,14 +31,27 @@ ped_minute AS (
   FROM ped
   GROUP BY deviceId, minute_ts
 ),
+
+/* --- Interpolated median (even-n -> average of the two middle values) --- */
 lit_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_ts,
-    quantileExact(0.5)(ambient_light_intensity) AS median_light
-  FROM lit
-  GROUP BY deviceId, minute_ts
+    minute_ts,
+    /* build sorted array per (deviceId, minute_ts) */
+    if(length(vals) % 2 = 1,
+       vals[(length(vals)+1)/2],
+       (vals[length(vals)/2] + vals[length(vals)/2 + 1]) / 2.0
+    ) AS median_light
+  FROM (
+    SELECT
+      deviceId,
+      toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_ts,
+      arraySort(groupArray(ambient_light_intensity)) AS vals
+    FROM lit
+    GROUP BY deviceId, minute_ts
+  )
 ),
+
 minutes AS (
   SELECT deviceId, minute_ts FROM hrm_minute
   UNION DISTINCT
