@@ -5,7 +5,7 @@ import pandas as pd
 
 root_path = "../raw_data/"
 
-types = ["acc", "grv", "gyr", "lit", "ped", "ppg"]
+types = ["acc", "grv", "gyr", "lit", "ped", "ppg", "hrm"]
 
 def create(target_path, device_id, engine='duckdb'):
 

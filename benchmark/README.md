@@ -194,15 +194,14 @@ python create_db.py vs14 ./vs14_data.sqlite --engine sqlite
 
 # Step 2: Benchmark both databases
 python benchmark.py --engine duckdb --db-path ./vs14_data.duckdb \
-  --query-file queries/Q1.sql --threads 4 \
-  --warmups 2 --repeat 100 --child-persistent --interval 0.02 \
-  --out duckdb_q1_persistent.json
+  --query-file queries/Q1/Q1_duckdb.sql --threads 4 \
+  --warmups 2 --repeat 1 --child-persistent --interval 0.2 \
+  --out queries/Q1/duckdb_q1_persistent.json
 
 python benchmark.py --engine sqlite --db-path ./vs14_data.sqlite \
-  --query-file queries/Q1.sql \
-  --sqlite-journal WAL --sqlite-sync NORMAL --sqlite-cache-size 200000 \
-  --warmups 2 --repeat 100 --child-persistent --interval 0.02 \
-  --out sqlite_q1_persistent.json
+  --query-file queries/Q1/Q1_sqlite.sql \
+  --warmups 2 --repeat 1 --child-persistent --interval 0.2 \
+  --out queries/Q1/sqlite_q1_persistent.json
 ```
 
 ### Q & A

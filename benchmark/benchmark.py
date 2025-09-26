@@ -101,99 +101,6 @@ def monitor_process(pid, interval, out_dict, stop_event):
 
     out_dict.setdefault("peak_rss_bytes_true", out_dict.get("peak_rss_bytes", 0))
 
-# -------------------------- DB-internal memory helpers --------------------------
-def fetch_sqlite_memory_metrics(db_path, sqlite_pragmas=None):
-    """
-    Returns a dict:
-      {
-        "db_memory_used_bytes": <int or None>,
-        "db_memory_highwater_bytes": <int or None>
-      }
-    Uses: PRAGMA memory_used; PRAGMA memory_highwater;
-    These reflect SQLite library allocations (not Python, not OS page cache).
-    """
-    try:
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        # Apply PRAGMAs if provided (not strictly needed for memory_* pragmas)
-        if sqlite_pragmas:
-            for k, v in sqlite_pragmas.items():
-                try:
-                    cur.execute(f"PRAGMA {k}={v}")
-                except Exception:
-                    pass
-        cur.execute("PRAGMA memory_used;")
-        used = cur.fetchone()
-        used_val = int(used[0]) if used and used[0] is not None else None
-
-        # memory_highwater can optionally accept a reset flag, we do not reset here
-        cur.execute("PRAGMA memory_highwater;")
-        hwm = cur.fetchone()
-        hwm_val = int(hwm[0]) if hwm and hwm[0] is not None else None
-
-        cur.close()
-        conn.close()
-        return {
-            "db_memory_used_bytes": used_val,
-            "db_memory_highwater_bytes": hwm_val
-        }
-    except Exception:
-        return {
-            "db_memory_used_bytes": None,
-            "db_memory_highwater_bytes": None
-        }
-
-def _sum_duckdb_memory_usage_rows(rows):
-    """
-    PRAGMA memory_usage returns a table, but schema may vary across versions.
-    We try to best-effort aggregate a single numeric 'total bytes' by summing
-    all integer-like cells from all rows.
-    If there is a single numeric cell overall, we use that; otherwise we sum.
-    """
-    if not rows:
-        return None
-    numeric_vals = []
-    for r in rows:
-        # r may be tuple-like
-        for cell in (r if isinstance(r, (tuple, list)) else [r]):
-            try:
-                # accept ints; also accept numeric strings
-                if isinstance(cell, (int, float)):
-                    numeric_vals.append(int(cell))
-                else:
-                    # try parse strings like "12345"
-                    if isinstance(cell, str) and cell.strip().isdigit():
-                        numeric_vals.append(int(cell.strip()))
-            except Exception:
-                pass
-    if not numeric_vals:
-        return None
-    # Heuristic: if only one numeric value found, use it; else sum them
-    return numeric_vals[0] if len(numeric_vals) == 1 else sum(numeric_vals)
-
-def fetch_duckdb_memory_metrics(db_path, duckdb_threads=None):
-    """
-    Returns a dict:
-      {
-        "db_memory_usage_bytes": <int or None>
-      }
-    We try to query PRAGMA memory_usage and reduce it to one number.
-    This is best-effort and may depend on DuckDB version.
-    """
-    try:
-        import duckdb
-        con = duckdb.connect(db_path)
-        if duckdb_threads and duckdb_threads > 0:
-            con.execute(f"PRAGMA threads={duckdb_threads}")
-        # Some versions support PRAGMA memory_usage returning a table
-        rows = con.execute("PRAGMA memory_usage").fetchall()
-        total = _sum_duckdb_memory_usage_rows(rows)
-        con.close()
-        return {"db_memory_usage_bytes": total}
-    except Exception:
-        return {"db_memory_usage_bytes": None}
-
 # -------------------------- one-shot (inproc) single run --------------------------
 def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query='',
                     duckdb_threads=None, sqlite_pragmas=None):
@@ -202,7 +109,7 @@ def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query=''
       - Monitor this process (PID) with psutil (CPU/RSS).
       - Measure wall time and TTFR.
       - Collect Python heap peak via tracemalloc (Python objects only).
-      - Fetch DB-internal memory metrics AFTER the query returns.
+      - NOTE: We intentionally do NOT query DB-internal memory metrics.
     """
     stats = {}
     stop_event = threading.Event()
@@ -219,11 +126,6 @@ def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query=''
         exec_info = run_query_with_ttfr(engine, db_path, query,
                                         duckdb_threads=duckdb_threads,
                                         sqlite_pragmas=sqlite_pragmas)
-        # Fetch DB-internal memory metrics at end of run
-        if engine == 'sqlite':
-            dbmem = fetch_sqlite_memory_metrics(db_path, sqlite_pragmas)
-        else:
-            dbmem = fetch_duckdb_memory_metrics(db_path, duckdb_threads)
     finally:
         stop_event.set()
         mon.join(timeout=5)
@@ -245,7 +147,6 @@ def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query=''
         "python_heap_peak_bytes": py_peak,  # Python only; DB C layer excluded
         "mode": "inproc",
     }
-    out.update(dbmem or {})
     return out
 
 # -------------------------- per-run child (existing) --------------------------
@@ -254,8 +155,8 @@ def _child_worker_oneshot(conn, engine, db_path, query, duckdb_threads, sqlite_p
     Child process entry for one-shot child mode:
       - Run the query and compute TTFR.
       - Trace Python heap peak (child-only).
-      - Query DB-internal memory metrics after run.
-      - Return exec_info + python_heap_peak + child_wall + dbmem via Pipe.
+      - NOTE: We intentionally do NOT query DB-internal memory metrics.
+      - Return exec_info + python_heap_peak + child_wall via Pipe.
     """
     try:
         tracemalloc.start()
@@ -264,12 +165,6 @@ def _child_worker_oneshot(conn, engine, db_path, query, duckdb_threads, sqlite_p
         exec_info = run_query_with_ttfr(engine, db_path, query,
                                         duckdb_threads=duckdb_threads,
                                         sqlite_pragmas=sqlite_pragmas)
-        # DB memory metrics inside child
-        if engine == 'sqlite':
-            dbmem = fetch_sqlite_memory_metrics(db_path, sqlite_pragmas)
-        else:
-            dbmem = fetch_duckdb_memory_metrics(db_path, duckdb_threads)
-
         t1 = time.perf_counter()
         py_current, py_peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
@@ -278,7 +173,6 @@ def _child_worker_oneshot(conn, engine, db_path, query, duckdb_threads, sqlite_p
             "exec_info": exec_info,
             "child_wall_time_seconds": t1 - t0,
             "child_python_heap_peak_bytes": py_peak,
-            "dbmem": dbmem
         }
         conn.send(payload)
     except Exception as e:
@@ -291,7 +185,7 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
     """
     One-shot child mode:
       - Fork a child process for this run only.
-      - Parent monitors child PID; child measures TTFR & child wall & db memory.
+      - Parent monitors child PID; child measures TTFR & child wall.
     """
     parent_conn, child_conn = Pipe(duplex=False)
     p = Process(target=_child_worker_oneshot,
@@ -337,34 +231,23 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
         "child_wall_time_seconds": payload["child_wall_time_seconds"],
         "mode": "child",
     }
-    out.update(payload.get("dbmem") or {})
     return out
 
 # -------------------------- persistent child (new) --------------------------
 def _child_worker_persistent(conn, engine, db_path, duckdb_threads, sqlite_pragmas):
     """
     Persistent child process:
-    - Creates ONE DB connection in the child.
+    - Creates ONE DB connection in the child (implicitly handled inside runner).
     - Waits for commands from parent:
         {"cmd": "RUN", "query": <sql>}
         {"cmd": "EXIT"}
     - For each RUN:
         * tracemalloc: reset peak
         * measure child wall around run_query_with_ttfr()
-        * after run, fetch DB memory metrics (PRAGMA memory_*) inside child
+        * NOTE: We intentionally do NOT query DB-internal memory metrics.
         * send payload back
     - On EXIT: break loop and return.
     """
-    try:
-        import sqlite3, duckdb  # may or may not be used depending on engine
-    except Exception:
-        pass
-
-    # Prepare persistent context if needed; run_query_with_ttfr will open/use
-    # its own connection internally. If you want to FOR SURE reuse the same
-    # connection, you can refactor run_query_with_ttfr to accept a connection.
-    # For now, we keep it simple and rely on engine-level caches that persist
-    # within the child process; additionally we query PRAGMAs in this process.
     while True:
         msg = conn.recv()
         if not isinstance(msg, dict) or "cmd" not in msg:
@@ -384,11 +267,6 @@ def _child_worker_persistent(conn, engine, db_path, duckdb_threads, sqlite_pragm
                 exec_info = run_query_with_ttfr(engine, db_path, query,
                                                 duckdb_threads=duckdb_threads,
                                                 sqlite_pragmas=sqlite_pragmas)
-                # DB memory after run
-                if engine == 'sqlite':
-                    dbmem = fetch_sqlite_memory_metrics(db_path, sqlite_pragmas)
-                else:
-                    dbmem = fetch_duckdb_memory_metrics(db_path, duckdb_threads)
                 t1 = time.perf_counter()
                 py_current, py_peak = tracemalloc.get_traced_memory()
                 tracemalloc.stop()
@@ -398,7 +276,6 @@ def _child_worker_persistent(conn, engine, db_path, duckdb_threads, sqlite_pragm
                     "exec_info": exec_info,
                     "child_wall_time_seconds": t1 - t0,
                     "child_python_heap_peak_bytes": py_peak,
-                    "dbmem": dbmem
                 })
             except Exception as e:
                 conn.send({"ok": False, "error": str(e)})
@@ -467,7 +344,6 @@ def run_persistent_child_session(engine, db_path, sample_interval, queries,
                 "child_wall_time_seconds": payload["child_wall_time_seconds"],
                 "mode": "child-persistent",
             }
-            out.update(payload.get("dbmem") or {})
             results.append(out)
 
         # Ask child to exit
@@ -493,7 +369,7 @@ def _mean_or_none(lst):
 
 # -------------------------------------- main --------------------------------------
 def main():
-    ap = argparse.ArgumentParser(description="SQLite / DuckDB benchmark with CPU/RSS/TTFR + P95/P99 + DB memory + persistent child")
+    ap = argparse.ArgumentParser(description="SQLite / DuckDB benchmark with CPU/RSS/TTFR + P95/P99 (DB-internal memory metrics removed)")
     ap.add_argument("--engine", choices=["duckdb", "sqlite"], default="duckdb",
                     help="Database engine: duckdb or sqlite (default: duckdb)")
     ap.add_argument("--db-path", type=str, required=True,
@@ -513,7 +389,7 @@ def main():
     ap.add_argument("--child-persistent", action="store_true",
                     help="Run ALL warmups + repeats against ONE persistent child/connection")
 
-    # DuckDB/SQLite knobs
+    # DuckDB/SQLite knobs (kept; they are performance knobs, not memory introspection)
     ap.add_argument("--threads", type=int, default=0,
                     help="DuckDB PRAGMA threads (0=engine default)")
     ap.add_argument("--sqlite-journal", type=str, default="",
@@ -552,7 +428,7 @@ def main():
 
     query = load_query_from_file(query_file)
 
-    # Build SQLite PRAGMAs
+    # Build SQLite PRAGMAs (performance knobs)
     sqlite_pragmas = {}
     if args.sqlite_journal:
         sqlite_pragmas["journal_mode"] = args.sqlite_journal
@@ -563,10 +439,8 @@ def main():
 
     # ---------------- Warmups ----------------
     if args.child_persistent:
-        # In persistent mode we will run warmups + repeats in one session below.
         warmup_runs = []
     else:
-        # Run warmups in the chosen non-persistent mode and discard results
         for i in range(args.warmups):
             _ = (run_once_child if args.child else run_once_inproc)(
                 engine=args.engine,
@@ -582,8 +456,6 @@ def main():
     runs = []
 
     if args.child_persistent:
-        # Build the sequence of queries to run inside ONE persistent child:
-        # we still execute warmups (not recorded) followed by repeats (recorded)
         total_count = args.warmups + args.repeat
         queries = [query] * total_count
         results = run_persistent_child_session(
@@ -595,13 +467,11 @@ def main():
             sqlite_pragmas=sqlite_pragmas,
         )
         # Discard warmups, keep repeats
-        warmups_dropped = results[:args.warmups]
         runs = results[args.warmups:]
         for i, res in enumerate(runs, 1):
             print(("[{eng}] {mode} run {k}/{n} wall={wall:.3f}s  child_wall={cwall:.3f}s  "
                    "ttfr={ttfr}  peak_rss_sampled={rss_s:.1f} MB  peak_rss_true={rss_t:.1f} MB  "
-                   "cpu_avg={cpu:.1f}%  py_heap_peak={py:.1f} MB  rows={rows}  sel={sels}/{stmts}  samples={smp}  "
-                   "db_used={dbu}  db_hwm={dbh}  db_usage={dbug}")
+                   "cpu_avg={cpu:.1f}%  py_heap_peak={py:.1f} MB  rows={rows}  sel={sels}/{stmts}  samples={smp}")
                   .format(
                       eng=args.engine.upper(),
                       mode="CHILD-PERSISTENT",
@@ -616,9 +486,6 @@ def main():
                       rows=res["rows_returned"],
                       sels=res["select_statements"], stmts=res["statements_executed"],
                       smp=res["samples"],
-                      dbu=res.get("db_memory_used_bytes"),
-                      dbh=res.get("db_memory_highwater_bytes"),
-                      dbug=res.get("db_memory_usage_bytes"),
                   ))
     else:
         for i in range(args.repeat):
@@ -633,8 +500,7 @@ def main():
             runs.append(res)
             print(("[{eng}] {mode} run {k}/{n} wall={wall:.3f}s  {child_wall}  "
                    "ttfr={ttfr}  peak_rss_sampled={rss_s:.1f} MB  peak_rss_true={rss_t:.1f} MB  "
-                   "cpu_avg={cpu:.1f}%  py_heap_peak={py:.1f} MB  rows={rows}  sel={sels}/{stmts}  samples={smp}  "
-                   "db_used={dbu}  db_hwm={dbh}  db_usage={dbug}")
+                   "cpu_avg={cpu:.1f}%  py_heap_peak={py:.1f} MB  rows={rows}  sel={sels}/{stmts}  samples={smp}")
                   .format(
                       eng=args.engine.upper(),
                       mode=("CHILD" if args.child else "INPROC"),
@@ -649,9 +515,6 @@ def main():
                       rows=res["rows_returned"],
                       sels=res["select_statements"], stmts=res["statements_executed"],
                       smp=res["samples"],
-                      dbu=res.get("db_memory_used_bytes"),
-                      dbh=res.get("db_memory_highwater_bytes"),
-                      dbug=res.get("db_memory_usage_bytes"),
                   ))
 
     # ---------------- Aggregation ----------------
@@ -660,11 +523,6 @@ def main():
     rss_true_list = _collect(runs, "peak_rss_bytes_true")
     cpu_avg_list = _collect(runs, "cpu_avg_percent")
     rows_list = _collect(runs, "rows_returned")
-
-    # DB memory lists (some may be None depending on engine/version)
-    db_used_list = _collect(runs, "db_memory_used_bytes")
-    db_hwm_list = _collect(runs, "db_memory_highwater_bytes")
-    db_usage_list = _collect(runs, "db_memory_usage_bytes")
 
     wall_summary = summarize_percentiles(wall_list)
     ttfr_summary = summarize_percentiles(ttfr_list) if ttfr_list else {"mean": None, "p50": None, "p95": None, "p99": None}
@@ -691,10 +549,6 @@ def main():
         "p50_ttfr_seconds": ttfr_summary["p50"],
         "p95_ttfr_seconds": ttfr_summary["p95"],
         "p99_ttfr_seconds": ttfr_summary["p99"],
-        # DB memory means (as available)
-        "mean_db_memory_used_bytes": _mean_or_none(db_used_list),
-        "mean_db_memory_highwater_bytes": _mean_or_none(db_hwm_list),
-        "mean_db_memory_usage_bytes": _mean_or_none(db_usage_list),
     }
 
     print("\n=== Summary ===")
@@ -718,10 +572,6 @@ def main():
         print("cpu_avg_percent: mean={:.1f}%".format(summary["mean_cpu_avg_percent"]))
     if rows_list:
         print("rows_returned: mean={:.1f}".format(summary["mean_rows_returned"]))
-    if db_used_list or db_hwm_list or db_usage_list:
-        print("db_memory_used_bytes: mean={}".format(summary["mean_db_memory_used_bytes"]))
-        print("db_memory_highwater_bytes: mean={}".format(summary["mean_db_memory_highwater_bytes"]))
-        print("db_memory_usage_bytes: mean={}".format(summary["mean_db_memory_usage_bytes"]))
 
     if args.out:
         out_obj = {"runs": runs, "summary": summary}

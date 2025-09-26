@@ -101,6 +101,7 @@ def _run_statements_duckdb(db_path: str, statements: list, duckdb_threads: int |
     
     return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
 
+
 def _run_statements_sqlite(db_path: str, statements: list, sqlite_pragmas: dict | None = None):
     """
     Execute statements using SQLite engine.
