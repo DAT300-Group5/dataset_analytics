@@ -28,6 +28,8 @@ raw_data/
 
 Remember to specific root directories in `create_db.py`.
 
+**Important**: Downgrade python version to 3.9 if you encounter issues with ` new instance has no pybind11-registered base types`.
+
 ## Installation
 
 ### Prerequisites
