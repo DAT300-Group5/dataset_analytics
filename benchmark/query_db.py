@@ -61,7 +61,11 @@ def _execute_non_select_statement(cursor_or_conn, stmt: str):
     return "OK"
 
 
-def _run_statements_duckdb(db_path: str, statements: list, duckdb_threads: int | None = None):
+def _run_statements_duckdb(
+    db_path: str,
+    statements: list,
+    duckdb_threads: int | None = None
+):
     """
     Execute statements using DuckDB engine.
     
@@ -73,18 +77,19 @@ def _run_statements_duckdb(db_path: str, statements: list, duckdb_threads: int |
     Returns:
         tuple: (first_select_ttfr, rows_returned, statements_executed, select_statements, retval)
     """
-    
     rows_returned = 0
     first_select_ttfr = None
     statements_executed = 0
     select_statements = 0
     retval = None
-    
-    con = duckdb.connect(db_path)
-    try:
-        if duckdb_threads and duckdb_threads > 0:
-            con.execute(f"PRAGMA threads={duckdb_threads};")
 
+    # Build connection config
+    config = {}
+    if duckdb_threads and duckdb_threads > 0:
+        config["threads"] = duckdb_threads
+
+    con = duckdb.connect(db_path, config=config if config else None)
+    try:
         for stmt in statements:
             statements_executed += 1
             if _is_select_statement(stmt):
@@ -98,7 +103,7 @@ def _run_statements_duckdb(db_path: str, statements: list, duckdb_threads: int |
                 retval = _execute_non_select_statement(con, stmt)
     finally:
         con.close()
-    
+
     return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
 
 
