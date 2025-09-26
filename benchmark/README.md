@@ -182,24 +182,33 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
 python create_db.py vs14 ./db_vs14/vs14_data.sqlite --engine sqlite
 python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
 
-# Step 2: Benchmark both databases
+# Run sample first
 python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
-  --query-file queries/Q1/Q1_duckdb.sql --threads 4 \
-  --warmups 2 --repeat 1 --child-persistent --interval 0.2 \
-  --out queries/Q1/duckdb_q1_persistent.json
+  --query-file queries/sample.sql \
+  --out queries/sample_duckdb.json
 
 python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
-  --query-file queries/Q1/Q1_sqlite.sql \
-  --warmups 2 --repeat 1 --child-persistent --interval 0.2 \
-  --out queries/Q1/sqlite_q1_persistent.json
+  --query-file queries/sample.sql \
+  --out queries/Q1/sample_sqlite.json
 
 python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
   --query-file queries/sample.sql \
   --out queries/sample_clickhouse.json
 
+# Step 2: Benchmark databases
+python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
+  --query-file queries/Q1/Q1_duckdb.sql --threads 4 \
+  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
+  --out queries/Q1/duckdb_q1_persistent.json
+
+python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
+  --query-file queries/Q1/Q1_sqlite.sql \
+  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
+  --out queries/Q1/sqlite_q1_persistent.json
+
 python benchmark.py --engine chdb --db-path ./db_vs14/vs14_chdb \
   --query-file queries/Q1/Q1_clickhouse.sql \
-  --warmups 2 --repeat 1 --child-persistent --interval 0.2 \
+  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
   --out queries/Q1/clickhouse_q1_persistent.json
 ```
 

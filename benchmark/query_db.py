@@ -71,27 +71,29 @@ def _run_statements_duckdb(
 ):
     """
     Execute statements using DuckDB engine.
-    
-    Args:
-        db_path: Path to DuckDB database
-        statements: List of SQL statements
-        duckdb_threads: Number of threads for DuckDB (optional)
-        
+
     Returns:
         tuple: (first_select_ttfr, rows_returned, statements_executed, select_statements, retval)
     """
+
     rows_returned = 0
     first_select_ttfr = None
     statements_executed = 0
     select_statements = 0
     retval = None
 
-    # Build connection config
-    config = {}
-    if duckdb_threads and duckdb_threads > 0:
-        config["threads"] = duckdb_threads
+    # Build connection config (only pass when non-empty to avoid TypeError)
+    config: dict[str, int] = {}
+    if duckdb_threads is not None and duckdb_threads > 0:
+        # DuckDB expects the key 'threads'
+        config["threads"] = int(duckdb_threads)
 
-    con = duckdb.connect(db_path, config=config if config else None)
+    if config:
+        con = duckdb.connect(database=db_path, config=config)
+    else:
+        # Do NOT pass config=None for older DuckDB builds
+        con = duckdb.connect(database=db_path)
+
     try:
         for stmt in statements:
             statements_executed += 1
