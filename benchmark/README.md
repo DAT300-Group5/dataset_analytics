@@ -207,7 +207,7 @@ python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
   --out queries/Q1/sqlite_q1_persistent.json
 
 python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
-  --query-file queries/Q1/Q1_clickhouse.sql \
+  --query-file queries/Q1/Q1_clickhouse.sql --threads 4 \
   --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
   --out queries/Q1/clickhouse_q1_persistent.json
 ```

@@ -9,7 +9,6 @@ measuring TTFR (time-to-first-result), row counts, etc.
 import sqlite3
 import duckdb
 import time
-from chdb import session as chs
 
 
 def _is_select_statement(stmt: str) -> bool:
@@ -151,58 +150,60 @@ def _run_statements_sqlite(db_path: str, statements: list):
     return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
 
 
-def _run_statements_chdb(db_path: str, statements: list, threads: int | None = None):
+def _run_statements_chdb(db_path, statements: list, threads: int | None = None, arraysize: int = 8192):
     """
-    Execute statements using chDB session.
-    - db_path: directory path for persistent session
-    - SELECT: use send_query streaming to measure TTFR and count rows
-    - Non-SELECT: sess.query()
+    Run SQL statements on chDB via DB-API (connect/cursor), returning the same exec_info shape
+    as the original _run_statements_chdb (Session-based).
     """
-    rows_returned = 0
-    first_select_ttfr = None
-    statements_executed = 0
-    select_statements = 0
-    retval = None
+    # Delay the import to prevent the parent process from touching chdb prematurely
+    import chdb
 
-    sess = chs.Session(db_path) if db_path else chs.Session()
+    # Connection target: If db_path is provided, persist to the specified directory/file; otherwise, use an in-memory database.
+    conn = chdb.connect(db_path if db_path else ":memory:")
     try:
-        if threads and threads > 0:
-            sess.query(f"SET max_threads = {int(threads)}")
-        
-        # Select the sensor database where tables were created
-        if db_path:
-            sess.query("USE sensor")
+        cur = conn.cursor()
+        if threads and int(threads) > 0:
+            cur.execute(f"SET max_threads = {int(threads)}")
+
+        statements_executed = 0
+        select_statements = 0
+        first_select_ttfr = None
+        rows_returned = 0
+        retval = None
 
         for stmt in statements:
             statements_executed += 1
             if _is_select_statement(stmt):
                 select_statements += 1
-                t_start = time.perf_counter()
-                rows = 0
-                first_seen = False
-                with sess.send_query(stmt, "CSV") as stream:
-                    for chunk in stream:
-                        if not first_seen:
-                            ttfr = time.perf_counter() - t_start
-                            if first_select_ttfr is None:
-                                first_select_ttfr = ttfr
-                            first_seen = True
-                        data = chunk.data()
-                        if data:
-                            lines = data.splitlines()
-                            rows += sum(1 for _ in lines if _)
+                t0 = time.perf_counter()
+                cur.execute(stmt)
+                # The first data acquisition is used for TTFR; subsequently, batch full-scale counting is carried out.
+                cur.arraysize = arraysize
+                first_batch = cur.fetchmany()
+                ttfr = time.perf_counter() - t0
+                if first_select_ttfr is None:
+                    first_select_ttfr = ttfr
+
+                rows = 0 if not first_batch else len(first_batch)
+                while True:
+                    batch = cur.fetchmany()
+                    if not batch:
+                        break
+                    rows += len(batch)
+
                 rows_returned = rows
                 retval = rows_returned
             else:
-                sess.query(stmt)
+                cur.execute(stmt)
                 retval = "OK"
+
+        cur.close()
+        return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
     finally:
         try:
-            sess.close()
+            conn.close()
         except Exception:
             pass
-
-    return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
 
 
 def run_query_with_ttfr(engine: str, db_path: str, query: str,

@@ -431,7 +431,7 @@ def main():
                 query=query,
                 threads=(args.threads if args.threads > 0 else None),
             )
-            print(f("[Warmup {i}/{n}] done.").format(i=i+1, n=args.warmups))
+            print(f"[Warmup {i+1}/{args.warmups}] done.")
 
     # ---------------- Measured runs ----------------
     runs = []
