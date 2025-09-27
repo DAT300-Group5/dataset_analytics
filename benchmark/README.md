@@ -1,19 +1,26 @@
 # Database Performance Benchmark
 
-This directory contains tools for benchmarking and comparing the performance of different database engines (DuckDB, SQLite, ClickHouse) for analytical queries.
+This directory provides a reproducible benchmarking suite for analytical SQL queries across multiple embedded/columnar engines (DuckDB, SQLite and chDB/ClickHouse).
 
-## Overview
+It is designed to measure query performance and resource usage (wall time, time-to-first-result, CPU, resident memory, and Python heap) and to enable fair comparisons between engines using the same datasets and query logic.
 
-The benchmark suite provides:
+Key features:
 
-- **Performance measurement tools** for CPU and memory usage
-- **Query modules** for DuckDB and SQLite
-- **Database creation utilities** for test data
-- **Comparative analysis** between different database engines
+- End-to-end workflow: ingest CSVs -> create engine-specific databases -> validate query equivalence -> run controlled benchmarks -> aggregate and analyse results.
+- Multiple run modes: in-process (inproc), fresh child per run (cold starts), and persistent child (warm starts) to capture different operational scenarios.
+- Lightweight monitoring: periodic sampling of CPU/RSS plus Linux true high-water RSS extraction, and Python heap peak via tracemalloc.
+- Correctness-first: result comparison supports ordered and bag (multiset) equivalence, float tolerances, and JSON output for automation/CI.
+
+Intended use:
+
+1. Create engine-specific databases from raw CSVs.
+2. Validate that different SQL implementations produce equivalent results (the SQL implementations must be provided by you).
+3. Run benchmarks with configurable warmups, repeats, sampling interval, and threading.
+4. Collect per-run metrics and produce aggregated summaries (means, percentiles) for reporting.
 
 ## File Structure
 
-Before running benchmarks, ensure the following raw data files are present in the root directory:
+Before running benchmarks, ensure the following raw data files are present in the root directory (or adjust paths used by the creation scripts):
 
 ```ascii
 raw_data/
@@ -28,10 +35,10 @@ raw_data/
 
 ## Installation
 
-### Prerequisites
+Recommended (example):
 
 ```bash
-pip install psutil pandas duckdb chdb
+pip install psutil pandas duckdb chdb matplotlib
 ```
 
 > Both SQLite and DuckDB (also chdb) are database engines that are implemented as self-contained software libraries. In the Python ecosystem, they are distributed as wheel packages, so installing the corresponding Python package automatically provides the full database engine along with its Python bindings, without the need for any separate installation.
@@ -40,6 +47,7 @@ Required Python Packages (Could use Conda)
 
 - `psutil` - System and process utilities
 - `pandas` - Data manipulation and analysis
+- `matplotlib` - Plotting graphs, charts, and other data visualizations
 - `duckdb` - DuckDB database engine
 - `chdb` - chDB database engine
 - `sqlite3` - SQLite database engine (built-in)
@@ -54,7 +62,7 @@ Create databases from CSV data using `create_db.py`.
 Parameters:
 
 - `device_id` - user identifier
-- `target_path` - Path for the output database file/path
+- `target_path` - Path for the output database file or directory
 - `--engine` - Database engine: `duckdb` (default), `sqlite` and `chdb`
 
 Remember to specific root directories in `create_db.py`.
@@ -83,7 +91,7 @@ python create_db.py vs14 ./chdb --engine chdb
 
 ### Validate SQL Correctness
 
-Validate SQL correctness (same outcome) using `validate_sql_correctness.py`.
+Validate SQL correctness (that queries produce the same outcome) using `validate_sql_correctness.py`.
 
 - `--mode`: Defines the **equivalence model** for result comparison:
   - **`ordered`**
@@ -104,9 +112,9 @@ Validate SQL correctness (same outcome) using `validate_sql_correctness.py`.
 - `--show`: Maximum number of row difference **samples** to display in human mode (default = 5).
 - `--json-file`: Write the full JSON summary to the specified file, in addition to console output.Useful for archiving results or machine parsing.
 
-Sample:
+Sample usage:
 
-```shell
+```bash
 python validate_sql_correctness.py \
   --case duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql \
   --case sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql \
@@ -125,22 +133,41 @@ You have to make sure these 3 SQL files have the same outcome.
 
 ### Benchmarking
 
-Use `benchmark.py`.
+Use `benchmark.py` to measure performance and resource usage.
 
 Command-line Arguments (Inputs):
 
-| Argument              | Type / Values   | Description                                                                |
-| --------------------- | --------------- | -------------------------------------------------------------------------- |
-| `--engine`            | `duckdb`,`sqlite`,`chdb`| Database engine to benchmark (default: `duckdb`).                  |
-| `--db-path`           | String (path)   | Path to database file/dir (`.duckdb` / `.sqlite` / chdb directory).        |
-| `--interval`          | Float (seconds) | Sampling interval in seconds for CPU/RSS monitoring (default: 0.2).        |
-| `--query-file`        | String (path)   | Path to SQL file. If omitted, fallback to `queries/sample.sql` if present. |
-| `--repeat`            | Integer         | Number of measured runs (default: 10).                                     |
-| `--warmups`           | Integer         | Number of warm-up runs not recorded (default: 0).                          |
-| `--child`             | Flag            | Run each measured run in a separate child process.                         |
-| `--child-persistent`  | Flag            | Run all warmups + repeats against one persistent child/connection.         |
-| `--threads`           | Integer         | DuckDB PRAGMA threads or chDB `max_threads` (0 = engine default).          |
-| `--out`               | String (path)   | If set, write all measured runs and summary as JSON to this path.          |
+| Argument             | Type / Values            | Description                                                                                 |
+| -------------------- | ------------------------ | ------------------------------------------------------------------------------------------- |
+| `--engine`           | `duckdb`,`sqlite`,`chdb` | Database engine to benchmark (default: `duckdb`).                                           |
+| `--db-path`          | String (path)            | Path to database file/dir (`.duckdb` / `.sqlite` / chdb directory).                         |
+| `--interval`         | Float (seconds)          | Sampling interval in seconds for CPU/RSS monitoring (default: 0.2).                         |
+| `--query-file`       | String (path)            | Path to SQL file. If omitted, fallback to `queries/sample.sql` if present.                  |
+| `--repeat`           | Integer                  | Number of measured runs (default: 10).                                                      |
+| `--warmups`          | Integer                  | Number of warm-up runs not recorded (default: 0).                                           |
+| `--child`            | Flag                     | Run each measured run in a separate child process.                                          |
+| `--child-persistent` | Flag                     | Run all warmups + repeats against one persistent child/connection.                          |
+| `--threads`          | Integer                  | DuckDB PRAGMA threads or chDB `max_threads` (0 = engine default); SQLite only use 1 thread. |
+| `--out`              | String (path)            | If set, write all measured runs and summary as JSON to this path.                           |
+
+Example commands:
+
+```bash
+python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
+  --query-file queries/Q1/Q1_duckdb.sql --threads 4 \
+  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
+  --out queries/Q1/duckdb_q1_persistent.json
+
+python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
+  --query-file queries/Q1/Q1_sqlite.sql \
+  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
+  --out queries/Q1/sqlite_q1_persistent.json
+
+python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
+  --query-file queries/Q1/Q1_clickhouse.sql --threads 4 \
+  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
+  --out queries/Q1/clickhouse_q1_persistent.json
+```
 
 Each run produces a JSON object with these keys:
 
@@ -185,32 +212,13 @@ Aggregated across all measured runs (warmups excluded):
 | `p95_ttfr_seconds`         | 95th percentile TTFR.                                |
 | `p99_ttfr_seconds`         | 99th percentile TTFR.                                |
 
-Example Commands:
-
-```bash
-python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
-  --query-file queries/Q1/Q1_duckdb.sql --threads 4 \
-  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
-  --out queries/Q1/duckdb_q1_persistent.json
-
-python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
-  --query-file queries/Q1/Q1_sqlite.sql \
-  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
-  --out queries/Q1/sqlite_q1_persistent.json
-
-python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
-  --query-file queries/Q1/Q1_clickhouse.sql --threads 4 \
-  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
-  --out queries/Q1/clickhouse_q1_persistent.json
-```
-
 ---
 
 Not always – `--child-persistent` is not the best choice in every case.
 
 - Use **`--child`** when you want *cold-start behavior*: each run creates a new process and connection, so no connection-level caches carry over.
 - Use **`--child-persistent`** for *warm scenarios*: warmups and repeats all run in one child process, so session-level caches (SQLite page cache, DuckDB session state) can persist.
-- Use **inproc** for quick debugging with minimal overhead. For serious experiments, it’s often useful to report both cold (`--child`) and warm (`--child-persistent`) results.
+- Use **`--inproc`** for quick debugging with minimal overhead. For serious experiments, it’s often useful to report both cold (`--child`) and warm (`--child-persistent`) results.
 
 As for `--interval`: it controls how often CPU/RSS are sampled. Too large → you may miss spikes; too small → extra overhead. A good rule of thumb is to aim for ~20–100 samples per run.
 
@@ -222,8 +230,6 @@ As for `--interval`: it controls how often CPU/RSS are sampled. Too large → yo
 Practical approach: run once with a rough interval, check the wall time, then set `interval ≈ wall_time / 50` for your main repeats. This way you balance fidelity and monitoring cost.
 
 ### Complete Workflow Example
-
-Here's a complete example of creating databases and benchmarking them:
 
 Step 1: Create databases from device vs14 data
 
@@ -248,6 +254,9 @@ Step 3: Prepare the `datasets` and `query_groups` in `config.yaml`.
 Step 4: Benchmark databases
 
 ```bash
+# Orchestrate benchmark experiments across multiple database engines, datasets, and queries.
 python run_experiments.py
+
+# Validate or analyse collected results.
 python analyze_results.py
 ```
