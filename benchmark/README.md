@@ -102,7 +102,7 @@ Each run produces a JSON object with these keys:
 
 | Field                     | Meaning                                                                                  |
 | ------------------------- | ---------------------------------------------------------------------------------------- |
-| `retval`                  | Return code from query execution (0 = success).                                          |
+| `retval`                  | Return value from the last executed statement (row count for SELECT, "OK" for others).   |
 | `wall_time_seconds`       | Wall-clock time for the run (seconds, measured by parent).                               |
 | `ttfr_seconds`            | Time to first result (seconds).                                                          |
 | `rows_returned`           | Number of rows returned by the query.                                                    |
