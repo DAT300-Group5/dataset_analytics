@@ -187,31 +187,21 @@ Aggregated across all measured runs (warmups excluded):
 
 Example Commands:
 
-DuckDB: warm scenario, 5 repeats, persistent child
+```bash
+python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
+  --query-file queries/Q1/Q1_duckdb.sql --threads 4 \
+  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
+  --out queries/Q1/duckdb_q1_persistent.json
 
-```shell
-python benchmark.py --engine duckdb --db-path ./data.duckdb \
-  --query-file queries/Q1.sql --threads 4 \
-  --warmups 1 --repeat 5 --child-persistent --interval 0.1 \
-  --out duckdb_q1_persistent.json
-```
+python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
+  --query-file queries/Q1/Q1_sqlite.sql \
+  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
+  --out queries/Q1/sqlite_q1_persistent.json
 
-DuckDB: cold runs, one-shot child processes
-
-```shell
-python benchmark.py --engine duckdb --db-path ./data.duckdb \
-  --query-file queries/Q1.sql \
-  --repeat 10 --child --interval 0.1 \
-  --out duckdb_q1_cold.json
-```
-
-SQLite: simple in-process runs
-
-```shell
-python benchmark.py --engine sqlite --db-path ./foo.sqlite \
-  --query-file queries/Q3.sql \
-  --repeat 5 --interval 0.2 \
-  --out sqlite_q3_inproc.json
+python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
+  --query-file queries/Q1/Q1_clickhouse.sql --threads 4 \
+  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
+  --out queries/Q1/clickhouse_q1_persistent.json
 ```
 
 ---
@@ -235,40 +225,29 @@ Practical approach: run once with a rough interval, check the wall time, then se
 
 Here's a complete example of creating databases and benchmarking them:
 
+Step 1: Create databases from device vs14 data
+
 ```bash
-# Step 1: Create databases from device vs14 data
 python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
 python create_db.py vs14 ./db_vs14/vs14_data.sqlite --engine sqlite
 python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
+```
 
+Step 2: Prepare SQL files and make sure they have the same outcome
 
-# Run sample first
-python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
-  --query-file queries/sample.sql \
-  --out queries/sample_duckdb.json
+```bash
+python validate_sql_correctness.py \
+  --case duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql \
+  --case sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql \
+  --case chdb   ./db_vs14/vs14_data_chdb  queries/Q1/Q1_clickhouse.sql \
+  --mode bag --output human --show 5 --json-file q1_diff.json
+```
 
-python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
-  --query-file queries/sample.sql \
-  --out queries/Q1/sample_sqlite.json
+Step 3: Prepare the `datasets` and `query_groups` in `config.yaml`.
 
-python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
-  --query-file queries/sample.sql \
-  --out queries/sample_clickhouse.json
+Step 4: Benchmark databases
 
-
-# Step 2: Benchmark databases
-python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
-  --query-file queries/Q1/Q1_duckdb.sql --threads 4 \
-  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
-  --out queries/Q1/duckdb_q1_persistent.json
-
-python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
-  --query-file queries/Q1/Q1_sqlite.sql \
-  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
-  --out queries/Q1/sqlite_q1_persistent.json
-
-python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
-  --query-file queries/Q1/Q1_clickhouse.sql --threads 4 \
-  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
-  --out queries/Q1/clickhouse_q1_persistent.json
+```bash
+python run_experiments.py
+python analyze_results.py
 ```

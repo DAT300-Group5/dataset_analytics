@@ -2,57 +2,140 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-validate_sql_correctness.py — Result equivalence checker across engine-specific cases
-====================================================================================
-Compares results across explicit (ENGINE, DB_PATH, SQL_FILE) cases.
-Supported engines: duckdb, sqlite, chdb (optional). No legacy mode.
+SQL Result Equivalence Validator
 
-Usage
------
+This module provides functionality to validate SQL query result equivalence across
+different database engines. It compares query results from multiple database engines
+to ensure they produce equivalent outputs.
+
+Features:
+- Supports multiple database engines: DuckDB, SQLite, and ClickHouse (via chdb)
+- Flexible comparison modes: ordered and bag (multiset) comparison
+- Configurable floating-point tolerance for numeric comparisons
+- Detailed mismatch reporting with sample data
+- JSON and human-readable output formats
+
+Usage:
 python validate_sql_correctness.py \
-  --case duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql \
-  --case sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql \
-  --case chdb   ./db_vs14/vs14_data_chdb  queries/Q1/Q1_clickhouse.sql \
-  --mode bag --output human --show 5 --json-file q1_diff.json
+    --case duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql \
+    --case sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql \
+    --case chdb   ./db_vs14/vs14_data_chdb  queries/Q1/Q1_clickhouse.sql \
+    --mode bag --output human --show 5 --json-file q1_diff.json
+
+Example:
+    Validate query results across three engines:
+        $ python validate_sql_correctness.py \
+            --case duckdb db.duckdb query.sql \
+            --case sqlite db.sqlite query.sql \
+            --mode bag --verbose
 """
 
 from __future__ import annotations
-import argparse, os, sys, math, json, time, itertools, re
-import sqlite3
-import duckdb
 
-# chdb is optional
+import argparse
+import itertools
+import json
+import math
+import os
+import re
+import sqlite3
+import sys
+import time
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+try:
+    import duckdb
+except ImportError:
+    duckdb = None
+
+# ClickHouse support via chdb is optional
 try:
     import chdb as _chdb  # noqa: F401
     HAS_CHDB = True
-except Exception:
+except ImportError:
     HAS_CHDB = False
+
+# Constants
+DEFAULT_BATCH_SIZE = 8192
+DEFAULT_FLOAT_TOLERANCE = 1e-9
+DEFAULT_DECIMAL_PLACES = 16
+DEFAULT_SAMPLE_LIMIT = 5
+
+# Special tokens for value normalization
+_NaN_TOKEN = ("<NaN>",)
+_POS_INF_TOKEN = "<+INF>"
+_NEG_INF_TOKEN = "<-INF>"
+_BYTES_TOKEN = "<BYTES>"
 
 # ------------------------------ SQL loading ---------------------------------
 
 def load_sql(path: str) -> str:
+    """Load SQL content from a file.
+    
+    Args:
+        path: Path to the SQL file.
+        
+    Returns:
+        The content of the SQL file as a string.
+    """
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
+
 def split_statements(sql: str) -> list[str]:
+    """Split SQL content into individual statements.
+    
+    Args:
+        sql: The SQL content to split.
+        
+    Returns:
+        A list of non-empty SQL statements.
+    """
     parts = [s.strip() for s in sql.split(';')]
     return [p for p in parts if p]
 
+
 def is_select(stmt: str) -> bool:
+    """Check if a SQL statement is a SELECT-like query.
+    
+    Args:
+        stmt: The SQL statement to check.
+        
+    Returns:
+        True if the statement is a SELECT, WITH, SHOW, DESCRIBE, or EXPLAIN.
+    """
     s = stmt.lstrip().lower()
     return s.startswith(("select", "with", "show", "describe", "explain"))
 
 # --------------------------- Value normalization ----------------------------
 
-_NaN_TOKEN = ("<NaN>",)
-
 def _decimals_from_tol(tol: float) -> int:
+    """Calculate decimal places from tolerance value.
+    
+    Args:
+        tol: The floating point tolerance.
+        
+    Returns:
+        Number of decimal places to round to.
+    """
     if tol <= 0:
-        return 16
+        return DEFAULT_DECIMAL_PLACES
     return max(0, int(math.ceil(-math.log10(tol))))
 
-def normalize_value(v, float_tol: float):
-    """Map engine-specific / non-hashable values into a canonical, JSON-safe form."""
+
+def normalize_value(v: Any, float_tol: float) -> Any:
+    """Normalize a value to a canonical, JSON-safe form.
+    
+    This function handles engine-specific data types and converts them
+    to standardized representations for comparison purposes.
+    
+    Args:
+        v: The value to normalize.
+        float_tol: Tolerance for floating point comparisons.
+        
+    Returns:
+        The normalized value in a JSON-serializable format.
+    """
     import math as _m
 
     if v is None:
@@ -61,7 +144,7 @@ def normalize_value(v, float_tol: float):
         if _m.isnan(v):
             return _NaN_TOKEN
         if _m.isinf(v):
-            return ("<+INF>" if v > 0 else "<-INF>")
+            return (_POS_INF_TOKEN if v > 0 else _NEG_INF_TOKEN)
         return round(v, _decimals_from_tol(float_tol))
     try:
         import decimal
@@ -71,7 +154,7 @@ def normalize_value(v, float_tol: float):
     except Exception:
         pass
     if isinstance(v, (bytes, bytearray, memoryview)):
-        return ("<BYTES>", bytes(v).hex())
+        return (_BYTES_TOKEN, bytes(v).hex())
     if hasattr(v, "isoformat"):
         try:
             return v.isoformat()
@@ -90,16 +173,44 @@ def normalize_value(v, float_tol: float):
         return repr(v)
 
 def normalize_row(row: tuple, float_tol: float) -> tuple:
+    """Normalize all values in a row.
+    
+    Args:
+        row: The row tuple to normalize.
+        float_tol: Tolerance for floating point comparisons.
+        
+    Returns:
+        A tuple with all values normalized.
+    """
     return tuple(normalize_value(v, float_tol) for v in row)
 
-def rows_to_bag(rows: list[tuple], float_tol: float):
+
+def rows_to_bag(rows: List[Tuple], float_tol: float):
+    """Convert a list of rows to a bag (multiset) representation.
+    
+    Args:
+        rows: List of row tuples.
+        float_tol: Tolerance for floating point comparisons.
+        
+    Returns:
+        A collections.Counter object representing the multiset of rows.
+    """
     import collections
     normd = [normalize_row(r, float_tol) for r in rows]
     return collections.Counter(normd)
 
 # ------------------------------ Runners -------------------------------------
 
-def _fetch_all(cur, arraysize: int = 8192) -> list[tuple]:
+def _fetch_all(cur: Any, arraysize: int = DEFAULT_BATCH_SIZE) -> List[Tuple]:
+    """Fetch all rows from a database cursor in batches.
+    
+    Args:
+        cur: Database cursor.
+        arraysize: Size of each batch to fetch.
+        
+    Returns:
+        List of all rows as tuples.
+    """
     rows = []
     try:
         cur.arraysize = arraysize
@@ -112,7 +223,18 @@ def _fetch_all(cur, arraysize: int = 8192) -> list[tuple]:
         rows.extend(batch)
     return rows
 
-def run_sqlite(db_path: str, query: str) -> tuple[list[str], list[tuple]]:
+
+def run_sqlite(db_path: str, query: str) -> Tuple[List[str], List[Tuple]]:
+    """Execute SQL query on SQLite database.
+    
+    Args:
+        db_path: Path to SQLite database file.
+        query: SQL query to execute.
+        
+    Returns:
+        Tuple of (column_names, rows) where column_names is a list of strings
+        and rows is a list of tuples containing the query results.
+    """
     con = sqlite3.connect(db_path)
     try:
         con.isolation_level = None
@@ -131,7 +253,21 @@ def run_sqlite(db_path: str, query: str) -> tuple[list[str], list[tuple]]:
     finally:
         con.close()
 
-def run_duckdb(db_path: str, query: str, threads: int | None = None) -> tuple[list[str], list[tuple]]:
+def run_duckdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple[List[str], List[Tuple]]:
+    """Execute SQL query on DuckDB database.
+    
+    Args:
+        db_path: Path to DuckDB database file.
+        query: SQL query to execute.
+        threads: Number of threads to use (optional).
+        
+    Returns:
+        Tuple of (column_names, rows) where column_names is a list of strings
+        and rows is a list of tuples containing the query results.
+    """
+    if duckdb is None:
+        raise ImportError("DuckDB is not available")
+    
     con = duckdb.connect(database=db_path)
     try:
         if threads and threads > 0:
@@ -153,7 +289,19 @@ def run_duckdb(db_path: str, query: str, threads: int | None = None) -> tuple[li
     finally:
         con.close()
 
-def run_chdb(db_path: str, query: str, threads: int | None = None) -> tuple[list[str], list[tuple]]:
+
+def run_chdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple[List[str], List[Tuple]]:
+    """Execute SQL query on ClickHouse database via chdb.
+    
+    Args:
+        db_path: Path to ClickHouse database directory or connection string.
+        query: SQL query to execute.
+        threads: Number of threads to use (optional).
+        
+    Returns:
+        Tuple of (column_names, rows) where column_names is a list of strings
+        and rows is a list of tuples containing the query results.
+    """
     import chdb
     conn = chdb.connect(db_path if db_path else ":memory:")
     try:
@@ -184,8 +332,32 @@ RUNNERS = {
 
 # ------------------------------ Comparison ----------------------------------
 
-def compare_results(a_cols, a_rows, b_cols, b_rows, mode: str, float_tol: float, ignore_colnames: bool, sample_limit: int = 10):
-    """Return a structured comparison result."""
+def compare_results(
+    a_cols: List[str], 
+    a_rows: List[Tuple], 
+    b_cols: List[str], 
+    b_rows: List[Tuple], 
+    mode: str, 
+    float_tol: float, 
+    ignore_colnames: bool, 
+    sample_limit: int = 10
+) -> Dict[str, Any]:
+    """Compare query results from two different engines.
+    
+    Args:
+        a_cols: Column names from first result set.
+        a_rows: Row data from first result set.
+        b_cols: Column names from second result set.
+        b_rows: Row data from second result set.
+        mode: Comparison mode ('ordered' or 'bag').
+        float_tol: Tolerance for floating point comparisons.
+        ignore_colnames: Whether to ignore column name differences.
+        sample_limit: Maximum number of sample differences to report.
+        
+    Returns:
+        Dictionary containing comparison results with 'ok' boolean and
+        detailed information about any differences found.
+    """
     result = {
         "ok": True,
         "column_issue": None,  # {"a_cols": [...], "b_cols": [...], "hints": [...]}
@@ -262,98 +434,174 @@ def compare_results(a_cols, a_rows, b_cols, b_rows, mode: str, float_tol: float,
 
 # ------------------------------ Main CLI ------------------------------------
 
-def main():
-    ap = argparse.ArgumentParser(description="Result equivalence checker across explicit ENGINE-DB-SQL cases")
-    ap.add_argument("--case", nargs=3, action="append",
-                    metavar=("ENGINE", "DB_PATH", "SQL_FILE"),
-                    help="One case: ENGINE DB_PATH SQL_FILE. Repeat for multiple cases.")
-    ap.add_argument("--threads", type=int, default=0, help="DuckDB/chDB threads")
-    ap.add_argument("--mode", choices=["ordered", "bag"], default="bag", help="Equivalence model")
-    ap.add_argument("--float-tol", type=float, default=1e-9, help="Floating point tolerance (rounding granularity)")
-    ap.add_argument("--ignore-colnames", action="store_true", help="Ignore column name differences; only check column count")
-    ap.add_argument("--stop-on-first-fail", action="store_true", help="Stop at the first mismatch")
-    ap.add_argument("--verbose", action="store_true", help="Verbose execution logs")
-    ap.add_argument("--output", choices=["human", "json"], default="human", help="Output format")
-    ap.add_argument("--show", type=int, default=5, help="Max number of sample row differences to display")
-    ap.add_argument("--json-file", type=str, default="", help="Also write full JSON summary to this path")
+def main() -> None:
+    """Main function to handle command line interface and coordinate validation."""
+    ap = argparse.ArgumentParser(
+        description="Result equivalence checker across explicit ENGINE-DB-SQL cases"
+    )
+    ap.add_argument(
+        "--case", nargs=3, action="append",
+        metavar=("ENGINE", "DB_PATH", "SQL_FILE"),
+        help="One case: ENGINE DB_PATH SQL_FILE. Repeat for multiple cases."
+    )
+    ap.add_argument(
+        "--threads", type=int, default=0, 
+        help="DuckDB/chDB threads"
+    )
+    ap.add_argument(
+        "--mode", choices=["ordered", "bag"], default="bag", 
+        help="Equivalence model"
+    )
+    ap.add_argument(
+        "--float-tol", type=float, default=DEFAULT_FLOAT_TOLERANCE, 
+        help="Floating point tolerance (rounding granularity)"
+    )
+    ap.add_argument(
+        "--ignore-colnames", action="store_true", 
+        help="Ignore column name differences; only check column count"
+    )
+    ap.add_argument(
+        "--stop-on-first-fail", action="store_true", 
+        help="Stop at the first mismatch"
+    )
+    ap.add_argument(
+        "--verbose", action="store_true", 
+        help="Verbose execution logs"
+    )
+    ap.add_argument(
+        "--output", choices=["human", "json"], default="human", 
+        help="Output format"
+    )
+    ap.add_argument(
+        "--show", type=int, default=DEFAULT_SAMPLE_LIMIT, 
+        help="Max number of sample row differences to display"
+    )
+    ap.add_argument(
+        "--json-file", type=str, default="", 
+        help="Also write full JSON summary to this path"
+    )
     args = ap.parse_args()
 
     if not args.case or len(args.case) < 2:
-        print("Error: Provide at least two --case entries (ENGINE DB_PATH SQL_FILE).", file=sys.stderr)
+        print(
+            "Error: Provide at least two --case entries (ENGINE DB_PATH SQL_FILE).", 
+            file=sys.stderr
+        )
         sys.exit(2)
 
     # Validate and run each case
     per_case = []
     for (engine, dbp, sqlf) in args.case:
         eng = engine.strip().lower()
+        
+        # Validate engine type
         if eng not in RUNNERS:
-            print(f"Unknown engine '{engine}'. Must be one of: {list(RUNNERS)}", file=sys.stderr)
+            print(
+                f"Unknown engine '{engine}'. Must be one of: {list(RUNNERS)}", 
+                file=sys.stderr
+            )
             sys.exit(2)
+            
+        # Check for optional engine availability
         if eng == "chdb" and not HAS_CHDB:
             print("Error: chdb is not installed but requested.", file=sys.stderr)
             sys.exit(2)
+            
+        if eng == "duckdb" and duckdb is None:
+            print("Error: duckdb is not installed but requested.", file=sys.stderr)
+            sys.exit(2)
+            
+        # Validate file paths
         if not os.path.exists(dbp):
-            print(f"DB not found: {dbp}", file=sys.stderr)
+            print(f"Database file not found: {dbp}", file=sys.stderr)
             sys.exit(2)
         if not os.path.exists(sqlf):
-            print(f"SQL not found: {sqlf}", file=sys.stderr)
+            print(f"SQL file not found: {sqlf}", file=sys.stderr)
             sys.exit(2)
 
-        sql = load_sql(sqlf)
-        runner = RUNNERS[eng]
-        t0 = time.perf_counter()
-        if eng in ("duckdb", "chdb"):
-            cols, rows = runner(dbp, sql, threads=args.threads)
-        else:
-            cols, rows = runner(dbp, sql)
-        t1 = time.perf_counter()
-        per_case.append({
-            "label": f'{eng}:{dbp}|{os.path.basename(sqlf)}',
-            "engine": eng,
-            "db": dbp,
-            "sql_file": sqlf,
-            "columns": cols,
-            "row_count": len(rows),
-            "rows": rows,
-            "time_sec": t1 - t0,
-        })
-        if args.verbose:
-            print(f'[{eng}] rows={len(rows)} cols={len(cols)} time={t1-t0:.3f}s on {sqlf}')
+        try:
+            sql = load_sql(sqlf)
+            runner = RUNNERS[eng]
+            t0 = time.perf_counter()
+            
+            # Execute query with appropriate parameters
+            if eng in ("duckdb", "chdb"):
+                cols, rows = runner(dbp, sql, threads=args.threads)
+            else:
+                cols, rows = runner(dbp, sql)
+            t1 = time.perf_counter()
+            
+            per_case.append({
+                "label": f'{eng}:{dbp}|{os.path.basename(sqlf)}',
+                "engine": eng,
+                "db": dbp,
+                "sql_file": sqlf,
+                "columns": cols,
+                "row_count": len(rows),
+                "rows": rows,
+                "time_sec": t1 - t0,
+            })
+            
+            if args.verbose:
+                print(
+                    f'[{eng}] rows={len(rows)} cols={len(cols)} '
+                    f'time={t1-t0:.3f}s on {sqlf}'
+                )
+        except Exception as e:
+            print(f"Error executing {eng} query: {e}", file=sys.stderr)
+            sys.exit(2)
 
-    # Pairwise comparisons
+    # Pairwise comparisons between all cases
     any_fail = False
     comparisons = {}
+    
     for i in range(len(per_case)):
-        for j in range(i+1, len(per_case)):
-            a = per_case[i]; b = per_case[j]
-            comp = compare_results(a["columns"], a["rows"], b["columns"], b["rows"],
-                                   mode=args.mode, float_tol=args.float_tol,
-                                   ignore_colnames=args.ignore_colnames, sample_limit=args.show)
+        for j in range(i + 1, len(per_case)):
+            a = per_case[i]
+            b = per_case[j]
+            
+            # Compare results between engines
+            comp = compare_results(
+                a["columns"], a["rows"], 
+                b["columns"], b["rows"],
+                mode=args.mode, 
+                float_tol=args.float_tol,
+                ignore_colnames=args.ignore_colnames, 
+                sample_limit=args.show
+            )
+            
             key = f'{a["label"]} ~ {b["label"]}'
             comparisons[key] = comp
+            
             if not comp["ok"]:
                 any_fail = True
                 if args.stop_on_first_fail:
                     break
+                    
         if args.stop_on_first_fail and any_fail:
             break
 
-    # Build summary (omit rows for compactness)
+    # Build summary report (omit row data for compactness)
     summary = {
         "mode": args.mode,
         "float_tol": args.float_tol,
         "ignore_colnames": args.ignore_colnames,
-        "cases": [{k: v for k, v in pc.items() if k != "rows"} for pc in per_case],
+        "cases": [
+            {k: v for k, v in pc.items() if k != "rows"} 
+            for pc in per_case
+        ],
         "comparisons": comparisons,
     }
 
-    # Optional JSON file
+    # Write JSON output file if requested
     if args.json_file:
         try:
             with open(args.json_file, "w", encoding="utf-8") as f:
                 json.dump(summary, f, ensure_ascii=False, indent=2)
+            if args.verbose:
+                print(f"JSON summary written to: {args.json_file}")
         except Exception as e:
-            print(f"[warn] failed to write --json-file: {e}", file=sys.stderr)
+            print(f"Warning: Failed to write JSON file '{args.json_file}': {e}", file=sys.stderr)
 
     # Output
     if args.output == "json":

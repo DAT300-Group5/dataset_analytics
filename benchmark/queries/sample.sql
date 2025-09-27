@@ -1,1 +1,0 @@
-SELECT * FROM acc LIMIT 10
