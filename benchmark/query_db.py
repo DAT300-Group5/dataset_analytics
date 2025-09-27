@@ -67,7 +67,7 @@ def _execute_non_select_statement(cursor_or_conn, stmt: str):
 def _run_statements_duckdb(
     db_path: str,
     statements: list,
-    duckdb_threads: int | None = None
+    threads: int | None = None
 ):
     """
     Execute statements using DuckDB engine.
@@ -84,9 +84,9 @@ def _run_statements_duckdb(
 
     # Build connection config (only pass when non-empty to avoid TypeError)
     config: dict[str, int] = {}
-    if duckdb_threads is not None and duckdb_threads > 0:
+    if threads is not None and threads > 0:
         # DuckDB expects the key 'threads'
-        config["threads"] = int(duckdb_threads)
+        config["threads"] = int(threads)
 
     if config:
         con = duckdb.connect(database=db_path, config=config)
@@ -155,7 +155,7 @@ def _run_statements_sqlite(db_path: str, statements: list, sqlite_pragmas: dict 
     return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
 
 
-def _run_statements_chdb(db_path: str, statements: list, max_threads: int | None = None):
+def _run_statements_chdb(db_path: str, statements: list, threads: int | None = None):
     """
     Execute statements using chDB session.
     - db_path: directory path for persistent session
@@ -170,8 +170,8 @@ def _run_statements_chdb(db_path: str, statements: list, max_threads: int | None
 
     sess = chs.Session(db_path) if db_path else chs.Session()
     try:
-        if max_threads and max_threads > 0:
-            sess.query(f"SET max_threads = {int(max_threads)}")
+        if threads and threads > 0:
+            sess.query(f"SET max_threads = {int(threads)}")
         
         # Select the sensor database where tables were created
         if db_path:
@@ -210,7 +210,7 @@ def _run_statements_chdb(db_path: str, statements: list, max_threads: int | None
 
 
 def run_query_with_ttfr(engine: str, db_path: str, query: str,
-                        duckdb_threads: int | None = None,
+                        threads: int | None = None,
                         sqlite_pragmas: dict | None = None):
     """
     Execute semicolon-separated SQL statements and collect:
@@ -232,13 +232,13 @@ def run_query_with_ttfr(engine: str, db_path: str, query: str,
     # Execute statements using the appropriate engine
     if engine == "duckdb":
         first_select_ttfr, rows_returned, statements_executed, select_statements, retval = \
-            _run_statements_duckdb(db_path, stmts, duckdb_threads)
+            _run_statements_duckdb(db_path, stmts, threads)
     elif engine == "sqlite":
         first_select_ttfr, rows_returned, statements_executed, select_statements, retval = \
             _run_statements_sqlite(db_path, stmts, sqlite_pragmas)
     elif engine == "chdb":
         first_select_ttfr, rows_returned, statements_executed, select_statements, retval = \
-            _run_statements_chdb(db_path, stmts, duckdb_threads)
+            _run_statements_chdb(db_path, stmts, threads)
     else:
         raise ValueError(f"Unsupported engine: {engine}")
 

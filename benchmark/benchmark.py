@@ -103,7 +103,7 @@ def monitor_process(pid, interval, out_dict, stop_event):
 
 # -------------------------- one-shot (inproc) single run --------------------------
 def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query='',
-                    duckdb_threads=None, sqlite_pragmas=None):
+                    threads=None, sqlite_pragmas=None):
     """
     Single measured run in the current process:
       - Monitor this process (PID) with psutil (CPU/RSS).
@@ -124,7 +124,7 @@ def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query=''
     mon.start()
     try:
         exec_info = run_query_with_ttfr(engine, db_path, query,
-                                        duckdb_threads=duckdb_threads,
+                                        threads=threads,
                                         sqlite_pragmas=sqlite_pragmas)
     finally:
         stop_event.set()
@@ -150,7 +150,7 @@ def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query=''
     return out
 
 # -------------------------- per-run child (existing) --------------------------
-def _child_worker_oneshot(conn, engine, db_path, query, duckdb_threads, sqlite_pragmas):
+def _child_worker_oneshot(conn, engine, db_path, query, threads, sqlite_pragmas):
     """
     Child process entry for one-shot child mode:
       - Run the query and compute TTFR.
@@ -163,7 +163,7 @@ def _child_worker_oneshot(conn, engine, db_path, query, duckdb_threads, sqlite_p
         tracemalloc.reset_peak()
         t0 = time.perf_counter()
         exec_info = run_query_with_ttfr(engine, db_path, query,
-                                        duckdb_threads=duckdb_threads,
+                                        threads=threads,
                                         sqlite_pragmas=sqlite_pragmas)
         t1 = time.perf_counter()
         py_current, py_peak = tracemalloc.get_traced_memory()
@@ -181,7 +181,7 @@ def _child_worker_oneshot(conn, engine, db_path, query, duckdb_threads, sqlite_p
         conn.close()
 
 def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
-                   duckdb_threads=None, sqlite_pragmas=None):
+                   threads=None, sqlite_pragmas=None):
     """
     One-shot child mode:
       - Fork a child process for this run only.
@@ -189,7 +189,7 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
     """
     parent_conn, child_conn = Pipe(duplex=False)
     p = Process(target=_child_worker_oneshot,
-                args=(child_conn, engine, db_path, query, duckdb_threads, sqlite_pragmas),
+                args=(child_conn, engine, db_path, query, threads, sqlite_pragmas),
                 daemon=False)
     p.start()
 
@@ -234,7 +234,7 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
     return out
 
 # -------------------------- persistent child (new) --------------------------
-def _child_worker_persistent(conn, engine, db_path, duckdb_threads, sqlite_pragmas):
+def _child_worker_persistent(conn, engine, db_path, threads, sqlite_pragmas):
     """
     Persistent child process:
     - Creates ONE DB connection in the child (implicitly handled inside runner).
@@ -265,7 +265,7 @@ def _child_worker_persistent(conn, engine, db_path, duckdb_threads, sqlite_pragm
                 tracemalloc.reset_peak()
                 t0 = time.perf_counter()
                 exec_info = run_query_with_ttfr(engine, db_path, query,
-                                                duckdb_threads=duckdb_threads,
+                                                threads=threads,
                                                 sqlite_pragmas=sqlite_pragmas)
                 t1 = time.perf_counter()
                 py_current, py_peak = tracemalloc.get_traced_memory()
@@ -285,7 +285,7 @@ def _child_worker_persistent(conn, engine, db_path, duckdb_threads, sqlite_pragm
     conn.close()
 
 def run_persistent_child_session(engine, db_path, sample_interval, queries,
-                                 duckdb_threads=None, sqlite_pragmas=None):
+                                 threads=None, sqlite_pragmas=None):
     """
     Runs multiple queries (warmups + repeats) against ONE persistent child process.
 
@@ -298,7 +298,7 @@ def run_persistent_child_session(engine, db_path, sample_interval, queries,
     """
     parent_conn, child_conn = Pipe(duplex=True)
     p = Process(target=_child_worker_persistent,
-                args=(child_conn, engine, db_path, duckdb_threads, sqlite_pragmas),
+                args=(child_conn, engine, db_path, threads, sqlite_pragmas),
                 daemon=False)
     p.start()
 
@@ -447,7 +447,7 @@ def main():
                 db_path=args.db_path,
                 sample_interval=args.interval,
                 query=query,
-                duckdb_threads=(args.threads if args.threads > 0 else None),
+                threads=(args.threads if args.threads > 0 else None),
                 sqlite_pragmas=sqlite_pragmas,
             )
             print(f("[Warmup {i}/{n}] done.").format(i=i+1, n=args.warmups))
@@ -463,7 +463,7 @@ def main():
             db_path=args.db_path,
             sample_interval=args.interval,
             queries=queries,
-            duckdb_threads=(args.threads if args.threads > 0 else None),
+            threads=(args.threads if args.threads > 0 else None),
             sqlite_pragmas=sqlite_pragmas,
         )
         # Discard warmups, keep repeats
@@ -494,7 +494,7 @@ def main():
                 db_path=args.db_path,
                 sample_interval=args.interval,
                 query=query,
-                duckdb_threads=(args.threads if args.threads > 0 else None),
+                threads=(args.threads if args.threads > 0 else None),
                 sqlite_pragmas=sqlite_pragmas,
             )
             runs.append(res)

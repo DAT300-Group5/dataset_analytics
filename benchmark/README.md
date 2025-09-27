@@ -28,7 +28,7 @@ raw_data/
 
 Remember to specific root directories in `create_db.py`.
 
-**Important**: Downgrade python version to 3.9 if you encounter issues with ` new instance has no pybind11-registered base types`.
+**Important**: Downgrade python version to 3.9 if you encounter issues with `new instance has no pybind11-registered base types`.
 
 ## Installation
 
@@ -184,6 +184,7 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
 python create_db.py vs14 ./db_vs14/vs14_data.sqlite --engine sqlite
 python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
 
+
 # Run sample first
 python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
   --query-file queries/sample.sql \
@@ -196,6 +197,7 @@ python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
 python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
   --query-file queries/sample.sql \
   --out queries/sample_clickhouse.json
+
 
 # Step 2: Benchmark databases
 python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
