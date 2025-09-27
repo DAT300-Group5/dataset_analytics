@@ -96,9 +96,6 @@ Command-line Arguments (Inputs):
 | `--child`             | Flag            | Run each measured run in a separate child process.                         |
 | `--child-persistent`  | Flag            | Run all warmups + repeats against one persistent child/connection.         |
 | `--threads`           | Integer         | DuckDB PRAGMA threads or chDB `max_threads` (0 = engine default).          |
-| `--sqlite-journal`    | String          | SQLite PRAGMA `journal_mode` (e.g., WAL, OFF, DELETE).                     |
-| `--sqlite-sync`       | String          | SQLite PRAGMA `synchronous` (OFF, NORMAL, FULL, EXTRA).                    |
-| `--sqlite-cache-size` | Integer         | SQLite PRAGMA `cache_size` (pages; negative means KiB).                    |
 | `--out`               | String (path)   | If set, write all measured runs and summary as JSON to this path.          |
 
 Each run produces a JSON object with these keys:
@@ -132,7 +129,6 @@ Aggregated across all measured runs (warmups excluded):
 | `repeat`                   | Number of measured runs.                             |
 | `warmups`                  | Number of warm-up runs excluded.                     |
 | `threads`                  | Number of threads (DuckDB/chDB).                     |
-| `sqlite_pragmas`           | Dictionary of SQLite PRAGMA settings used.           |
 | `mean_wall_time_seconds`   | Mean wall time across measured runs.                 |
 | `mean_ttfr_seconds`        | Mean TTFR across measured runs.                      |
 | `mean_peak_rss_bytes_true` | Mean peak true RSS (bytes).                          |
