@@ -86,7 +86,23 @@ python create_db.py ab60 ./my_data.duckdb
 python create_db.py vs14 ./test.sqlite --engine sqlite
 
 # Create chDB database
+# chDB uses directory as DB, and need to specify the table
 python create_db.py vs14 ./chdb --engine chdb
+```
+
+### Prepare SQL
+
+Prepare queries, and check their usablity.
+
+```bash
+# DuckDB
+python run_duckdb_sql.py ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql > out_duckdb.csv
+
+# SQLite
+python run_sqlite_sql.py ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql > out_sqlite.csv
+
+# ClickHouse (chdb)
+python run_chdb_sql.py ./db_vs14/vs14_data_chdb queries/Q1/Q1_clickhouse.sql > out_chdb.csv
 ```
 
 ### Validate SQL Correctness
@@ -242,6 +258,10 @@ python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
 Step 2: Prepare SQL files and make sure they have the same outcome
 
 ```bash
+python run_duckdb_sql.py ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql > out_duckdb.csv
+python run_sqlite_sql.py ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql > out_sqlite.csv
+python run_chdb_sql.py ./db_vs14/vs14_data_chdb queries/Q1/Q1_clickhouse.sql > out_chdb.csv
+
 python validate_sql_correctness.py \
   --case duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql \
   --case sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql \
