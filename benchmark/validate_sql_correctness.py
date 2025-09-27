@@ -37,11 +37,10 @@ import itertools
 import json
 import math
 import os
-import re
 import sqlite3
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import duckdb
@@ -172,6 +171,7 @@ def normalize_value(v: Any, float_tol: float) -> Any:
     except TypeError:
         return repr(v)
 
+
 def normalize_row(row: tuple, float_tol: float) -> tuple:
     """Normalize all values in a row.
     
@@ -253,6 +253,7 @@ def run_sqlite(db_path: str, query: str) -> Tuple[List[str], List[Tuple]]:
     finally:
         con.close()
 
+
 def run_duckdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple[List[str], List[Tuple]]:
     """Execute SQL query on DuckDB database.
     
@@ -323,6 +324,7 @@ def run_chdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple[L
             conn.close()
         except Exception:
             pass
+
 
 RUNNERS = {
     "duckdb": run_duckdb,
@@ -435,7 +437,35 @@ def compare_results(
 # ------------------------------ Main CLI ------------------------------------
 
 def main() -> None:
-    """Main function to handle command line interface and coordinate validation."""
+    """Main entry: parse args, run cases, compare and output results."""
+    args = _parse_args()
+
+    # Run and validate cases
+    per_case = validate_and_run_cases(args)
+
+    # Pairwise compare
+    any_fail, comparisons = compare_all_cases(per_case, args)
+
+    # Build summary
+    summary = build_summary(per_case, comparisons, args)
+
+    # Optionally write JSON file
+    if args.json_file:
+        try:
+            with open(args.json_file, "w", encoding="utf-8") as f:
+                json.dump(summary, f, ensure_ascii=False, indent=2)
+            if args.verbose:
+                print(f"JSON summary written to: {args.json_file}")
+        except Exception as e:
+            print(f"Warning: Failed to write JSON file '{args.json_file}': {e}", file=sys.stderr)
+
+    # Output
+    output_summary(summary, comparisons, args)
+
+    sys.exit(1 if any_fail else 0)
+
+
+def _parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(
         description="Result equivalence checker across explicit ENGINE-DB-SQL cases"
     )
@@ -445,72 +475,75 @@ def main() -> None:
         help="One case: ENGINE DB_PATH SQL_FILE. Repeat for multiple cases."
     )
     ap.add_argument(
-        "--threads", type=int, default=0, 
+        "--threads", type=int, default=0,
         help="DuckDB/chDB threads"
     )
     ap.add_argument(
-        "--mode", choices=["ordered", "bag"], default="bag", 
+        "--mode", choices=["ordered", "bag"], default="bag",
         help="Equivalence model"
     )
     ap.add_argument(
-        "--float-tol", type=float, default=DEFAULT_FLOAT_TOLERANCE, 
+        "--float-tol", type=float, default=DEFAULT_FLOAT_TOLERANCE,
         help="Floating point tolerance (rounding granularity)"
     )
     ap.add_argument(
-        "--ignore-colnames", action="store_true", 
+        "--ignore-colnames", action="store_true",
         help="Ignore column name differences; only check column count"
     )
     ap.add_argument(
-        "--stop-on-first-fail", action="store_true", 
+        "--stop-on-first-fail", action="store_true",
         help="Stop at the first mismatch"
     )
     ap.add_argument(
-        "--verbose", action="store_true", 
+        "--verbose", action="store_true",
         help="Verbose execution logs"
     )
     ap.add_argument(
-        "--output", choices=["human", "json"], default="human", 
+        "--output", choices=["human", "json"], default="human",
         help="Output format"
     )
     ap.add_argument(
-        "--show", type=int, default=DEFAULT_SAMPLE_LIMIT, 
+        "--show", type=int, default=DEFAULT_SAMPLE_LIMIT,
         help="Max number of sample row differences to display"
     )
     ap.add_argument(
-        "--json-file", type=str, default="", 
+        "--json-file", type=str, default="",
         help="Also write full JSON summary to this path"
     )
     args = ap.parse_args()
 
     if not args.case or len(args.case) < 2:
         print(
-            "Error: Provide at least two --case entries (ENGINE DB_PATH SQL_FILE).", 
+            "Error: Provide at least two --case entries (ENGINE DB_PATH SQL_FILE).",
             file=sys.stderr
         )
         sys.exit(2)
+    return args
 
-    # Validate and run each case
-    per_case = []
+
+def validate_and_run_cases(args: argparse.Namespace) -> List[Dict[str, Any]]:
+    """Validate inputs and execute each case, returning per_case list."""
+    per_case: List[Dict[str, Any]] = []
     for (engine, dbp, sqlf) in args.case:
         eng = engine.strip().lower()
-        
+
         # Validate engine type
         if eng not in RUNNERS:
             print(
-                f"Unknown engine '{engine}'. Must be one of: {list(RUNNERS)}", 
+                f"Unknown engine '{engine}'. Must be one of: {list(RUNNERS)}",
                 file=sys.stderr
             )
             sys.exit(2)
-            
+
         # Check for optional engine availability
         if eng == "chdb" and not HAS_CHDB:
             print("Error: chdb is not installed but requested.", file=sys.stderr)
             sys.exit(2)
-            
+
         if eng == "duckdb" and duckdb is None:
             print("Error: duckdb is not installed but requested.", file=sys.stderr)
             sys.exit(2)
-            
+
         # Validate file paths
         if not os.path.exists(dbp):
             print(f"Database file not found: {dbp}", file=sys.stderr)
@@ -523,14 +556,14 @@ def main() -> None:
             sql = load_sql(sqlf)
             runner = RUNNERS[eng]
             t0 = time.perf_counter()
-            
+
             # Execute query with appropriate parameters
             if eng in ("duckdb", "chdb"):
                 cols, rows = runner(dbp, sql, threads=args.threads)
             else:
                 cols, rows = runner(dbp, sql)
             t1 = time.perf_counter()
-            
+
             per_case.append({
                 "label": f'{eng}:{dbp}|{os.path.basename(sqlf)}',
                 "engine": eng,
@@ -541,7 +574,7 @@ def main() -> None:
                 "rows": rows,
                 "time_sec": t1 - t0,
             })
-            
+
             if args.verbose:
                 print(
                     f'[{eng}] rows={len(rows)} cols={len(cols)} '
@@ -551,95 +584,88 @@ def main() -> None:
             print(f"Error executing {eng} query: {e}", file=sys.stderr)
             sys.exit(2)
 
-    # Pairwise comparisons between all cases
+    return per_case
+
+
+def compare_all_cases(per_case: List[Dict[str, Any]], args: argparse.Namespace) -> Tuple[bool, Dict[str, Any]]:
+    """Perform pairwise comparisons and return (any_fail, comparisons dict)."""
     any_fail = False
-    comparisons = {}
-    
+    comparisons: Dict[str, Any] = {}
+
     for i in range(len(per_case)):
         for j in range(i + 1, len(per_case)):
             a = per_case[i]
             b = per_case[j]
-            
-            # Compare results between engines
+
             comp = compare_results(
-                a["columns"], a["rows"], 
+                a["columns"], a["rows"],
                 b["columns"], b["rows"],
-                mode=args.mode, 
+                mode=args.mode,
                 float_tol=args.float_tol,
-                ignore_colnames=args.ignore_colnames, 
+                ignore_colnames=args.ignore_colnames,
                 sample_limit=args.show
             )
-            
+
             key = f'{a["label"]} ~ {b["label"]}'
             comparisons[key] = comp
-            
+
             if not comp["ok"]:
                 any_fail = True
                 if args.stop_on_first_fail:
-                    break
-                    
-        if args.stop_on_first_fail and any_fail:
-            break
+                    return any_fail, comparisons
 
-    # Build summary report (omit row data for compactness)
-    summary = {
+    return any_fail, comparisons
+
+
+def build_summary(per_case: List[Dict[str, Any]], comparisons: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any]:
+    return {
         "mode": args.mode,
         "float_tol": args.float_tol,
         "ignore_colnames": args.ignore_colnames,
         "cases": [
-            {k: v for k, v in pc.items() if k != "rows"} 
+            {k: v for k, v in pc.items() if k != "rows"}
             for pc in per_case
         ],
         "comparisons": comparisons,
     }
 
-    # Write JSON output file if requested
-    if args.json_file:
-        try:
-            with open(args.json_file, "w", encoding="utf-8") as f:
-                json.dump(summary, f, ensure_ascii=False, indent=2)
-            if args.verbose:
-                print(f"JSON summary written to: {args.json_file}")
-        except Exception as e:
-            print(f"Warning: Failed to write JSON file '{args.json_file}': {e}", file=sys.stderr)
 
-    # Output
+def output_summary(summary: Dict[str, Any], comparisons: Dict[str, Any], args: argparse.Namespace) -> None:
     if args.output == "json":
         print(json.dumps(summary, ensure_ascii=False, indent=2))
-    else:
-        print("\n=== Result Equivalence Report (mode=%s, tol=%g) ===" % (args.mode, args.float_tol))
-        for key, comp in comparisons.items():
-            status = "OK" if comp["ok"] else "FAIL"
-            print(f"\n--- {key} : {status} ---")
-            if comp["column_issue"]:
-                print("Columns differ:")
-                print("  A:", comp["column_issue"]["a_cols"])
-                print("  B:", comp["column_issue"]["b_cols"])
-                for h in comp["column_issue"]["hints"] or []:
-                    print("  hint:", h)
-            if comp["row_issue"]:
-                d = comp["row_issue"]["detail"]
-                if d["type"] == "row_count_mismatch":
-                    print(f"Rows differ: count {d['a_count']} vs {d['b_count']}")
-                elif d["type"] == "ordered_diff":
-                    print("Rows differ (ordered). Sample diffs:")
-                    for s in d["samples"]:
-                        print(f"  idx={s['index']}")
-                        print(f"    A: {s['a']}")
-                        print(f"    B: {s['b']}")
-                elif d["type"] == "multiset_diff":
-                    print(f"Rows differ (bag). Missing kinds: {d['missing_count']}, Extra kinds: {d['extra_count']}")
-                    if d["missing_samples"]:
-                        print("  Missing samples (A > B):")
-                        for s in d["missing_samples"]:
-                            print(f"    {s['row']} x{s['count_diff']}")
-                    if d["extra_samples"]:
-                        print("  Extra samples (B > A):")
-                        for s in d["extra_samples"]:
-                            print(f"    {s['row']} x{s['count_diff']}")
-        print("\n=== End ===")
+        return
 
-    sys.exit(1 if any_fail else 0)
+    print("\n=== Result Equivalence Report (mode=%s, tol=%g) ===" % (args.mode, args.float_tol))
+    for key, comp in comparisons.items():
+        status = "OK" if comp["ok"] else "FAIL"
+        print(f"\n--- {key} : {status} ---")
+        if comp["column_issue"]:
+            print("Columns differ:")
+            print("  A:", comp["column_issue"]["a_cols"])
+            print("  B:", comp["column_issue"]["b_cols"])
+            for h in comp["column_issue"]["hints"] or []:
+                print("  hint:", h)
+        if comp["row_issue"]:
+            d = comp["row_issue"]["detail"]
+            if d["type"] == "row_count_mismatch":
+                print(f"Rows differ: count {d['a_count']} vs {d['b_count']}")
+            elif d["type"] == "ordered_diff":
+                print("Rows differ (ordered). Sample diffs:")
+                for s in d["samples"]:
+                    print(f"  idx={s['index']}")
+                    print(f"    A: {s['a']}")
+                    print(f"    B: {s['b']}")
+            elif d["type"] == "multiset_diff":
+                print(f"Rows differ (bag). Missing kinds: {d['missing_count']}, Extra kinds: {d['extra_count']}")
+                if d["missing_samples"]:
+                    print("  Missing samples (A > B):")
+                    for s in d["missing_samples"]:
+                        print(f"    {s['row']} x{s['count_diff']}")
+                if d["extra_samples"]:
+                    print("  Extra samples (B > A):")
+                    for s in d["extra_samples"]:
+                        print(f"    {s['row']} x{s['count_diff']}")
+    print("\n=== End ===")
 
 
 if __name__ == "__main__":
