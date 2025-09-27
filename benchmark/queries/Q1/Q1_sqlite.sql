@@ -27,10 +27,11 @@ ped_minute AS (
   SELECT
     deviceId,
     (CAST(ts AS INTEGER)/60000)*60000 AS minute_ms,
-    SUM(steps) AS steps_sum
+    SUM(steps) AS total_steps
   FROM ped
   GROUP BY deviceId, minute_ms
 ),
+
 lit_ranked AS (
   SELECT
     deviceId,
@@ -52,7 +53,7 @@ lit_minute AS (
     CASE
       WHEN cnt % 2 = 1 THEN MAX(CASE WHEN rn = (cnt + 1)/2 THEN ali END)
       ELSE (SUM(CASE WHEN rn = cnt/2 THEN ali END)
-            + SUM(CASE WHEN rn = cnt/2 + 1 THEN ali END)) / 2.0
+            +   SUM(CASE WHEN rn = cnt/2 + 1 THEN ali END)) / 2.0
     END AS median_light
   FROM lit_ranked
   GROUP BY deviceId, minute_ms
@@ -70,12 +71,12 @@ minutes AS (
 )
 SELECT
   m.deviceId,
-  datetime(m.minute_ms/1000, 'unixepoch') AS minute_ts,
-  h.avg_hr,
-  p.avg_ppg,
-  a.rms_acc,
-  d.steps_sum,
-  l.median_light
+  strftime('%Y-%m-%dT%H:%M:%S', m.minute_ms/1000, 'unixepoch') || '+00:00' AS minute_ts,
+  COALESCE(h.avg_hr,       0.0) AS avg_hr,
+  COALESCE(p.avg_ppg,      0.0) AS avg_ppg,
+  COALESCE(a.rms_acc,      0.0) AS rms_acc,
+  COALESCE(d.total_steps,  0  ) AS total_steps,
+  COALESCE(l.median_light, 0.0) AS median_light
 FROM minutes AS m
 LEFT JOIN hrm_minute AS h USING (deviceId, minute_ms)
 LEFT JOIN ppg_minute AS p USING (deviceId, minute_ms)
@@ -83,4 +84,3 @@ LEFT JOIN acc_minute AS a USING (deviceId, minute_ms)
 LEFT JOIN ped_minute AS d USING (deviceId, minute_ms)
 LEFT JOIN lit_minute AS l USING (deviceId, minute_ms)
 ORDER BY m.deviceId, m.minute_ms;
-;

@@ -1,77 +1,69 @@
 USE sensor;
 
 WITH
--- 1) Per-minute aggregates
 hrm_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_ts,
-    AVG(HR) AS avg_hr
+    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
+    avg(HR) AS avg_hr
   FROM hrm
-  GROUP BY deviceId, minute_ts
+  GROUP BY deviceId, minute_dt
 ),
 ppg_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_ts,
-    AVG(ppg) AS avg_ppg
+    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
+    avg(ppg) AS avg_ppg
   FROM ppg
-  GROUP BY deviceId, minute_ts
+  GROUP BY deviceId, minute_dt
 ),
 acc_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_ts,
-    sqrt(AVG(x*x + y*y + z*z)) AS rms_acc
+    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
+    sqrt(avg(x*x + y*y + z*z)) AS rms_acc
   FROM acc
-  GROUP BY deviceId, minute_ts
+  GROUP BY deviceId, minute_dt
 ),
 ped_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_ts,
-    SUM(steps) AS total_steps
+    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
+    sum(steps) AS total_steps
   FROM ped
-  GROUP BY deviceId, minute_ts
+  GROUP BY deviceId, minute_dt
 ),
 lit_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_ts,
+    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
     quantileExactInclusive(0.5)(ambient_light_intensity) AS median_light
   FROM lit
-  GROUP BY deviceId, minute_ts
-),
-
--- 2) Build minutes from the aggregated CTEs
-minutes_raw AS (
-  SELECT deviceId, minute_ts FROM hrm_minute
-  UNION ALL
-  SELECT deviceId, minute_ts FROM ppg_minute
-  UNION ALL
-  SELECT deviceId, minute_ts FROM acc_minute
-  UNION ALL
-  SELECT deviceId, minute_ts FROM ped_minute
-  UNION ALL
-  SELECT deviceId, minute_ts FROM lit_minute
+  GROUP BY deviceId, minute_dt
 ),
 minutes AS (
-  SELECT DISTINCT deviceId, minute_ts FROM minutes_raw
+  SELECT deviceId, minute_dt FROM hrm_minute
+  UNION DISTINCT
+  SELECT deviceId, minute_dt FROM ppg_minute
+  UNION DISTINCT
+  SELECT deviceId, minute_dt FROM acc_minute
+  UNION DISTINCT
+  SELECT deviceId, minute_dt FROM ped_minute
+  UNION DISTINCT
+  SELECT deviceId, minute_dt FROM lit_minute
 )
-
--- 3) Stitch together
 SELECT
-  m.deviceId,
-  m.minute_ts,
-  h.avg_hr,
-  p.avg_ppg,
-  a.rms_acc,
-  d.total_steps,
-  l.median_light
+  m.deviceId AS deviceId,
+  formatDateTime(m.minute_dt, '%Y-%m-%dT%H:%i:%S+00:00') AS minute_ts,
+  COALESCE(h.avg_hr,       0.0) AS avg_hr,
+  COALESCE(p.avg_ppg,      0.0) AS avg_ppg,
+  COALESCE(a.rms_acc,      0.0) AS rms_acc,
+  COALESCE(d.total_steps,  0  ) AS total_steps,
+  COALESCE(l.median_light, 0.0) AS median_light
 FROM minutes AS m
-LEFT JOIN hrm_minute AS h USING (deviceId, minute_ts)
-LEFT JOIN ppg_minute AS p USING (deviceId, minute_ts)
-LEFT JOIN acc_minute AS a USING (deviceId, minute_ts)
-LEFT JOIN ped_minute AS d USING (deviceId, minute_ts)
-LEFT JOIN lit_minute AS l USING (deviceId, minute_ts)
-ORDER BY m.deviceId, m.minute_ts;
+LEFT JOIN hrm_minute AS h USING (deviceId, minute_dt)
+LEFT JOIN ppg_minute AS p USING (deviceId, minute_dt)
+LEFT JOIN acc_minute AS a USING (deviceId, minute_dt)
+LEFT JOIN ped_minute AS d USING (deviceId, minute_dt)
+LEFT JOIN lit_minute AS l USING (deviceId, minute_dt)
+ORDER BY m.deviceId, m.minute_dt;

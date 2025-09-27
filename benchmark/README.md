@@ -1,6 +1,6 @@
 # Database Performance Benchmark
 
-This directory contains tools for benchmarking and comparing the performance of different database engines (DuckDB vs SQLite) for analytical queries.
+This directory contains tools for benchmarking and comparing the performance of different database engines (DuckDB, SQLite, ClickHouse) for analytical queries.
 
 ## Overview
 
@@ -13,7 +13,7 @@ The benchmark suite provides:
 
 ## File Structure
 
-Before running benchmarks, ensure the following raw data files are present in the directory:
+Before running benchmarks, ensure the following raw data files are present in the root directory:
 
 ```ascii
 raw_data/
@@ -25,10 +25,6 @@ raw_data/
 │   └── grv_ab60.csv
 └── ...
 ```
-
-Remember to specific root directories in `create_db.py`.
-
-**Important**: Downgrade python version to 3.9 if you encounter issues with `new instance has no pybind11-registered base types`.
 
 ## Installation
 
@@ -61,6 +57,10 @@ Parameters:
 - `target_path` - Path for the output database file/path
 - `--engine` - Database engine: `duckdb` (default), `sqlite` and `chdb`
 
+Remember to specific root directories in `create_db.py`.
+
+**Important**: Downgrade python version to 3.9 if you encounter issues with `new instance has no pybind11-registered base types`.
+
 ```bash
 # Basic usage - create database
 python create_db.py <device_id> <target_path> --engine {sqlite,duckdb,chdb}
@@ -81,7 +81,51 @@ python create_db.py vs14 ./test.sqlite --engine sqlite
 python create_db.py vs14 ./chdb --engine chdb
 ```
 
+### Validate SQL Correctness
+
+Validate SQL correctness (same outcome) using `validate_sql_correctness.py`.
+
+- `--mode`: Defines the **equivalence model** for result comparison:
+  - **`ordered`**
+    - Strict row-by-row comparison in order.
+    - Any difference in order, row count, or values → FAIL.
+    - Use when the query has a deterministic `ORDER BY` and you want to validate ordering.
+  - **`bag`** (default)
+    - Treats results as an **unordered multiset** of rows.
+    - Checks only which rows appear and how many times, ignoring order.
+    - Best for analytical queries without `ORDER BY`.
+- `--float-tol`: Floating-point tolerance (default = `1e-9`). All floats are rounded before comparison to account for engine-specific floating-point differences.
+  - Example: `--float-tol 1e-6` → round to 6 decimal places.
+  - `--float-tol 0` → compare floats exactly.
+- `--ignore-colnames`: Ignore column **names** and compare only column **counts**. Useful when engines generate different aliases but values are the same.
+- `--output`: Controls output format:
+  - **`human`** (default) → human-readable report (OK/FAIL + samples).
+  - **`json`** → structured JSON summary (suitable for scripts or CI).
+- `--show`: Maximum number of row difference **samples** to display in human mode (default = 5).
+- `--json-file`: Write the full JSON summary to the specified file, in addition to console output.Useful for archiving results or machine parsing.
+
+Sample:
+
+```shell
+python validate_sql_correctness.py \
+  --case duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql \
+  --case sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql \
+  --case chdb   ./db_vs14/vs14_data_chdb  queries/Q1/Q1_clickhouse.sql \
+  --mode bag --output human --show 5 --json-file q1_diff.json
+```
+
+This means:
+
+- Run 3 queries (DuckDB, SQLite, ClickHouse).
+- Compare results using **bag mode** (ignore order).
+- Print a human-readable report, showing up to 5 sample differences.
+- Save the complete JSON summary to `q1_diff.json`.
+
+You have to make sure these 3 SQL files have the same outcome.
+
 ### Benchmarking
+
+Use `benchmark.py`.
 
 Command-line Arguments (Inputs):
 
@@ -170,6 +214,23 @@ python benchmark.py --engine sqlite --db-path ./foo.sqlite \
   --out sqlite_q3_inproc.json
 ```
 
+---
+
+Not always – `--child-persistent` is not the best choice in every case.
+
+- Use **`--child`** when you want *cold-start behavior*: each run creates a new process and connection, so no connection-level caches carry over.
+- Use **`--child-persistent`** for *warm scenarios*: warmups and repeats all run in one child process, so session-level caches (SQLite page cache, DuckDB session state) can persist.
+- Use **inproc** for quick debugging with minimal overhead. For serious experiments, it’s often useful to report both cold (`--child`) and warm (`--child-persistent`) results.
+
+As for `--interval`: it controls how often CPU/RSS are sampled. Too large → you may miss spikes; too small → extra overhead. A good rule of thumb is to aim for ~20–100 samples per run.
+
+- Short queries (<0.2s): 0.02–0.05s
+- Medium (0.2–2s): 0.05–0.1s
+- Long (2–30s): 0.1–0.5s
+- Very long (>30s): 0.5–1s
+
+Practical approach: run once with a rough interval, check the wall time, then set `interval ≈ wall_time / 50` for your main repeats. This way you balance fidelity and monitoring cost.
+
 ### Complete Workflow Example
 
 Here's a complete example of creating databases and benchmarking them:
@@ -211,20 +272,3 @@ python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
   --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
   --out queries/Q1/clickhouse_q1_persistent.json
 ```
-
-### Q & A
-
-Not always – `--child-persistent` is not the best choice in every case.
-
-- Use **`--child`** when you want *cold-start behavior*: each run creates a new process and connection, so no connection-level caches carry over.
-- Use **`--child-persistent`** for *warm scenarios*: warmups and repeats all run in one child process, so session-level caches (SQLite page cache, DuckDB session state) can persist.
-- Use **inproc** for quick debugging with minimal overhead. For serious experiments, it’s often useful to report both cold (`--child`) and warm (`--child-persistent`) results.
-
-As for `--interval`: it controls how often CPU/RSS are sampled. Too large → you may miss spikes; too small → extra overhead. A good rule of thumb is to aim for ~20–100 samples per run.
-
-- Short queries (<0.2s): 0.02–0.05s
-- Medium (0.2–2s): 0.05–0.1s
-- Long (2–30s): 0.1–0.5s
-- Very long (>30s): 0.5–1s
-
-Practical approach: run once with a rough interval, check the wall time, then set `interval ≈ wall_time / 50` for your main repeats. This way you balance fidelity and monitoring cost.
