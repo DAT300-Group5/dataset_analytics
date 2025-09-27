@@ -112,14 +112,13 @@ def _run_statements_duckdb(
     return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
 
 
-def _run_statements_sqlite(db_path: str, statements: list, sqlite_pragmas: dict | None = None):
+def _run_statements_sqlite(db_path: str, statements: list):
     """
     Execute statements using SQLite engine.
     
     Args:
         db_path: Path to SQLite database
         statements: List of SQL statements
-        sqlite_pragmas: SQLite pragma settings (optional)
         
     Returns:
         tuple: (first_select_ttfr, rows_returned, statements_executed, select_statements, retval)
@@ -134,9 +133,6 @@ def _run_statements_sqlite(db_path: str, statements: list, sqlite_pragmas: dict 
     con = sqlite3.connect(db_path)
     try:
         con.isolation_level = None  # autocommit
-        if sqlite_pragmas:
-            for k, v in sqlite_pragmas.items():
-                con.execute(f"PRAGMA {k}={v};")
 
         cur = con.cursor()
         for stmt in statements:
@@ -210,8 +206,7 @@ def _run_statements_chdb(db_path: str, statements: list, threads: int | None = N
 
 
 def run_query_with_ttfr(engine: str, db_path: str, query: str,
-                        threads: int | None = None,
-                        sqlite_pragmas: dict | None = None):
+                        threads: int | None = None):
     """
     Execute semicolon-separated SQL statements and collect:
       - first_select_ttfr_seconds: TTFR of the FIRST SELECT (None if no SELECT)
@@ -224,7 +219,6 @@ def run_query_with_ttfr(engine: str, db_path: str, query: str,
     Notes:
       - We fetch in chunks (fetchmany(10000)) to avoid blowing memory.
       - DuckDB threads can be controlled via PRAGMA threads=<k>.
-      - SQLite pragmas (journal_mode, synchronous, cache_size) can be set.
     """
     # Parse semicolon-separated statements
     stmts = [s.strip() for s in query.split(";") if s.strip()]
@@ -235,7 +229,7 @@ def run_query_with_ttfr(engine: str, db_path: str, query: str,
             _run_statements_duckdb(db_path, stmts, threads)
     elif engine == "sqlite":
         first_select_ttfr, rows_returned, statements_executed, select_statements, retval = \
-            _run_statements_sqlite(db_path, stmts, sqlite_pragmas)
+            _run_statements_sqlite(db_path, stmts)
     elif engine == "chdb":
         first_select_ttfr, rows_returned, statements_executed, select_statements, retval = \
             _run_statements_chdb(db_path, stmts, threads)
