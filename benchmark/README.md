@@ -67,7 +67,7 @@ Parameters:
 
 Remember to specific root directories in `create_db.py`.
 
-**Important**: Downgrade python version to 3.9 if you encounter issues with `new instance has no pybind11-registered base types`.
+**Important**: Downgrade python version to 3.12 if you encounter issues with `new instance has no pybind11-registered base types`.
 
 ```bash
 # Basic usage - create database
@@ -82,27 +82,34 @@ python create_db.py --help
 python create_db.py vs14 ./test.duckdb
 python create_db.py ab60 ./my_data.duckdb
 
+# Demo
+
+# Create a directory to store databases
+mkdir -p db_vs14
 # Create SQLite database
-python create_db.py vs14 ./test.sqlite --engine sqlite
+python create_db.py vs14 ./db_vs14/vs14_data.sqlite --engine sqlite
+
+# Create DuckDB database
+python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
 
 # Create chDB database
 # chDB uses directory as DB, and need to specify the table
-python create_db.py vs14 ./chdb --engine chdb
+python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
 ```
 
 ### Prepare SQL
 
-Prepare queries, and check their usablity.
+Prepare queries, and check their usablity. Execute them under path `benchmark`.
 
 ```bash
 # DuckDB
-python run_duckdb_sql.py ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql > out_duckdb.csv
+python run_duckdb_sql.py ./db_vs14/vs14_data.duckdb ./queries/Q1/Q1_duckdb.sql > out_duckdb.csv
 
 # SQLite
-python run_sqlite_sql.py ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql > out_sqlite.csv
+python run_sqlite_sql.py ./db_vs14/vs14_data.sqlite ./queries/Q1/Q1_sqlite.sql > out_sqlite.csv
 
 # ClickHouse (chdb)
-python run_chdb_sql.py ./db_vs14/vs14_data_chdb queries/Q1/Q1_clickhouse.sql > out_chdb.csv
+python run_chdb_sql.py ./db_vs14/vs14_data_chdb ./queries/Q1/Q1_clickhouse.sql > out_chdb.csv
 ```
 
 ### Validate SQL Correctness
@@ -132,9 +139,9 @@ Sample usage:
 
 ```bash
 python validate_sql_correctness.py \
-  --case duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql \
-  --case sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql \
-  --case chdb   ./db_vs14/vs14_data_chdb  queries/Q1/Q1_clickhouse.sql \
+  --case duckdb ./db_vs14/vs14_data.duckdb ./queries/Q1/Q1_duckdb.sql \
+  --case sqlite ./db_vs14/vs14_data.sqlite ./queries/Q1/Q1_sqlite.sql \
+  --case chdb   ./db_vs14/vs14_data_chdb  ./queries/Q1/Q1_clickhouse.sql \
   --mode bag --output human --show 5 --json-file q1_diff.json
 ```
 
