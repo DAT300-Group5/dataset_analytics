@@ -257,6 +257,7 @@ Practical approach: run once with a rough interval, check the wall time, then se
 Step 1: Create databases from device vs14 data
 
 ```bash
+mkdir -p db_vs14
 python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
 python create_db.py vs14 ./db_vs14/vs14_data.sqlite --engine sqlite
 python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
