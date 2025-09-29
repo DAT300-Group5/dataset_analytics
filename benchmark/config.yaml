@@ -1,7 +1,7 @@
 # === Edit me ===
 engines: [duckdb, chdb, sqlite]
 
-mode: child-persistent
+mode: child
 threads_duckdb: 4
 threads_chdb: 4
 threads_sqlite: 0

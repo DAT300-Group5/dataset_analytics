@@ -178,8 +178,7 @@ def _run_statements_chdb(db_path, statements: list, threads: int | None = None, 
                 t0 = time.perf_counter()
                 cur.execute(stmt)
                 # The first data acquisition is used for TTFR; subsequently, batch full-scale counting is carried out.
-                cur.arraysize = arraysize
-                first_batch = cur.fetchmany()
+                first_batch = cur.fetchmany(arraysize)
                 ttfr = time.perf_counter() - t0
                 if first_select_ttfr is None:
                     first_select_ttfr = ttfr
@@ -206,7 +205,7 @@ def _run_statements_chdb(db_path, statements: list, threads: int | None = None, 
             pass
 
 
-def run_query_with_ttfr(engine: str, db_path: str, query: str,
+def run_query_with_ttfr(engine: str, db_path: str | None, query: str,
                         threads: int | None = None):
     """
     Execute semicolon-separated SQL statements and collect:
@@ -221,6 +220,9 @@ def run_query_with_ttfr(engine: str, db_path: str, query: str,
       - We fetch in chunks (fetchmany(10000)) to avoid blowing memory.
       - DuckDB threads can be controlled via PRAGMA threads=<k>.
     """
+    if db_path is None:
+        raise ValueError("db_path must be provided for non-in-memory databases")
+    
     # Parse semicolon-separated statements
     stmts = [s.strip() for s in query.split(";") if s.strip()]
 

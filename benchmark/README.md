@@ -182,18 +182,18 @@ Example commands:
 ```bash
 python benchmark.py --engine duckdb --db-path ./db_vs14/vs14_data.duckdb \
   --query-file queries/Q1/Q1_duckdb.sql --threads 4 \
-  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
-  --out queries/Q1/duckdb_q1_persistent.json
+  --warmups 2 --repeat 10 --child --interval 0.2 \
+  --out queries/Q1/duckdb_q1.json
 
 python benchmark.py --engine sqlite --db-path ./db_vs14/vs14_data.sqlite \
   --query-file queries/Q1/Q1_sqlite.sql \
-  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
-  --out queries/Q1/sqlite_q1_persistent.json
+  --warmups 2 --repeat 10 --child --interval 0.2 \
+  --out queries/Q1/sqlite_q1.json
 
 python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
   --query-file queries/Q1/Q1_clickhouse.sql --threads 4 \
-  --warmups 2 --repeat 10 --child-persistent --interval 0.2 \
-  --out queries/Q1/clickhouse_q1_persistent.json
+  --warmups 2 --repeat 10 --child --interval 0.2 \
+  --out queries/Q1/clickhouse_q1.json
 ```
 
 Each run produces a JSON object with these keys:
@@ -240,6 +240,8 @@ Aggregated across all measured runs (warmups excluded):
 | `p99_ttfr_seconds`         | 99th percentile TTFR.                                |
 
 ---
+
+TODO: `--child-persistent` Not Complete Yet.
 
 Not always – `--child-persistent` is not the best choice in every case.
 

@@ -40,8 +40,7 @@ def monitor_process(pid, interval, out_dict, stop_event):
     Periodically sample RSS and CPU% for the given PID.
     - Captures an immediate first sample (to reduce early-peak miss).
     - CPU% may exceed 100% on multi-core systems.
-    - Attempts to retrieve true high-water RSS (VmHWM on Linux, peak working
-      set on Windows); falls back to sampled peak if not available.
+    - Attempts to retrieve true high-water RSS (VmHWM on Linux).
     """
     p = psutil.Process(pid)
     peak_rss = 0
@@ -82,20 +81,16 @@ def monitor_process(pid, interval, out_dict, stop_event):
     out_dict["cpu_series"] = cpu_series
     out_dict["cpu_avg_percent"] = (sum(cpu_series) / len(cpu_series)) if cpu_series else 0.0
 
+    # Get true high-water RSS from /proc/PID/status (Linux only)
     try:
-        if sys.platform.startswith("linux"):
-            with open(f"/proc/{pid}/status", "r") as f:
-                for line in f:
-                    if line.startswith("VmHWM:"):
-                        parts = line.split()
-                        if len(parts) >= 2 and parts[1].isdigit():
-                            vmhwm_kb = int(parts[1])
-                            out_dict["peak_rss_bytes_true"] = vmhwm_kb * 1024
-                        break
-        elif sys.platform.startswith("win"):
-            full = p.memory_full_info()
-            if hasattr(full, "peak_wset"):
-                out_dict["peak_rss_bytes_true"] = full.peak_wset
+        with open(f"/proc/{pid}/status", "r") as f:
+            for line in f:
+                if line.startswith("VmHWM:"):
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[1].isdigit():
+                        vmhwm_kb = int(parts[1])
+                        out_dict["peak_rss_bytes_true"] = vmhwm_kb * 1024
+                    break
     except Exception:
         pass
 
