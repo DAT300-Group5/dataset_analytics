@@ -64,6 +64,7 @@ Parameters:
 - `device_id` - user identifier
 - `target_path` - Path for the output database file or directory
 - `--engine` - Database engine: `duckdb` (default), `sqlite` and `chdb`
+- `--post-sql` - SQL files to execute after database creation (e.g., for creating indexes)
 
 Remember to specific root directories in `create_db.py`.
 
@@ -95,6 +96,9 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
 # Create chDB database
 # chDB uses directory as DB, and need to specify the table
 python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
+
+# Create with post-SQL (e.g., create indexes)
+python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb --post-sql your_index.sql
 ```
 
 ### Prepare SQL
