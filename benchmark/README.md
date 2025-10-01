@@ -173,7 +173,6 @@ Command-line Arguments (Inputs):
 | `--repeat`           | Integer                  | Number of measured runs (default: 10).                                                      |
 | `--warmups`          | Integer                  | Number of warm-up runs not recorded (default: 0).                                           |
 | `--child`            | Flag                     | Run each measured run in a separate child process.                                          |
-| `--child-persistent` | Flag                     | Run all warmups + repeats against one persistent child/connection.                          |
 | `--threads`          | Integer                  | DuckDB PRAGMA threads or chDB `max_threads` (0 = engine default); SQLite only use 1 thread. |
 | `--out`              | String (path)            | If set, write all measured runs and summary as JSON to this path.                           |
 
@@ -199,7 +198,7 @@ python benchmark.py --engine chdb --db-path ./db_vs14/vs14_data_chdb \
 Each run produces a JSON object with these keys:
 
 | Field                     | Meaning                                                                                  |
-| ------------------------- | ---------------------------------------------------------------------------------------- |
+| ------------------------- |------------------------------------------------------------------------------------------|
 | `retval`                  | Return value from the last executed statement (row count for SELECT, "OK" for others).   |
 | `wall_time_seconds`       | Wall-clock time for the run (seconds, measured by parent).                               |
 | `ttfr_seconds`            | Time to first result (seconds).                                                          |
@@ -212,42 +211,37 @@ Each run produces a JSON object with these keys:
 | `samples`                 | Number of monitoring samples collected.                                                  |
 | `python_heap_peak_bytes`  | Peak Python heap usage (from `tracemalloc`; excludes DB C-layer memory).                 |
 | `child_wall_time_seconds` | (Child modes only) Wall-clock time observed inside child process.                        |
-| `mode`                    | Run mode: `"inproc"`, `"child"`, `"child-persistent"`.                                   |
+| `mode`                    | Run mode: `"inproc"`, `"child"`.                                                         |
 
 Summary Output Fields (summary object):
 
 Aggregated across all measured runs (warmups excluded):
 
-| Field                      | Meaning                                              |
-| -------------------------- | ---------------------------------------------------- |
-| `engine`                   | Database engine used.                                |
-| `mode`                     | Run mode (`inproc`, `child`, or `child-persistent`). |
-| `db_path`                  | Path to the database file/dir.                       |
-| `query_file`               | Path to SQL query file executed.                     |
-| `repeat`                   | Number of measured runs.                             |
-| `warmups`                  | Number of warm-up runs excluded.                     |
-| `threads`                  | Number of threads (DuckDB/chDB).                     |
-| `mean_wall_time_seconds`   | Mean wall time across measured runs.                 |
-| `mean_ttfr_seconds`        | Mean TTFR across measured runs.                      |
-| `mean_peak_rss_bytes_true` | Mean peak true RSS (bytes).                          |
-| `mean_cpu_avg_percent`     | Mean CPU average (%).                                |
-| `mean_rows_returned`       | Mean number of rows returned.                        |
-| `p50_wall_time_seconds`    | Median (P50) wall time.                              |
-| `p95_wall_time_seconds`    | 95th percentile wall time.                           |
-| `p99_wall_time_seconds`    | 99th percentile wall time.                           |
-| `p50_ttfr_seconds`         | Median (P50) TTFR.                                   |
-| `p95_ttfr_seconds`         | 95th percentile TTFR.                                |
-| `p99_ttfr_seconds`         | 99th percentile TTFR.                                |
+| Field                      | Meaning                              |
+| -------------------------- |--------------------------------------|
+| `engine`                   | Database engine used.                |
+| `mode`                     | Run mode (`inproc`, `child`).        |
+| `db_path`                  | Path to the database file/dir.       |
+| `query_file`               | Path to SQL query file executed.     |
+| `repeat`                   | Number of measured runs.             |
+| `warmups`                  | Number of warm-up runs excluded.     |
+| `threads`                  | Number of threads (DuckDB/chDB).     |
+| `mean_wall_time_seconds`   | Mean wall time across measured runs. |
+| `mean_ttfr_seconds`        | Mean TTFR across measured runs.      |
+| `mean_peak_rss_bytes_true` | Mean peak true RSS (bytes).          |
+| `mean_cpu_avg_percent`     | Mean CPU average (%).                |
+| `mean_rows_returned`       | Mean number of rows returned.        |
+| `p50_wall_time_seconds`    | Median (P50) wall time.              |
+| `p95_wall_time_seconds`    | 95th percentile wall time.           |
+| `p99_wall_time_seconds`    | 99th percentile wall time.           |
+| `p50_ttfr_seconds`         | Median (P50) TTFR.                   |
+| `p95_ttfr_seconds`         | 95th percentile TTFR.                |
+| `p99_ttfr_seconds`         | 99th percentile TTFR.                |
 
 ---
 
-TODO: `--child-persistent` Not Complete Yet.
-
-Not always – `--child-persistent` is not the best choice in every case.
-
 - Use **`--child`** when you want *cold-start behavior*: each run creates a new process and connection, so no connection-level caches carry over.
-- Use **`--child-persistent`** for *warm scenarios*: warmups and repeats all run in one child process, so session-level caches (SQLite page cache, DuckDB session state) can persist.
-- Use **`--inproc`** for quick debugging with minimal overhead. For serious experiments, it’s often useful to report both cold (`--child`) and warm (`--child-persistent`) results.
+- Use **`--inproc`** for quick debugging with minimal overhead. For serious experiments, it's often useful to report both cold (`--child`) and warm (`--inproc`) results.
 
 As for `--interval`: it controls how often CPU/RSS are sampled. Too large → you may miss spikes; too small → extra overhead. A good rule of thumb is to aim for ~20–100 samples per run.
 

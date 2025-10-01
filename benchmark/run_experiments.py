@@ -25,7 +25,7 @@ MIN_UNIFIED_INTERVAL = 0.05  # Minimum interval for unified intervals
 BYTES_PER_MB = 1024 ** 2
 PERCENT_MULTIPLIER = 100.0
 
-SUPPORTED_MODES = {"child-persistent", "child", "inproc"}
+SUPPORTED_MODES = {"child", "inproc"}
 SUPPORTED_ENGINES = {"duckdb", "sqlite", "chdb"}
 
 ENGINE_DB_MAPPING = {
@@ -385,7 +385,7 @@ def run_bench(
         engine: Database engine name (duckdb, sqlite, chdb)
         db_path: Path to database file or directory
         sql_path: Path to SQL query file
-        mode: Execution mode (child-persistent, child, inproc)
+        mode: Execution mode (child, inproc)
         threads: Number of threads to use
         repeat: Number of repetitions
         warmups: Number of warmup runs
@@ -409,9 +409,7 @@ def run_bench(
     if mode not in SUPPORTED_MODES:
         raise ValueError(f"Unknown mode '{mode}'. Supported modes: {SUPPORTED_MODES}")
     
-    if mode == "child-persistent":
-        args.append("--child-persistent")
-    elif mode == "child":
+    if mode == "child":
         args.append("--child")
     elif mode == "inproc":
         pass

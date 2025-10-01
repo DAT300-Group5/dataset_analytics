@@ -226,129 +226,6 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
     }
     return out
 
-# -------------------------- persistent child (new) --------------------------
-def _child_worker_persistent(conn, engine, db_path, threads):
-    """
-    Persistent child process:
-    - Creates ONE DB connection in the child (implicitly handled inside runner).
-    - Waits for commands from parent:
-        {"cmd": "RUN", "query": <sql>}
-        {"cmd": "EXIT"}
-    - For each RUN:
-        * tracemalloc: reset peak
-        * measure child wall around run_query_with_ttfr()
-        * NOTE: We intentionally do NOT query DB-internal memory metrics.
-        * send payload back
-    - On EXIT: break loop and return.
-    """
-    while True:
-        msg = conn.recv()
-        if not isinstance(msg, dict) or "cmd" not in msg:
-            conn.send({"ok": False, "error": "bad command"})
-            continue
-
-        if msg["cmd"] == "EXIT":
-            conn.send({"ok": True, "bye": True})
-            break
-
-        if msg["cmd"] == "RUN":
-            query = msg.get("query", "")
-            try:
-                tracemalloc.start()
-                tracemalloc.reset_peak()
-                t0 = time.perf_counter()
-                exec_info = run_query_with_ttfr(engine, db_path, query,
-                                                threads=threads)
-                t1 = time.perf_counter()
-                py_current, py_peak = tracemalloc.get_traced_memory()
-                tracemalloc.stop()
-
-                conn.send({
-                    "ok": True,
-                    "exec_info": exec_info,
-                    "child_wall_time_seconds": t1 - t0,
-                    "child_python_heap_peak_bytes": py_peak,
-                })
-            except Exception as e:
-                conn.send({"ok": False, "error": str(e)})
-        else:
-            conn.send({"ok": False, "error": f"unknown cmd {msg['cmd']}"})
-
-    conn.close()
-
-def run_persistent_child_session(engine, db_path, sample_interval, queries,
-                                 threads=None):
-    """
-    Runs multiple queries (warmups + repeats) against ONE persistent child process.
-
-    Args:
-      - queries: list of SQL texts (strings) to run in order; typically
-                 [warmup]*W + [measured]*R, OR just the same query repeated.
-
-    Returns:
-      - results: list of per-run dicts (same schema as other run modes)
-    """
-    parent_conn, child_conn = Pipe(duplex=True)
-    p = Process(target=_child_worker_persistent,
-                args=(child_conn, engine, db_path, threads),
-                daemon=False)
-    p.start()
-
-    results = []
-    try:
-        for q in queries:
-            # Start monitoring this child PID for this run
-            stats = {}
-            stop_event = threading.Event()
-            mon = threading.Thread(target=monitor_process,
-                                   args=(p.pid, sample_interval, stats, stop_event),
-                                   daemon=True)
-
-            t0 = time.perf_counter()
-            mon.start()
-
-            # Ask child to run
-            parent_conn.send({"cmd": "RUN", "query": q})
-            payload = parent_conn.recv()
-
-            # Finalize monitoring
-            stop_event.set()
-            mon.join(timeout=5)
-            t1 = time.perf_counter()
-
-            if not payload or not payload.get("ok", False):
-                err = (payload or {}).get("error", "unknown child error")
-                raise RuntimeError(f"Persistent child run failed: {err}")
-
-            exec_info = payload["exec_info"]
-            out = {
-                "retval": exec_info["retval"],
-                "wall_time_seconds": t1 - t0,  # parent-observed per-run wall
-                "ttfr_seconds": exec_info["first_select_ttfr_seconds"],
-                "rows_returned": exec_info["rows_returned"],
-                "statements_executed": exec_info["statements_executed"],
-                "select_statements": exec_info["select_statements"],
-                "peak_rss_bytes_sampled": stats.get("peak_rss_bytes", 0),
-                "peak_rss_bytes_true": stats.get("peak_rss_bytes_true", stats.get("peak_rss_bytes", 0)),
-                "cpu_avg_percent": stats.get("cpu_avg_percent", 0.0),
-                "samples": stats.get("samples", 0),
-                "python_heap_peak_bytes": payload["child_python_heap_peak_bytes"],
-                "child_wall_time_seconds": payload["child_wall_time_seconds"],
-                "mode": "child-persistent",
-            }
-            results.append(out)
-
-        # Ask child to exit
-        parent_conn.send({"cmd": "EXIT"})
-        _ = parent_conn.recv()  # ignore content
-    finally:
-        p.join(timeout=5)
-        if p.is_alive():
-            p.kill()
-        parent_conn.close()
-
-    return results
-
 # -------------------------- summarize helpers --------------------------
 def _collect(runs, key, allow_none=False):
     vals = [r.get(key) for r in runs if allow_none or r.get(key) is not None]
@@ -375,11 +252,9 @@ def main():
     ap.add_argument("--warmups", type=int, default=0,
                     help="Number of warm-up runs not recorded (default: 0)")
 
-    # Run mode switches (mutually exclusive): inproc | child | child-persistent
+    # Run mode switches (mutually exclusive): inproc | child
     ap.add_argument("--child", action="store_true",
                     help="Run each measured run in a separate child process")
-    ap.add_argument("--child-persistent", action="store_true",
-                    help="Run ALL warmups + repeats against ONE persistent child/connection")
 
     # DuckDB knobs
     ap.add_argument("--threads", type=int, default=0,
@@ -392,9 +267,7 @@ def main():
     args = ap.parse_args()
 
     # Mode validation
-    if args.child and args.child_persistent:
-        print("Error: --child and --child-persistent are mutually exclusive.", file=sys.stderr)
-        sys.exit(1)
+    # No additional validation needed for child vs inproc modes
 
     if not os.path.exists(args.db_path):
         print(f"Error: Database path not found: {args.db_path}", file=sys.stderr)
@@ -415,55 +288,20 @@ def main():
     query = load_query_from_file(query_file)
 
     # ---------------- Warmups ----------------
-    if args.child_persistent:
-        warmup_runs = []
-    else:
-        for i in range(args.warmups):
-            _ = (run_once_child if args.child else run_once_inproc)(
-                engine=args.engine,
-                db_path=args.db_path,
-                sample_interval=args.interval,
-                query=query,
-                threads=(args.threads if args.threads > 0 else None),
-            )
-            print(f"[Warmup {i+1}/{args.warmups}] done.")
+    for i in range(args.warmups):
+        _ = (run_once_child if args.child else run_once_inproc)(
+            engine=args.engine,
+            db_path=args.db_path,
+            sample_interval=args.interval,
+            query=query,
+            threads=(args.threads if args.threads > 0 else None),
+        )
+        print(f"[Warmup {i+1}/{args.warmups}] done.")
 
     # ---------------- Measured runs ----------------
     runs = []
 
-    if args.child_persistent:
-        total_count = args.warmups + args.repeat
-        queries = [query] * total_count
-        results = run_persistent_child_session(
-            engine=args.engine,
-            db_path=args.db_path,
-            sample_interval=args.interval,
-            queries=queries,
-            threads=(args.threads if args.threads > 0 else None),
-        )
-        # Discard warmups, keep repeats
-        runs = results[args.warmups:]
-        for i, res in enumerate(runs, 1):
-            print(("[{eng}] {mode} run {k}/{n} wall={wall:.3f}s  child_wall={cwall:.3f}s  "
-                   "ttfr={ttfr}  peak_rss_sampled={rss_s:.1f} MB  peak_rss_true={rss_t:.1f} MB  "
-                   "cpu_avg={cpu:.1f}%  py_heap_peak={py:.1f} MB  rows={rows}  sel={sels}/{stmts}  samples={smp}")
-                  .format(
-                      eng=args.engine.upper(),
-                      mode="CHILD-PERSISTENT",
-                      k=i, n=len(runs),
-                      wall=res["wall_time_seconds"],
-                      cwall=res.get("child_wall_time_seconds", 0.0),
-                      ttfr=("%.3f s" % res["ttfr_seconds"]) if res["ttfr_seconds"] is not None else "None",
-                      rss_s=res["peak_rss_bytes_sampled"] / (1024**2),
-                      rss_t=res["peak_rss_bytes_true"] / (1024**2),
-                      cpu=res["cpu_avg_percent"],
-                      py=res["python_heap_peak_bytes"] / (1024**2),
-                      rows=res["rows_returned"],
-                      sels=res["select_statements"], stmts=res["statements_executed"],
-                      smp=res["samples"],
-                  ))
-    else:
-        for i in range(args.repeat):
+    for i in range(args.repeat):
             res = (run_once_child if args.child else run_once_inproc)(
                 engine=args.engine,
                 db_path=args.db_path,
@@ -503,7 +341,7 @@ def main():
 
     summary = {
         "engine": args.engine,
-        "mode": "child-persistent" if args.child_persistent else ("child" if args.child else "inproc"),
+        "mode": "child" if args.child else "inproc",
         "db_path": args.db_path,
         "query_file": query_file,
         "repeat": args.repeat,
