@@ -4,7 +4,7 @@ WITH
 hrm_minute AS (
   SELECT
     deviceId,
-    date_trunc('minute', to_timestamp(CAST(ts AS DOUBLE)/1000.0)) AS minute_dt,
+    date_trunc('minute', ts) AS minute_dt,
     AVG(HR) AS avg_hr
   FROM hrm
   GROUP BY 1,2
@@ -12,7 +12,7 @@ hrm_minute AS (
 ppg_minute AS (
   SELECT
     deviceId,
-    date_trunc('minute', to_timestamp(CAST(ts AS DOUBLE)/1000.0)) AS minute_dt,
+    date_trunc('minute', ts) AS minute_dt,
     AVG(ppg) AS avg_ppg
   FROM ppg
   GROUP BY 1,2
@@ -20,7 +20,7 @@ ppg_minute AS (
 acc_minute AS (
   SELECT
     deviceId,
-    date_trunc('minute', to_timestamp(CAST(ts AS DOUBLE)/1000.0)) AS minute_dt,
+    date_trunc('minute', ts) AS minute_dt,
     sqrt(AVG(x*x + y*y + z*z)) AS rms_acc
   FROM acc
   GROUP BY 1,2
@@ -28,7 +28,7 @@ acc_minute AS (
 ped_minute AS (
   SELECT
     deviceId,
-    date_trunc('minute', to_timestamp(CAST(ts AS DOUBLE)/1000.0)) AS minute_dt,
+    date_trunc('minute', ts) AS minute_dt,
     SUM(steps) AS total_steps
   FROM ped
   GROUP BY 1,2
@@ -36,7 +36,7 @@ ped_minute AS (
 lit_minute AS (
   SELECT
     deviceId,
-    date_trunc('minute', to_timestamp(CAST(ts AS DOUBLE)/1000.0)) AS minute_dt,
+    date_trunc('minute', ts) AS minute_dt,
     median(ambient_light_intensity) AS median_light
   FROM lit
   GROUP BY 1,2

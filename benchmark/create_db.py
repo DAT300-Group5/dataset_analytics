@@ -50,6 +50,7 @@ def create(target_path: str, device_id: str, engine: str = "duckdb", post_sql: l
                     print(f"[WARN] Missing file skipped: {csv}")
                     continue
                 df = pd.read_csv(csv)
+                df["ts"] = pd.to_datetime(df["ts"], unit="ms")
                 con.execute(f"DROP TABLE IF EXISTS {t}")
                 con.execute(f"CREATE TABLE {t} AS SELECT * FROM df")
                 print(f"[OK] DuckDB loaded: {t} rows={len(df)}")
