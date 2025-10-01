@@ -50,7 +50,8 @@ def create(target_path: str, device_id: str, engine: str = "duckdb", post_sql: l
                     print(f"[WARN] Missing file skipped: {csv}")
                     continue
                 df = pd.read_csv(csv)
-                df["ts"] = pd.to_datetime(df["ts"], unit="ms")
+                if "ts" in df.columns:
+                    df["ts"] = pd.to_datetime(df["ts"], unit="ms")
                 con.execute(f"DROP TABLE IF EXISTS {t}")
                 con.execute(f"CREATE TABLE {t} AS SELECT * FROM df")
                 print(f"[OK] DuckDB loaded: {t} rows={len(df)}")
@@ -108,12 +109,24 @@ def create(target_path: str, device_id: str, engine: str = "duckdb", post_sql: l
                     continue
                 df = pd.read_csv(csv)
                 order_by = "ts" if "ts" in df.columns else "tuple()"
-                sess.query(f"""
-                    CREATE TABLE IF NOT EXISTS {t}
-                    ENGINE = MergeTree
-                    ORDER BY {order_by}
-                    AS SELECT * FROM Python(df)
-                """)
+                if "ts" in df.columns:
+                    sess.query(f"""
+                        CREATE TABLE IF NOT EXISTS {t}
+                            ENGINE = MergeTree
+                            ORDER BY {order_by}
+                            AS SELECT
+                                toDateTime64(ts/1000, 3, 'UTC') AS ts, 
+                                *
+                                EXCEPT (ts)                     
+                            FROM Python(df)
+                    """)
+                else:
+                    sess.query(f"""
+                        CREATE TABLE IF NOT EXISTS {t}
+                        ENGINE = MergeTree
+                        ORDER BY {order_by}
+                        AS SELECT * FROM Python(df)
+                    """)
                 print(f"[OK] chDB loaded: {t} rows={len(df)} order_by={order_by}")
             
             # Execute post-creation SQL files

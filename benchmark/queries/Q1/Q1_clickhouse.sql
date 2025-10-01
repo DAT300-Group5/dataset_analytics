@@ -4,7 +4,7 @@ WITH
 hrm_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
+    toStartOfMinute(ts) AS minute_dt,
     avg(HR) AS avg_hr
   FROM hrm
   GROUP BY deviceId, minute_dt
@@ -12,7 +12,7 @@ hrm_minute AS (
 ppg_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
+    toStartOfMinute(ts) AS minute_dt,
     avg(ppg) AS avg_ppg
   FROM ppg
   GROUP BY deviceId, minute_dt
@@ -20,7 +20,7 @@ ppg_minute AS (
 acc_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
+    toStartOfMinute(ts) AS minute_dt,
     sqrt(avg(x*x + y*y + z*z)) AS rms_acc
   FROM acc
   GROUP BY deviceId, minute_dt
@@ -28,7 +28,7 @@ acc_minute AS (
 ped_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
+    toStartOfMinute(ts) AS minute_dt,
     sum(steps) AS total_steps
   FROM ped
   GROUP BY deviceId, minute_dt
@@ -36,7 +36,7 @@ ped_minute AS (
 lit_minute AS (
   SELECT
     deviceId,
-    toStartOfMinute(toDateTime(ts/1000, 'UTC')) AS minute_dt,
+    toStartOfMinute(ts) AS minute_dt,
     quantileExactInclusive(0.5)(ambient_light_intensity) AS median_light
   FROM lit
   GROUP BY deviceId, minute_dt
