@@ -1,7 +1,0 @@
-For each device (`deviceId`), and for every **one-minute time bucket**, compute the following statistics:
-
-1. **Average heart rate (`avg_hr`)** from the `hrm` table.
-2. **Average PPG value (`avg_ppg`)** from the `ppg` table.
-3. **Root Mean Square (RMS) of acceleration (`rms_acc`)** from the `acc` table, calculated as the average of √(x² + y² + z²).
-4. **Total number of steps (`total_steps`)** from the `ped` table.
-5. **Median ambient light intensity (`median_light`)** from the `lit` table, per minute.
