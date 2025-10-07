@@ -45,72 +45,26 @@ jobs:
 
       - name: Build
         working-directory: ${{ env.ROOT_DIR }}
-        run: make -j"$(nproc)"
+        run: make
 
-      - name: Stage install (DESTDIR)
+      - name: Install to staging directory
         working-directory: ${{ env.ROOT_DIR }}
         run: |
-          set -euxo pipefail
-          STAGE="${{ github.workspace }}/stage"
-          make install DESTDIR="$STAGE"
-          echo "STAGE=$STAGE" >> "$GITHUB_ENV"
-          find "${STAGE}${PREFIX}" -maxdepth 2 -type d | sort
+          mkdir -p staging
+          make install DESTDIR=$(pwd)/staging
 
-      - name: Collect install outputs
+      - name: Package artifacts
+        working-directory: ${{ env.ROOT_DIR }}
         run: |
-          set -euxo pipefail
-          OUTROOT="${{ github.workspace }}/sqlite-built"
-          mkdir -p "$OUTROOT"
-          SRCROOT="${STAGE}${PREFIX}"
-          for d in bin lib include; do
-            if [ -d "${SRCROOT}/${d}" ]; then
-              mkdir -p "${OUTROOT}/${d}"
-              cp -a "${SRCROOT}/${d}/." "${OUTROOT}/${d}/"
-            fi
-          done
-          if [ -d "${SRCROOT}/lib/pkgconfig" ]; then
-            mkdir -p "${OUTROOT}/pkgconfig"
-            cp -a "${SRCROOT}/lib/pkgconfig/." "${OUTROOT}/pkgconfig/"
-          fi
-          echo "OUTROOT=$OUTROOT" >> "$GITHUB_ENV"
-          find "$OUTROOT" -maxdepth 2 -type f | sort
+          cd staging
+          tar -czf ../sqlite-build.tar.gz .
+          cd ..
+          echo "Package created: sqlite-build.tar.gz"
+          ls -lh sqlite-build.tar.gz
 
-      - name: Create build tarball
-        run: |
-          set -euxo pipefail
-          ARCH="$(uname -m)"
-          ROOT_BASENAME="$(basename "${ROOT_DIR}")"
-          BUILD_TGZ="sqlite-build-${ROOT_BASENAME}-ubuntu-${ARCH}.tar.gz"
-          tar -C "${OUTROOT}" -czf "${BUILD_TGZ}" .
-          echo "BUILD_TGZ=$BUILD_TGZ" >> "$GITHUB_ENV"
-          echo "Created: ${BUILD_TGZ}"
-          tar -tzf "${BUILD_TGZ}" | head -n 20
-
-      - name: Create source tarball
-        run: |
-          set -euxo pipefail
-          SRC_TGZ="sqlite-source-${ROOT_DIR}.tar.gz"
-          tar -czf "${SRC_TGZ}" "${ROOT_DIR}"
-          echo "SRC_TGZ=$SRC_TGZ" >> "$GITHUB_ENV"
-          echo "Created: ${SRC_TGZ}"
-
-      - name: Verify compile options
-        run: |
-          set -euxo pipefail
-          BIN="${STAGE}${PREFIX}/bin/sqlite3"
-          "$BIN" "PRAGMA compile_options;" | grep -i STMT_SCANSTATUS
-          "$BIN" --version
-
-      - name: Upload build artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BUILD_TGZ }}
-          path: ${{ env.BUILD_TGZ }}
-          if-no-files-found: error
-
-      - name: Upload source artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.SRC_TGZ }}
-          path: ${{ env.SRC_TGZ }}
-          if-no-files-found: error
+          name: sqlite-build-${{ github.sha }}
+          path: ${{ env.ROOT_DIR }}/sqlite-build.tar.gz
+          retention-days: 30"
