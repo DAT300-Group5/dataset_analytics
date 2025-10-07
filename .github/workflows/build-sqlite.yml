@@ -93,16 +93,11 @@ jobs:
           mkdir -p staging/sqlite3
           make install DESTDIR=$(pwd)/staging/sqlite3 prefix=""
 
-      - name: Package artifacts
+      - name: Prepare artifacts
         working-directory: ${{ env.ROOT_DIR }}
         run: |
-          cd staging
-          tar -czf ../sqlite-build.tar.gz sqlite3/
-          cd ..
-          echo "Package created: sqlite-build.tar.gz"
-          echo "Contents preview:"
-          tar -tzf sqlite-build.tar.gz | head -20
-          ls -lh sqlite-build.tar.gz
+          echo "Contents of staging/sqlite3:"
+          ls -lR staging/sqlite3 | head -30
           
       - name: Get short SHA
         id: short-sha
@@ -112,5 +107,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sqlite-snapshot-${{ steps.short-sha.outputs.sha }}
-          path: ${{ env.ROOT_DIR }}/sqlite-build.tar.gz
+          path: ${{ env.ROOT_DIR }}/staging/sqlite3/
           retention-days: 30"
