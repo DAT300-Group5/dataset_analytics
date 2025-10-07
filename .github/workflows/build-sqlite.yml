@@ -1,10 +1,10 @@
-name: Build SQLite snapshot from ZIP (Ubuntu)
+name: Build SQLite snapshot
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - .github/workflows/build-sqlite-zip.yml
+      - .github/workflows/build-sqlite.yml
 
 jobs:
   build:
