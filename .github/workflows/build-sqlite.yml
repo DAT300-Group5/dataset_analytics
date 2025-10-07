@@ -47,6 +47,25 @@ jobs:
         working-directory: ${{ env.ROOT_DIR }}
         run: make
 
+      - name: Verify SQLITE_ENABLE_STMT_SCANSTATUS
+        working-directory: ${{ env.ROOT_DIR }}
+        run: |
+          echo "Verifying SQLITE_ENABLE_STMT_SCANSTATUS is enabled..."
+          # Check if the feature is compiled in by testing sqlite3_stmt_scanstatus symbol
+          if nm -D .libs/libsqlite3.so | grep -q sqlite3_stmt_scanstatus; then
+            echo "✓ SQLITE_ENABLE_STMT_SCANSTATUS is enabled (sqlite3_stmt_scanstatus found)"
+          else
+            echo "✗ SQLITE_ENABLE_STMT_SCANSTATUS is NOT enabled"
+            exit 1
+          fi
+          
+          # Additional check: test with sqlite3 command line
+          ./sqlite3 :memory: "PRAGMA compile_options;" | grep -i stmt_scanstatus || {
+            echo "Warning: STMT_SCANSTATUS not found in compile options"
+            echo "Available compile options:"
+            ./sqlite3 :memory: "PRAGMA compile_options;"
+          }
+
       - name: Install to staging directory
         working-directory: ${{ env.ROOT_DIR }}
         run: |
