@@ -51,20 +51,41 @@ jobs:
         working-directory: ${{ env.ROOT_DIR }}
         run: |
           echo "Verifying SQLITE_ENABLE_STMT_SCANSTATUS is enabled..."
-          # Check if the feature is compiled in by testing sqlite3_stmt_scanstatus symbol
-          if nm -D .libs/libsqlite3.so | grep -q sqlite3_stmt_scanstatus; then
-            echo "✓ SQLITE_ENABLE_STMT_SCANSTATUS is enabled (sqlite3_stmt_scanstatus found)"
+          
+          # Find the library file
+          echo "Looking for library files..."
+          find . -name "*.so*" -o -name "libsqlite3.*" | head -10
+          
+          # Try to find and check the library
+          LIB_FILE=$(find . -name "libsqlite3.so*" -o -name ".libs/libsqlite3.so*" | head -1)
+          if [ -n "$LIB_FILE" ] && [ -f "$LIB_FILE" ]; then
+            echo "Found library: $LIB_FILE"
+            if nm -D "$LIB_FILE" 2>/dev/null | grep -q sqlite3_stmt_scanstatus; then
+              echo "✓ SQLITE_ENABLE_STMT_SCANSTATUS is enabled (sqlite3_stmt_scanstatus found in library)"
+            else
+              echo "⚠ Warning: sqlite3_stmt_scanstatus symbol not found in library"
+            fi
           else
-            echo "✗ SQLITE_ENABLE_STMT_SCANSTATUS is NOT enabled"
-            exit 1
+            echo "⚠ Warning: Could not find libsqlite3.so"
           fi
           
-          # Additional check: test with sqlite3 command line
-          ./sqlite3 :memory: "PRAGMA compile_options;" | grep -i stmt_scanstatus || {
-            echo "Warning: STMT_SCANSTATUS not found in compile options"
-            echo "Available compile options:"
-            ./sqlite3 :memory: "PRAGMA compile_options;"
-          }
+          # Check with sqlite3 command line (most reliable)
+          if [ -f "./sqlite3" ]; then
+            echo ""
+            echo "Checking compile options via sqlite3 command:"
+            if ./sqlite3 :memory: "PRAGMA compile_options;" | grep -i stmt_scanstatus; then
+              echo "✓ SQLITE_ENABLE_STMT_SCANSTATUS is ENABLED"
+            else
+              echo "✗ SQLITE_ENABLE_STMT_SCANSTATUS is NOT enabled"
+              echo ""
+              echo "Available compile options:"
+              ./sqlite3 :memory: "PRAGMA compile_options;"
+              exit 1
+            fi
+          else
+            echo "⚠ Warning: sqlite3 executable not found"
+            exit 1
+          fi
 
       - name: Install to staging directory
         working-directory: ${{ env.ROOT_DIR }}
