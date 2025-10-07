@@ -1,0 +1,107 @@
+name: Build SQLite snapshot (Ubuntu)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/build-sqlite.yml
+
+jobs:
+  build:
+    name: Build on Ubuntu
+    runs-on: ubuntu-latest
+
+    env:
+      SNAP_URL: https://sqlite.org/2025/sqlite-src-3500400.zip
+      PREFIX: /usr/local
+      CFLAGS: -O2 -DSQLITE_ENABLE_STMT_SCANSTATUS
+
+    steps:
+      - name: Checkout repository (optional)
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config
+
+      - name: Download and extract SQLite snapshot
+        run: |
+          curl -L "$SNAP_URL" -o sqlite.tar.gz
+          tar -xzf sqlite.tar.gz
+          ROOT_DIR=$(tar -tzf sqlite.tar.gz | head -1 | cut -d/ -f1)
+          echo "ROOT_DIR=$ROOT_DIR" >> $GITHUB_ENV
+          echo "Snapshot root: $ROOT_DIR"
+
+      - name: Configure SQLite
+        working-directory: ${{ env.ROOT_DIR }}
+        run: |
+          ./configure --prefix="${PREFIX}" --enable-shared CFLAGS="${CFLAGS}"
+
+      - name: Build
+        working-directory: ${{ env.ROOT_DIR }}
+        run: make -j"$(nproc)"
+
+      - name: Stage install
+        working-directory: ${{ env.ROOT_DIR }}
+        run: |
+          STAGE="${{ github.workspace }}/stage"
+          make install DESTDIR="$STAGE"
+          echo "STAGE=$STAGE" >> $GITHUB_ENV
+          echo "Installed files:"
+          find "$STAGE${PREFIX}" -maxdepth 2 -type d
+
+      - name: Flatten build output
+        run: |
+          OUTROOT="${{ github.workspace }}/sqlite-built"
+          mkdir -p "$OUTROOT"
+          SRCROOT="${STAGE}${PREFIX}"
+          for d in bin lib include; do
+            if [ -d "${SRCROOT}/${d}" ]; then
+              mkdir -p "${OUTROOT}/${d}"
+              cp -a "${SRCROOT}/${d}/." "${OUTROOT}/${d}/"
+            fi
+          done
+          if [ -d "${SRCROOT}/lib/pkgconfig" ]; then
+            mkdir -p "${OUTROOT}/pkgconfig"
+            cp -a "${SRCROOT}/lib/pkgconfig/." "${OUTROOT}/pkgconfig/"
+          fi
+          echo "Build package content:"
+          find "$OUTROOT" -maxdepth 2 -type f | sort
+          echo "OUTROOT=$OUTROOT" >> $GITHUB_ENV
+
+      - name: Create build tarball
+        run: |
+          ROOT_BASENAME=$(basename "${ROOT_DIR}")
+          BUILD_TGZ="sqlite-build-${ROOT_BASENAME}-ubuntu-x86_64.tar.gz"
+          tar -C "${OUTROOT}" -czf "${BUILD_TGZ}" .
+          echo "BUILD_TGZ=$BUILD_TGZ" >> $GITHUB_ENV
+          echo "Created build tarball: ${BUILD_TGZ}"
+          tar -tzf "${BUILD_TGZ}" | head -n 20
+
+      - name: Create source tarball
+        run: |
+          SRC_TGZ="sqlite-source-${{ env.ROOT_DIR }}.tar.gz"
+          tar -czf "${SRC_TGZ}" "${{ env.ROOT_DIR }}"
+          echo "SRC_TGZ=$SRC_TGZ" >> $GITHUB_ENV
+          echo "Created source tarball: ${SRC_TGZ}"
+
+      - name: Verify compile options
+        run: |
+          BIN="${STAGE}${PREFIX}/bin/sqlite3"
+          "$BIN" "PRAGMA compile_options;" | grep -i STMT_SCANSTATUS || echo "Option not found"
+          "$BIN" --version
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_TGZ }}
+          path: ${{ env.BUILD_TGZ }}
+          if-no-files-found: error
+
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SRC_TGZ }}
+          path: ${{ env.SRC_TGZ }}
+          if-no-files-found: error
