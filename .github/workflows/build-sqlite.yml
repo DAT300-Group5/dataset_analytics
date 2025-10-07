@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     env:
       # Point this to a ZIP snapshot (e.g. https://sqlite.org/2025/sqlite-src-3500400.zip)
