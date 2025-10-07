@@ -90,21 +90,27 @@ jobs:
       - name: Install to staging directory
         working-directory: ${{ env.ROOT_DIR }}
         run: |
-          mkdir -p staging
-          make install DESTDIR=$(pwd)/staging
+          mkdir -p staging/sqlite3
+          make install DESTDIR=$(pwd)/staging/sqlite3 prefix=""
 
       - name: Package artifacts
         working-directory: ${{ env.ROOT_DIR }}
         run: |
           cd staging
-          tar -czf ../sqlite-build.tar.gz .
+          tar -czf ../sqlite-build.tar.gz sqlite3/
           cd ..
           echo "Package created: sqlite-build.tar.gz"
+          echo "Contents preview:"
+          tar -tzf sqlite-build.tar.gz | head -20
           ls -lh sqlite-build.tar.gz
+          
+      - name: Get short SHA
+        id: short-sha
+        run: echo "sha=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sqlite-build-${{ github.sha }}
+          name: sqlite-snapshot-${{ steps.short-sha.outputs.sha }}
           path: ${{ env.ROOT_DIR }}/sqlite-build.tar.gz
           retention-days: 30"
