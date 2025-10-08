@@ -1,5 +1,24 @@
 # Database Performance Benchmark
 
+```ASCII
+.
+├── README.md
+├── create_db.py
+├── queries
+│   └── ...
+├── run_chdb_sql.py
+├── run_duckdb_sql.py
+├── run_sqlite_sql.py
+├── validate_sql_correctness.py
+├── benchmark.py
+├── query_db.py
+├── config.yaml
+├── run_experiments.py
+├── analyze_results.py
+├── ttfr_sqlite.py
+└── utils.py
+```
+
 This directory provides a reproducible benchmarking suite for analytical SQL queries across multiple embedded/columnar engines (DuckDB, SQLite and chDB/ClickHouse).
 
 It is designed to measure query performance and resource usage (wall time, time-to-first-result, CPU, resident memory, and Python heap) and to enable fair comparisons between engines using the same datasets and query logic.

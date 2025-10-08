@@ -4,12 +4,12 @@
 SQL Result Equivalence Validator
 
 This module validates SQL query result equivalence across different database
-engines. It executes provided queries against DuckDB, SQLite, and optionally
-ClickHouse (via chdb), then compares their outputs using either ordered or
-multiset ("bag") semantics with configurable floating-point tolerance.
+engines. It executes provided queries against DuckDB, SQLite, and ClickHouse
+(via chdb), then compares their outputs using either ordered or multiset
+("bag") semantics with configurable floating-point tolerance.
 
 Key capabilities:
-- Multiple engines: DuckDB, SQLite, ClickHouse (via chdb, optional)
+- Multiple engines: DuckDB, SQLite, ClickHouse (via chdb)
 - Ordered vs. bag comparison
 - Stable, JSON-safe normalization for cross-engine types
 - Helpful diagnostics for column/row mismatches
@@ -23,24 +23,18 @@ import itertools
 import json
 import math
 import os
-import sqlite3
 import sys
 import time
 import decimal
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-# Optional engines
-try:
-    import duckdb  # type: ignore
-except ImportError:
-    duckdb = None
+# Database engines
+import sqlite3
+import duckdb
+import chdb
 
-try:
-    import chdb as _chdb  # noqa: F401
-    HAS_CHDB = True
-except ImportError:
-    HAS_CHDB = False
+from utils import load_query_from_file, split_statements, is_select
 
 # ------------------------------- Constants ----------------------------------
 
@@ -54,78 +48,6 @@ _NaN_TOKEN = ("<NaN>",)         # tuple on purpose to avoid clashing with real s
 _POS_INF_TOKEN = "<+INF>"
 _NEG_INF_TOKEN = "<-INF>"
 _BYTES_TOKEN = "<BYTES>"
-
-# ------------------------------- SQL helpers --------------------------------
-
-def load_sql(path: str) -> str:
-    """Load SQL content from a file."""
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-
-def split_statements(sql: str) -> List[str]:
-    """
-    Split SQL text into complete statements using sqlite3.complete_statement().
-    This tolerates semicolons in strings/comments and trailing comments.
-    """
-    stmts: List[str] = []
-    buf: List[str] = []
-    for line in sql.splitlines():
-        buf.append(line)
-        chunk = "\n".join(buf)
-        if sqlite3.complete_statement(chunk):
-            stmt = chunk.strip()
-            if stmt.endswith(";"):
-                stmt = stmt[:-1]
-            if stmt.strip():
-                stmts.append(stmt.strip())
-            buf = []
-    # leftover (no semicolon at EOF)
-    tail = "\n".join(buf).strip()
-    if tail:
-        stmts.append(tail)
-    return stmts
-
-
-_LEADING_BLOCK_COMMENT_RE = re.compile(r"^\s*/\*.*?\*/", re.DOTALL)
-_LEADING_LINE_COMMENT_RE  = re.compile(r"^\s*--[^\n]*\n?")
-
-def strip_leading_comments(sql: str) -> str:
-    """
-    Remove leading whitespace and comments:
-    - Line comments: -- ...
-    - Block comments: /* ... */
-    Repeats until no more leading comment/blank remains.
-    """
-    s = sql
-    while True:
-        changed = False
-        # drop leading blanks
-        s2 = s.lstrip()
-        if s2 != s:
-            s = s2
-            changed = True
-        # drop block comment at very start
-        m = _LEADING_BLOCK_COMMENT_RE.match(s)
-        if m:
-            s = s[m.end():]
-            changed = True
-            continue
-        # drop one or more leading -- comment lines
-        m = _LEADING_LINE_COMMENT_RE.match(s)
-        if m:
-            s = s[m.end():]
-            changed = True
-            continue
-        if not changed:
-            break
-    return s.lstrip()
-
-def is_select(stmt: str) -> bool:
-    """Return True if the statement is SELECT-like (read-only)."""
-    s = strip_leading_comments(stmt).lower()
-    return s.startswith(("select", "with", "show", "describe", "explain"))
-
 
 # --------------------------- Normalization utils ----------------------------
 
@@ -240,23 +162,6 @@ def rows_to_bag(rows: List[Tuple], float_tol: float):
 
 # -------------------------------- Runners -----------------------------------
 
-def _fetch_all(cur: Any, arraysize: int = DEFAULT_BATCH_SIZE) -> List[Tuple]:
-    """
-    Fetch all rows from a DB cursor in batches to avoid excessive memory peaks.
-    """
-    rows: List[Tuple] = []
-    try:
-        cur.arraysize = arraysize
-    except Exception:
-        pass
-    while True:
-        batch = cur.fetchmany()
-        if not batch:
-            break
-        rows.extend(batch)
-    return rows
-
-
 def run_sqlite(db_path: str, query: str) -> Tuple[List[str], List[Tuple]]:
     """
     Execute SQL on SQLite. Returns (column_names, rows).
@@ -273,12 +178,15 @@ def run_sqlite(db_path: str, query: str) -> Tuple[List[str], List[Tuple]]:
                 cur.execute(stmt)
                 if columns is None:
                     columns = [d[0] for d in (cur.description or [])]
-                rows_acc = _fetch_all(cur)
+                rows_acc = cur.fetchall()
             else:
                 cur.execute(stmt)
         return (columns or []), rows_acc
     finally:
-        con.close()
+        try:
+            con.close()
+        except Exception:
+            pass
 
 
 def run_duckdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple[List[str], List[Tuple]]:
@@ -286,9 +194,6 @@ def run_duckdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple
     Execute SQL on DuckDB. Optionally set PRAGMA threads.
     Returns (column_names, rows).
     """
-    if duckdb is None:
-        raise ImportError("DuckDB is not available")
-
     con = duckdb.connect(database=db_path)
     try:
         if threads and threads > 0:
@@ -303,12 +208,15 @@ def run_duckdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple
                 cur = con.execute(stmt)
                 if columns is None:
                     columns = [d[0] for d in (cur.description or [])]
-                rows_acc = _fetch_all(cur)
+                rows_acc = cur.fetchall()
             else:
                 con.execute(stmt)
         return (columns or []), rows_acc
     finally:
-        con.close()
+        try:
+            con.close()
+        except Exception:
+            pass
 
 
 def run_chdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple[List[str], List[Tuple]]:
@@ -316,10 +224,9 @@ def run_chdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple[L
     Execute SQL on ClickHouse via chdb. Optionally set max_threads.
     Returns (column_names, rows).
     """
-    import chdb  # type: ignore
-    conn = chdb.connect(db_path if db_path else ":memory:")
+    con = chdb.connect(db_path if db_path else ":memory:")
     try:
-        cur = conn.cursor()
+        cur = con.cursor()
         if threads and int(threads) > 0:
             cur.execute(f"SET max_threads = {int(threads)}")
         rows_acc: List[Tuple] = []
@@ -329,12 +236,14 @@ def run_chdb(db_path: str, query: str, threads: Optional[int] = None) -> Tuple[L
             if is_select(stmt):
                 if columns is None and cur.description:
                     columns = [d[0] for d in cur.description]
-                rows_acc = _fetch_all(cur)
+                rows_acc = cur.fetchall()
+            else:
+                cur.execute(stmt)
         cur.close()
         return (columns or []), rows_acc
     finally:
         try:
-            conn.close()
+            con.close()
         except Exception:
             pass
 
@@ -492,16 +401,9 @@ def validate_and_run_cases(args: argparse.Namespace) -> List[Dict[str, Any]]:
     for (engine, dbp, sqlf) in args.case:
         eng = engine.strip().lower()
 
-        # Engine availability
+        # Engine selection
         if eng not in RUNNERS:
             print(f"Unknown engine '{engine}'. Must be one of: {list(RUNNERS)}", file=sys.stderr)
-            sys.exit(2)
-
-        if eng == "chdb" and not HAS_CHDB:
-            print("Error: chdb is not installed but requested.", file=sys.stderr)
-            sys.exit(2)
-        if eng == "duckdb" and duckdb is None:
-            print("Error: duckdb is not installed but requested.", file=sys.stderr)
             sys.exit(2)
 
         # Files exist?
@@ -514,7 +416,7 @@ def validate_and_run_cases(args: argparse.Namespace) -> List[Dict[str, Any]]:
 
         # Execute
         try:
-            sql = load_sql(sqlf)
+            sql = load_query_from_file(sqlf)
             runner = RUNNERS[eng]
             t0 = time.perf_counter()
 

@@ -2,19 +2,22 @@
 # -*- coding: utf-8 -*-
 import sys, csv, duckdb
 
+from utils import load_query_from_file, split_statements
+
 if len(sys.argv) < 3:
     sys.exit(f"Usage: {sys.argv[0]} DB_PATH SQL_FILE")
 
 db_path, sql_file = sys.argv[1], sys.argv[2]
-sql = open(sql_file, "r", encoding="utf-8").read()
+sql = load_query_from_file(sql_file)
 
 con = duckdb.connect(database=db_path)
 cols, rows = None, []
-for stmt in [s.strip() for s in sql.split(';') if s.strip()]:
+for stmt in split_statements(sql):
     cur = con.execute(stmt)
     if cur.description:
         cols = [d[0] for d in cur.description]
         rows = cur.fetchall()
+cur.close()
 con.close()
 
 if cols:
