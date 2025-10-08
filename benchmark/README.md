@@ -285,9 +285,9 @@ python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
 Step 2: Prepare SQL files and make sure they have the same outcome
 
 ```bash
-python run_duckdb_sql.py ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql > out_duckdb.csv
-python run_sqlite_sql.py ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql > out_sqlite.csv
-python run_chdb_sql.py ./db_vs14/vs14_data_chdb queries/Q1/Q1_clickhouse.sql > out_chdb.csv
+python run_sql.py --engine duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql > out_duckdb.csv
+python run_sql.py --engine sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql > out_sqlite.csv
+python run_sql.py --engine chdb ./db_vs14/vs14_data_chdb queries/Q1/Q1_clickhouse.sql > out_chdb.csv
 
 python validate_sql_correctness.py \
   --case duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql \
