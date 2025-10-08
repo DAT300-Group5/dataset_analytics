@@ -6,20 +6,18 @@
 query_db.py — Execute a semicolon-separated SQL string on SQLite / DuckDB / chDB,
 and report TTFR for the **LAST SELECT** with unified semantics.
 
-API is preserved for compatibility:
+API (simplified):
 
-    run_query_with_ttfr(engine: str, db_path: str, query: str, threads: int | None = None) -> dict
+        run_query_with_ttfr(engine: str, db_path: str, query: str, threads: int | None = None) -> dict
 
-Return keys (unchanged):
-  - ttfr_seconds                # (now measured for the LAST SELECT, from *script start*)
-  - rows_returned               # total rows of the LAST SELECT
-  - statements_executed         # number of statements executed in total
-  - select_statements           # number of SELECT-like statements
-  - retval                      # "OK" or rows_returned for the last SELECT
+Return keys:
+    - retval            # "OK" or rows_returned for the last SELECT
+    - ttfr_seconds      # TTFR of the LAST SELECT from script start to first output
+    - rows_returned     # total rows of the LAST SELECT
 
 Engine-specific TTFR unit:
-  - SQLite: first *row*
-  - DuckDB/chDB: first *batch* (fixed BATCH_SIZE to reflect vectorized execution)
+    - SQLite: first row
+    - DuckDB/chDB: first batch (fixed BATCH_SIZE to reflect vectorized execution)
 """
 
 from __future__ import annotations
@@ -27,28 +25,10 @@ from __future__ import annotations
 import time
 from typing import List, Optional, Tuple
 
-from utils import split_statements, is_select
+from utils import extract_last_select
 
 # Fixed batch for vectorized engines (align with ttfr_unified policy)
 BATCH_SIZE = 2048
-
-
-def _extract_preamble_and_final(statements: List[str]) -> Tuple[List[str], Optional[str], int, int]:
-    """Split into preamble statements (everything before last SELECT) and final SELECT text.
-    Returns (preamble, final_select or None, statements_executed, select_statements) where the
-    counts reflect how many statements are *present* (not executed yet).
-    """
-    last_sel_idx = -1
-    for i, s in enumerate(statements):
-        if is_select(s):
-            last_sel_idx = i
-    total = len(statements)
-    n_select = sum(1 for s in statements if is_select(s))
-    if last_sel_idx == -1:
-        return statements, None, total, n_select
-    preamble = statements[:last_sel_idx]
-    final_select = statements[last_sel_idx]
-    return preamble, final_select, total, n_select
 
 
 def _sqlite_run(db_path: str, preamble: List[str], final_select: Optional[str]) -> Tuple[Optional[float], int, str]:
@@ -203,17 +183,14 @@ def run_query_with_ttfr(engine: str, db_path: Optional[str], query: str,
 
     Returns:
       dict with keys:
+        - retval: "OK" or rows_returned for the last SELECT
         - ttfr_seconds: TTFR of the LAST SELECT from *script start* to first output
         - rows_returned: total rows of the LAST SELECT
-        - statements_executed: number of statements executed
-        - select_statements: number of SELECT-like statements
-        - retval: "OK" or rows_returned for the last SELECT
     """
     if not db_path:
         raise ValueError("db_path must be provided")
-
-    statements = split_statements(query)
-    preamble, final_select, n_exec, n_select = _extract_preamble_and_final(statements)
+    
+    preamble, final_select = extract_last_select(query)
 
     if engine == "duckdb":
         ttfr, rows_returned, retval = _duckdb_run(db_path, preamble, final_select, threads)
@@ -227,7 +204,5 @@ def run_query_with_ttfr(engine: str, db_path: Optional[str], query: str,
     return {
         "retval": retval,
         "ttfr_seconds": ttfr,
-        "rows_returned": rows_returned,
-        "statements_executed": n_exec,
-        "select_statements": n_select,
+        "rows_returned": rows_returned
     }

@@ -132,8 +132,6 @@ def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query=''
         "wall_time_seconds": t1 - t0,
         "ttfr_seconds": exec_info["ttfr_seconds"],
         "rows_returned": exec_info["rows_returned"],
-        "statements_executed": exec_info["statements_executed"],
-        "select_statements": exec_info["select_statements"],
         "peak_rss_bytes_sampled": stats.get("peak_rss_bytes", 0),
         "peak_rss_bytes_true": stats.get("peak_rss_bytes_true", stats.get("peak_rss_bytes", 0)),
         "cpu_avg_percent": stats.get("cpu_avg_percent", 0.0),
@@ -214,8 +212,6 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
         "wall_time_seconds": t1 - t0,  # parent-observed wall
         "ttfr_seconds": exec_info["ttfr_seconds"],
         "rows_returned": exec_info["rows_returned"],
-        "statements_executed": exec_info["statements_executed"],
-        "select_statements": exec_info["select_statements"],
         "peak_rss_bytes_sampled": stats.get("peak_rss_bytes", 0),
         "peak_rss_bytes_true": stats.get("peak_rss_bytes_true", stats.get("peak_rss_bytes", 0)),
         "cpu_avg_percent": stats.get("cpu_avg_percent", 0.0),
@@ -293,32 +289,31 @@ def main():
     runs = []
 
     for i in range(args.repeat):
-            res = (run_once_child if args.child else run_once_inproc)(
-                engine=args.engine,
-                db_path=args.db_path,
-                sample_interval=args.interval,
-                query=query,
-                threads=(args.threads if args.threads > 0 else None),
-            )
-            runs.append(res)
-            print(("[{eng}] {mode} run {k}/{n} wall={wall:.3f}s  {child_wall}  "
-                   "ttfr={ttfr}  peak_rss_sampled={rss_s:.1f} MB  peak_rss_true={rss_t:.1f} MB  "
-                   "cpu_avg={cpu:.1f}%  py_heap_peak={py:.1f} MB  rows={rows}  sel={sels}/{stmts}  samples={smp}")
-                  .format(
-                      eng=args.engine.upper(),
-                      mode=("CHILD" if args.child else "INPROC"),
-                      k=i+1, n=args.repeat,
-                      wall=res["wall_time_seconds"],
-                      child_wall=("child_wall=%.3fs" % res["child_wall_time_seconds"]) if "child_wall_time_seconds" in res else "",
-                      ttfr=("%.3f s" % res["ttfr_seconds"]) if res["ttfr_seconds"] is not None else "None",
-                      rss_s=res["peak_rss_bytes_sampled"] / (1024**2),
-                      rss_t=res["peak_rss_bytes_true"] / (1024**2),
-                      cpu=res["cpu_avg_percent"],
-                      py=res["python_heap_peak_bytes"] / (1024**2),
-                      rows=res["rows_returned"],
-                      sels=res["select_statements"], stmts=res["statements_executed"],
-                      smp=res["samples"],
-                  ))
+        res = (run_once_child if args.child else run_once_inproc)(
+            engine=args.engine,
+            db_path=args.db_path,
+            sample_interval=args.interval,
+            query=query,
+            threads=(args.threads if args.threads > 0 else None),
+        )
+        runs.append(res)
+        print(("[{eng}] {mode} run {k}/{n} wall={wall:.3f}s  {child_wall}  "
+               "ttfr={ttfr}  peak_rss_sampled={rss_s:.1f} MB  peak_rss_true={rss_t:.1f} MB  "
+               "cpu_avg={cpu:.1f}%  py_heap_peak={py:.1f} MB  rows={rows}  samples={smp}")
+              .format(
+                  eng=args.engine.upper(),
+                  mode=("CHILD" if args.child else "INPROC"),
+                  k=i+1, n=args.repeat,
+                  wall=res["wall_time_seconds"],
+                  child_wall=("child_wall=%.3fs" % res["child_wall_time_seconds"]) if "child_wall_time_seconds" in res else "",
+                  ttfr=("%.3f s" % res["ttfr_seconds"]) if res["ttfr_seconds"] is not None else "None",
+                  rss_s=res["peak_rss_bytes_sampled"] / (1024**2),
+                  rss_t=res["peak_rss_bytes_true"] / (1024**2),
+                  cpu=res["cpu_avg_percent"],
+                  py=res["python_heap_peak_bytes"] / (1024**2),
+                  rows=res["rows_returned"],
+                  smp=res["samples"],
+              ))
 
     # ---------------- Aggregation ----------------
     wall_list = [r.get("wall_time_seconds") for r in runs if r.get("wall_time_seconds") is not None]

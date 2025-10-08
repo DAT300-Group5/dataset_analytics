@@ -220,8 +220,6 @@ Each run produces a JSON object with these keys:
 | `wall_time_seconds`       | Wall-clock time for the run (seconds, measured by parent).                               |
 | `ttfr_seconds`            | Time to first result (seconds).                                                          |
 | `rows_returned`           | Number of rows returned by the query.                                                    |
-| `statements_executed`     | Total number of SQL statements executed.                                                 |
-| `select_statements`       | Number of SELECT statements executed.                                                    |
 | `peak_rss_bytes_sampled`  | Peak Resident Set Size (RSS) sampled periodically.                                       |
 | `peak_rss_bytes_true`     | True high-water RSS (from `/proc/[pid]/status` on Linux or OS API; fallback to sampled). |
 | `cpu_avg_percent`         | Average CPU utilization during run (%).                                                  |
