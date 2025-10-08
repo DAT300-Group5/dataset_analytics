@@ -125,10 +125,6 @@ Findings:
 1. The informative HRV metrics (which is the main focus of what we are trying to get from raw data), like statistical features (SDNN, RMSSD, pNN20, pNN50, LF/HF), relay on IBI to be computed.
 2. The really important column inter-beat intervals (IBI) CANNOT be calculate using queries alone. IBI is calculated from the signal (PPG), and does go into the realm of biomedical signal processing, which is not the main focus of this particular course. (But technically, it would be feasible to do it on the edge device without a library like [HeartPy](https://python-heart-rate-analysis-toolkit.readthedocs.io/))
 
-## Use cases
-
-Use cases using raw sensor data without the signal processing:
-
 ### Resting HR anomaly detection using statistics
 
 Idea: if there is abnormaly high heart rate (HR) during resting period, it could correspond to stress, mental unrest or signs of illness. Intervals are compared to a quantile of the person's HR based on sensor hrm when activity is low (steps bellow threshold) and flag it whether it is an anomaly or not. Granuality of the detection can be adjusted.
@@ -148,7 +144,7 @@ Operations: joins, division, filtering, aggregation of raw data, regression line
 Idea: classifying intervals as either sitting, light or heavy activity by using simple decision rule based method using data from hrm, ped, acc, and lit. 
 
 Tables: hrm, ped, acc, lit
-Operations: joins, aggregation of raw data, filtering 
+Operations: joins, aggregation of raw data, filtering
 
 ## Benchmark Design
 
@@ -196,4 +192,3 @@ This benchmark suite is designed to evaluate different **databases (SQLite, Duck
 **P99 (99th percentile latency):** 99% of requests complete **at or below** this latency; the slowest 1% are worse. This is a stricter tail metric that surfaces rare but impactful slowness.
 
 **TTFR (Time To First Result):** The time from issuing a query until the **first row** (or first page/chunk) is returned to the client. Distinct from total query time; important for interactive/streaming UX.
-
