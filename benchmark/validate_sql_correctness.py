@@ -26,7 +26,6 @@ import os
 import sys
 import time
 import decimal
-import re
 from typing import Any, Dict, List, Optional, Tuple
 
 # Database engines
@@ -38,7 +37,6 @@ from utils import load_query_from_file, split_statements, is_select
 
 # ------------------------------- Constants ----------------------------------
 
-DEFAULT_BATCH_SIZE = 8192
 DEFAULT_FLOAT_TOLERANCE = 1e-9
 DEFAULT_DECIMAL_PLACES = 16
 DEFAULT_SAMPLE_LIMIT = 5

@@ -15,27 +15,11 @@ Notes on TTFR:
 from __future__ import annotations
 
 import sqlite3
+import duckdb
 import time
 from typing import Tuple, List, Optional
 
-try:
-    import duckdb  # type: ignore
-except ImportError:
-    duckdb = None
-
-
-def _is_select_statement(stmt: str) -> bool:
-    """Heuristically detect if a statement is SELECT-like."""
-    s = stmt.lstrip().lower()
-    return s.startswith(("select", "with", "show", "describe", "explain"))
-
-
-def _split_semicolon_statements(sql_text: str) -> List[str]:
-    """
-    Split a semicolon-separated SQL text into individual statements.
-    Trims whitespace and drops empty fragments.
-    """
-    return [s.strip() for s in sql_text.split(";") if s.strip()]
+from utils import split_statements, is_select
 
 
 def _execute_select_ttfr(cursor_or_conn, stmt: str, arraysize: int = 1) -> Tuple[float, int, int]:
@@ -126,7 +110,7 @@ def _run_statements_duckdb(
     try:
         for stmt in statements:
             statements_executed += 1
-            if _is_select_statement(stmt):
+            if is_select(stmt):
                 select_statements += 1
                 ttfr, _first_rows, total = _execute_select_ttfr(con, stmt, arraysize=1)
                 if first_select_ttfr is None:
@@ -162,7 +146,7 @@ def _run_statements_sqlite(db_path: str, statements: List[str]):
 
         for stmt in statements:
             statements_executed += 1
-            if _is_select_statement(stmt):
+            if is_select(stmt):
                 select_statements += 1
                 ttfr, _first_rows, total = _execute_select_ttfr(cur, stmt, arraysize=1)
                 if first_select_ttfr is None:
@@ -206,7 +190,7 @@ def _run_statements_chdb(
 
         for stmt in statements:
             statements_executed += 1
-            if _is_select_statement(stmt):
+            if is_select(stmt):
                 select_statements += 1
 
                 # Measure TTFR as execute() -> first fetch(1)
@@ -268,7 +252,7 @@ def run_query_with_ttfr(engine: str, db_path: Optional[str], query: str,
     if not db_path:
         raise ValueError("db_path must be provided")
 
-    statements = _split_semicolon_statements(query)
+    statements = split_statements(query)
 
     if engine == "duckdb":
         first_ttfr, rows_returned, n_exec, n_select, retval = \
