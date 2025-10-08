@@ -124,13 +124,13 @@ Prepare queries, and check their usablity. Execute them under path `benchmark`.
 
 ```bash
 # DuckDB
-python run_duckdb_sql.py ./db_vs14/vs14_data.duckdb ./queries/Q1/Q1_duckdb.sql > out_duckdb.csv
+python run_sql.py --engine duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql > out_duckdb.csv
 
 # SQLite
-python run_sqlite_sql.py ./db_vs14/vs14_data.sqlite ./queries/Q1/Q1_sqlite.sql > out_sqlite.csv
+python run_sql.py --engine sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql > out_sqlite.csv
 
 # ClickHouse (chdb)
-python run_chdb_sql.py ./db_vs14/vs14_data_chdb ./queries/Q1/Q1_clickhouse.sql > out_chdb.csv
+python run_sql.py --engine chdb ./db_vs14/vs14_data_chdb queries/Q1/Q1_clickhouse.sql > out_chdb.csv
 ```
 
 ### Validate SQL Correctness
