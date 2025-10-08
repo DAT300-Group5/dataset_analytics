@@ -15,7 +15,7 @@ SQLITE_CMD = "sqlite3"
 # File paths
 SQL_FILE = "demo.sql"
 DB_FILE = "demo.db"
-OUTPUT_LOG = "output.log"
+OUTPUT_LOG = "results/output.log"
 JSON_OUTPUT = "results.json"
 
 # Execution settings

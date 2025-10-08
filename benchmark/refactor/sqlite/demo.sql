@@ -3,7 +3,7 @@
 .stats on
 
 -- Redirect output to log file
-.output output.log
+.output results/output.log
 
 -- Print header
 .print "=== SQLite Performance Demo ==="
