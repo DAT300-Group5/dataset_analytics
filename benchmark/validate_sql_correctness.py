@@ -27,6 +27,7 @@ import sqlite3
 import sys
 import time
 import decimal
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 # Optional engines
@@ -63,15 +64,68 @@ def load_sql(path: str) -> str:
 
 
 def split_statements(sql: str) -> List[str]:
-    """Split the SQL text into individual statements by ';' and strip blanks."""
-    parts = [s.strip() for s in sql.split(";")]
-    return [p for p in parts if p]
+    """
+    Split SQL text into complete statements using sqlite3.complete_statement().
+    This tolerates semicolons in strings/comments and trailing comments.
+    """
+    stmts: List[str] = []
+    buf: List[str] = []
+    for line in sql.splitlines():
+        buf.append(line)
+        chunk = "\n".join(buf)
+        if sqlite3.complete_statement(chunk):
+            stmt = chunk.strip()
+            if stmt.endswith(";"):
+                stmt = stmt[:-1]
+            if stmt.strip():
+                stmts.append(stmt.strip())
+            buf = []
+    # leftover (no semicolon at EOF)
+    tail = "\n".join(buf).strip()
+    if tail:
+        stmts.append(tail)
+    return stmts
 
+
+_LEADING_BLOCK_COMMENT_RE = re.compile(r"^\s*/\*.*?\*/", re.DOTALL)
+_LEADING_LINE_COMMENT_RE  = re.compile(r"^\s*--[^\n]*\n?")
+
+def strip_leading_comments(sql: str) -> str:
+    """
+    Remove leading whitespace and comments:
+    - Line comments: -- ...
+    - Block comments: /* ... */
+    Repeats until no more leading comment/blank remains.
+    """
+    s = sql
+    while True:
+        changed = False
+        # drop leading blanks
+        s2 = s.lstrip()
+        if s2 != s:
+            s = s2
+            changed = True
+        # drop block comment at very start
+        m = _LEADING_BLOCK_COMMENT_RE.match(s)
+        if m:
+            s = s[m.end():]
+            changed = True
+            continue
+        # drop one or more leading -- comment lines
+        m = _LEADING_LINE_COMMENT_RE.match(s)
+        if m:
+            s = s[m.end():]
+            changed = True
+            continue
+        if not changed:
+            break
+    return s.lstrip()
 
 def is_select(stmt: str) -> bool:
     """Return True if the statement is SELECT-like (read-only)."""
-    s = stmt.lstrip().lower()
+    s = strip_leading_comments(stmt).lower()
     return s.startswith(("select", "with", "show", "describe", "explain"))
+
 
 # --------------------------- Normalization utils ----------------------------
 
