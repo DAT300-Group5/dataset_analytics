@@ -6,16 +6,14 @@
 ├── create_db.py
 ├── queries
 │   └── ...
-├── run_chdb_sql.py
-├── run_duckdb_sql.py
-├── run_sqlite_sql.py
+├── runsql.py
 ├── validate_sql_correctness.py
 ├── benchmark.py
 ├── query_db.py
 ├── config.yaml
 ├── run_experiments.py
 ├── analyze_results.py
-├── ttfr_sqlite.py
+├── ttfr_unified.py
 └── utils.py
 ```
 
