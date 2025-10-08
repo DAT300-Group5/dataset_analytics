@@ -3,4 +3,7 @@
 *.csv
 *.sqlite
 *.duckdb
+*.json
+*.png
 __pycache__/
+db*/

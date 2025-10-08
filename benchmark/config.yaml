@@ -1,0 +1,28 @@
+# === Edit me ===
+engines: [duckdb, chdb, sqlite]
+
+mode: child
+threads_duckdb: 4
+threads_chdb: 4
+threads_sqlite: 0
+repeat_full: 20
+warmups_full: 2
+repeat_pilot: 3
+warmups_pilot: 1
+
+target_samples: 50
+min_interval: 0.05
+max_interval: 0.50
+
+
+datasets:
+  - name: vs14
+    duckdb_db: ./db_vs14/vs14_data.duckdb
+    sqlite_db: ./db_vs14/vs14_data.sqlite
+    chdb_db_dir: ./db_vs14/vs14_data_chdb
+
+query_groups:
+  - id: Q1
+    duckdb_sql: queries/Q1/Q1_duckdb.sql
+    sqlite_sql: queries/Q1/Q1_sqlite.sql
+    chdb_sql:   queries/Q1/Q1_clickhouse.sql
