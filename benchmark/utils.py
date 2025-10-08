@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
-from typing import Union, List
+from typing import Union, List, Optional
+import sys
 
 
 def load_query_from_file(
@@ -45,7 +46,7 @@ def split_statements(sql: str) -> List[str]:
       - Default ';' delimiter.
       - MySQL: 'DELIMITER <token>' to change statement delimiter; not emitted as a statement.
       - PostgreSQL: dollar-quoted strings $$...$$ or $tag$...$tag$.
-      - PostgreSQL: COPY ... FROM STDIN data blocks terminated by a line '\.'.
+      - PostgreSQL: COPY ... FROM STDIN data blocks terminated by a line.
       - Oracle/PLSQL: a line with only '/' (ignoring surrounding spaces) terminates a block.
       - SQL Server: a line with only 'GO' (case-insensitive, ignoring spaces) is a batch separator.
       - Comments: '-- ...', '# ...' (MySQL line comment), and '/* ... */' block comments.
@@ -332,6 +333,77 @@ def split_statements(sql: str) -> List[str]:
     return stmts
 
 
+def _leading_keyword(stmt: str) -> str:
+    """
+    Return the first SQL keyword after skipping leading whitespace and comments:
+      - line comments: '-- ...' or '# ...'
+      - block comments: '/* ... */'
+    Lowercased; returns '' if none.
+    """
+    s = stmt
+    i, n = 0, len(s)
+
+    def skip_space(k: int) -> int:
+        while k < n and s[k].isspace():
+            k += 1
+        return k
+
+    while True:
+        i = skip_space(i)
+        if i >= n:
+            return ""
+        # line comments
+        if s.startswith("--", i):
+            j = s.find("\n", i)
+            i = n if j == -1 else j + 1
+            continue
+        if s[i] == "#":
+            j = s.find("\n", i)
+            i = n if j == -1 else j + 1
+            continue
+        # block comments
+        if s.startswith("/*", i):
+            j = s.find("*/", i + 2)
+            i = n if j == -1 else j + 2
+            continue
+        break
+
+    j = i
+    while j < n and (s[j].isalpha() or s[j] == "_"):
+        j += 1
+    return s[i:j].lower()
+
+
 def is_select(stmt: str) -> bool:
-    """Return True if the statement is SELECT-like (read-only)."""
-    return stmt.startswith(("select", "with", "show", "describe", "explain"))
+    """
+    Return True if the statement is SELECT-like (read-only).
+    Robust to leading whitespace and SQL comments.
+    """
+    kw = _leading_keyword(stmt)
+    return kw in ("select", "with", "show", "describe", "explain")
+
+
+def extract_last_select(sql_file: str) -> tuple[list[str], str]:
+    """
+    Load and split the SQL file, then locate the last SELECT-like statement.
+    Returns: (preamble_stmts, final_select_stmt)
+    Exits(1) if no statements or no SELECT-like statement is found.
+    """
+    sql_text = load_query_from_file(sql_file)
+    statements = split_statements(sql_text)
+    if not statements:
+        print("No statements found in SQL file.")
+        sys.exit(1)
+
+    last_select_idx: Optional[int] = None
+    for i, stmt in enumerate(statements):
+        if is_select(stmt):  # is_select should be robust to leading comments/whitespace
+            last_select_idx = i
+
+    if last_select_idx is None:
+        print("No SELECT-like statement found in SQL file.")
+        sys.exit(1)
+
+    preamble_stmts = statements[:last_select_idx]
+    final_select = statements[last_select_idx]
+    return preamble_stmts, final_select
