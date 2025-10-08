@@ -20,19 +20,8 @@ Engine inference (if --engine omitted):
 import sys
 import csv
 import argparse
-import os
 
-from utils import load_query_from_file, split_statements  # same helpers as your originals
-
-
-def infer_engine(db_path: str) -> str:
-    p = db_path.lower()
-    if p.endswith(".duckdb"):
-        return "duckdb"
-    if p.endswith(".sqlite") or p.endswith(".db"):
-        return "sqlite"
-    # chdb databases don't have a universally fixed suffix; keep sqlite as safe default
-    return "sqlite"
+from utils import load_query_from_file, split_statements
 
 
 def run_sqlite(db_path: str, sql: str):
@@ -94,7 +83,7 @@ def main():
     ap.add_argument("--engine", choices=["sqlite", "duckdb", "chdb"], help="Override engine detection")
     args = ap.parse_args()
 
-    engine = args.engine or infer_engine(args.db_path)
+    engine = args.engine
     sql = load_query_from_file(args.sql_file)
 
     if engine == "sqlite":
