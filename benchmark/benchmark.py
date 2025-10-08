@@ -130,7 +130,7 @@ def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query=''
     out = {
         "retval": exec_info["retval"],
         "wall_time_seconds": t1 - t0,
-        "ttfr_seconds": exec_info["first_select_ttfr_seconds"],
+        "ttfr_seconds": exec_info["ttfr_seconds"],
         "rows_returned": exec_info["rows_returned"],
         "statements_executed": exec_info["statements_executed"],
         "select_statements": exec_info["select_statements"],
@@ -212,7 +212,7 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
     out = {
         "retval": exec_info["retval"],
         "wall_time_seconds": t1 - t0,  # parent-observed wall
-        "ttfr_seconds": exec_info["first_select_ttfr_seconds"],
+        "ttfr_seconds": exec_info["ttfr_seconds"],
         "rows_returned": exec_info["rows_returned"],
         "statements_executed": exec_info["statements_executed"],
         "select_statements": exec_info["select_statements"],
@@ -229,7 +229,7 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
 
 # -------------------------------------- main --------------------------------------
 def main():
-    ap = argparse.ArgumentParser(description="SQLite / DuckDB / chDB benchmark with CPU/RSS/TTFR + P95/P99 (DB-internal memory metrics removed)")
+    ap = argparse.ArgumentParser(description="SQLite / DuckDB / chDB benchmark with CPU/RSS/TTFR + P95/P99")
     ap.add_argument("--engine", choices=["duckdb", "sqlite", "chdb"], default="duckdb",
                     help="Database engine: duckdb | sqlite | chdb (default: duckdb)")
     ap.add_argument("--db-path", type=str, required=True,

@@ -56,7 +56,7 @@ def run_sqlite(db_path: str, sql: str):
 
 def run_duckdb(db_path: str, sql: str):
     import duckdb
-    con = duckdb.connect(database=db_path)
+    con = duckdb.connect(db_path)
     cols, rows = None, []
 
     for stmt in split_statements(sql):

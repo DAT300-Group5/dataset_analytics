@@ -1,227 +1,190 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-query_db.py — Execute SQL queries with SQLite / DuckDB / chDB,
-measuring TTFR (time-to-first-result), row counts, etc.
+query_db.py — Execute a semicolon-separated SQL string on SQLite / DuckDB / chDB,
+and report TTFR for the **LAST SELECT** with unified semantics.
 
-Notes on TTFR:
-- For vectorized/columnar engines (DuckDB/chDB), "first result" is effectively
-  the first underlying data block becoming available, even if we fetch only 1 row
-  at the Python layer. So the metric approximates "time-to-first-block".
-- For SQLite (row-by-row iteration), TTFR is closer to a true "first row" time.
+API is preserved for compatibility:
+
+    run_query_with_ttfr(engine: str, db_path: str, query: str, threads: int | None = None) -> dict
+
+Return keys (unchanged):
+  - ttfr_seconds                # (now measured for the LAST SELECT, from *script start*)
+  - rows_returned               # total rows of the LAST SELECT
+  - statements_executed         # number of statements executed in total
+  - select_statements           # number of SELECT-like statements
+  - retval                      # "OK" or rows_returned for the last SELECT
+
+Engine-specific TTFR unit:
+  - SQLite: first *row*
+  - DuckDB/chDB: first *batch* (fixed BATCH_SIZE to reflect vectorized execution)
 """
 
 from __future__ import annotations
 
-import sqlite3
-import duckdb
 import time
-from typing import Tuple, List, Optional
+from typing import List, Optional, Tuple
 
 from utils import split_statements, is_select
 
+# Fixed batch for vectorized engines (align with ttfr_unified policy)
+BATCH_SIZE = 2048
 
-def _execute_select_ttfr(cursor_or_conn, stmt: str, arraysize: int = 1) -> Tuple[float, int, int]:
+
+def _extract_preamble_and_final(statements: List[str]) -> Tuple[List[str], Optional[str], int, int]:
+    """Split into preamble statements (everything before last SELECT) and final SELECT text.
+    Returns (preamble, final_select or None, statements_executed, select_statements) where the
+    counts reflect how many statements are *present* (not executed yet).
     """
-    Execute a SELECT and measure TTFR with the following semantics:
-      - Start timing just before .execute(stmt)
-      - Perform a first fetch with fetchmany(arraysize) to obtain the "first result"
-      - Report TTFR as time from execute() start to the completion of that first fetch
-      - Drain the remainder to count total rows
-
-    Returns:
-      (ttfr_seconds, first_batch_rows, total_rows)
-
-    IMPORTANT:
-      For vectorized/columnar engines (DuckDB/chDB) the driver typically pulls a
-      whole data block under the hood, so this approximates "time-to-first-block".
-    """
-    t0 = time.perf_counter()
-
-    # Normalize to a cursor that supports fetchmany
-    if hasattr(cursor_or_conn, "fetchmany"):  # SQLite cursor
-        cur = cursor_or_conn
-        cur.execute(stmt)
-    else:  # DuckDB connection: .execute returns a cursor-like object
-        cur = cursor_or_conn.execute(stmt)
-
-    # First fetch (bias to 1 row to limit client-side overhead)
-    first_batch = cur.fetchmany(arraysize)
-    ttfr = time.perf_counter() - t0
-
-    first_rows = len(first_batch)
-    total_rows = first_rows
-
-    # Drain remaining batches to count total rows
-    while True:
-        batch = cur.fetchmany()
-        if not batch:
-            break
-        total_rows += len(batch)
-
-    return ttfr, first_rows, total_rows
+    last_sel_idx = -1
+    for i, s in enumerate(statements):
+        if is_select(s):
+            last_sel_idx = i
+    total = len(statements)
+    n_select = sum(1 for s in statements if is_select(s))
+    if last_sel_idx == -1:
+        return statements, None, total, n_select
+    preamble = statements[:last_sel_idx]
+    final_select = statements[last_sel_idx]
+    return preamble, final_select, total, n_select
 
 
-def _execute_non_select_statement(cursor_or_conn, stmt: str) -> str:
-    """
-    Execute a non-SELECT statement for SQLite cursor or DuckDB connection/cursor.
-    Returns "OK" when no exception is raised.
-    """
-    if hasattr(cursor_or_conn, "execute"):
-        cursor_or_conn.execute(stmt)
-        return "OK"
-    raise RuntimeError("Unsupported connection type for non-SELECT execution")
-
-
-# ----------------------------- Engine Runners ------------------------------ #
-
-def _run_statements_duckdb(
-    db_path: str,
-    statements: List[str],
-    threads: Optional[int] = None
-):
-    """
-    Execute semicolon-split statements on DuckDB.
-
-    Returns:
-      tuple: (first_select_ttfr, rows_returned, statements_executed, select_statements, retval)
-        - first_select_ttfr: TTFR of the FIRST SELECT encountered (seconds, or None if no SELECT)
-        - rows_returned: total rows returned by the LAST SELECT (0 if no SELECT)
-        - statements_executed: number of statements executed
-        - select_statements: number of SELECT-like statements executed
-        - retval: "OK" for non-SELECT, or rows_returned for the last SELECT
-    """
-    if duckdb is None:
-        raise ImportError("duckdb is not installed")
+def _sqlite_run(db_path: str, preamble: List[str], final_select: Optional[str]) -> Tuple[Optional[float], int, str]:
+    import sqlite3
 
     rows_returned = 0
-    first_select_ttfr: Optional[float] = None
-    statements_executed = 0
-    select_statements = 0
-    retval = None
+    ttfr: Optional[float] = None
+    retval: str | int = "OK"
 
-    # Build connection config only when needed (older DuckDB versions may not accept None)
-    config: dict = {}
+    con = sqlite3.connect(db_path)
+    try:
+        cur = con.cursor()
+        t0 = time.perf_counter()  # script start
+
+        # Execute preamble inside a transaction to avoid per-statement commit cost.
+        con.execute("BEGIN")
+        for s in preamble:
+            ss = s.strip()
+            if ss:
+                cur.execute(ss)
+        con.execute("COMMIT")
+
+        if final_select is None:
+            ttfr = None
+            rows_returned = 0
+            retval = "OK"
+        else:
+            cur.execute(final_select)
+            first_row = cur.fetchone()
+            ttfr = time.perf_counter() - t0
+
+            if first_row is None:
+                rows_returned = 0
+                retval = 0
+            else:
+                rows_returned = 1
+                for _ in cur:
+                    rows_returned += 1
+                retval = rows_returned
+
+        return ttfr, rows_returned, retval
+    finally:
+        con.close()
+
+
+def _duckdb_run(db_path: str, preamble: List[str], final_select: Optional[str], threads: Optional[int]) -> Tuple[Optional[float], int, str]:
+    import duckdb
+
+    rows_returned = 0
+    ttfr: Optional[float] = None
+    retval: str | int = "OK"
+
+    config = {}
     if threads is not None and threads > 0:
         config["threads"] = int(threads)
 
     con = duckdb.connect(database=db_path, config=config or None)
     try:
-        for stmt in statements:
-            statements_executed += 1
-            if is_select(stmt):
-                select_statements += 1
-                ttfr, _first_rows, total = _execute_select_ttfr(con, stmt, arraysize=1)
-                if first_select_ttfr is None:
-                    first_select_ttfr = ttfr
-                rows_returned = total
-                retval = rows_returned
-            else:
-                retval = _execute_non_select_statement(con, stmt)
+        t0 = time.perf_counter()  # script start
+
+        con.execute("BEGIN")
+        for s in preamble:
+            ss = s.strip()
+            if ss:
+                con.execute(ss)
+        con.execute("COMMIT")
+
+        if final_select is None:
+            ttfr = None
+            rows_returned = 0
+            retval = "OK"
+        else:
+            con.execute(final_select)
+            first_batch = con.fetchmany(BATCH_SIZE)
+            ttfr = time.perf_counter() - t0
+
+            first_rows = len(first_batch)
+            rows_returned = first_rows
+            while True:
+                batch = con.fetchmany(BATCH_SIZE)
+                if not batch:
+                    break
+                rows_returned += len(batch)
+
+            retval = rows_returned
+
+        return ttfr, rows_returned, retval
     finally:
         con.close()
 
-    return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
 
+def _chdb_run(db_path: str, preamble: List[str], final_select: Optional[str], threads: Optional[int]) -> Tuple[Optional[float], int, str]:
+    import chdb
 
-def _run_statements_sqlite(db_path: str, statements: List[str]):
-    """
-    Execute semicolon-split statements on SQLite.
-
-    Returns:
-      tuple: (first_select_ttfr, rows_returned, statements_executed, select_statements, retval)
-    """
     rows_returned = 0
-    first_select_ttfr: Optional[float] = None
-    statements_executed = 0
-    select_statements = 0
-    retval = None
-
-    con = sqlite3.connect(db_path)
-    try:
-        # autocommit mode
-        con.isolation_level = None
-        cur = con.cursor()
-
-        for stmt in statements:
-            statements_executed += 1
-            if is_select(stmt):
-                select_statements += 1
-                ttfr, _first_rows, total = _execute_select_ttfr(cur, stmt, arraysize=1)
-                if first_select_ttfr is None:
-                    first_select_ttfr = ttfr
-                rows_returned = total
-                retval = rows_returned
-            else:
-                retval = _execute_non_select_statement(cur, stmt)
-    finally:
-        con.close()
-
-    return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
-
-
-def _run_statements_chdb(
-    db_path: Optional[str],
-    statements: List[str],
-    threads: Optional[int] = None
-):
-    """
-    Execute semicolon-split statements on chDB (ClickHouse-in-process).
-
-    Implementation details:
-    - Import chdb lazily to avoid importing it in parent processes.
-    - Use fetchmany(1) for the first fetch to limit client-side overhead
-      and to reduce arraysize-induced bias on TTFR.
-    """
-    import chdb  # delayed import
+    ttfr: Optional[float] = None
+    retval: str | int = "OK"
 
     conn = chdb.connect(db_path)
+    cur = conn.cursor()
     try:
-        cur = conn.cursor()
         if threads and int(threads) > 0:
             cur.execute(f"SET max_threads = {int(threads)}")
 
-        statements_executed = 0
-        select_statements = 0
-        first_select_ttfr: Optional[float] = None
-        rows_returned = 0
-        retval = None
+        t0 = time.perf_counter()  # script start
 
-        for stmt in statements:
-            statements_executed += 1
-            if is_select(stmt):
-                select_statements += 1
+        for s in preamble:
+            ss = s.strip()
+            if ss:
+                cur.execute(ss)
 
-                # Measure TTFR as execute() -> first fetch(1)
-                t0 = time.perf_counter()
-                cur.execute(stmt)
-                first_batch = cur.fetchmany(1)  # force 1 to reduce arraysize effect
-                ttfr = time.perf_counter() - t0
+        if final_select is None:
+            ttfr = None
+            rows_returned = 0
+            retval = "OK"
+        else:
+            cur.execute(final_select)
+            first_batch = cur.fetchmany(BATCH_SIZE)
+            ttfr = time.perf_counter() - t0
 
-                if first_select_ttfr is None:
-                    first_select_ttfr = ttfr
+            first_rows = len(first_batch)
+            rows_returned = first_rows
+            while True:
+                batch = cur.fetchmany(BATCH_SIZE)
+                if not batch:
+                    break
+                rows_returned += len(batch)
 
-                total = len(first_batch)
-                while True:
-                    batch = cur.fetchmany()
-                    if not batch:
-                        break
-                    total += len(batch)
+            retval = rows_returned
 
-                rows_returned = total
-                retval = rows_returned
-            else:
-                cur.execute(stmt)
-                retval = "OK"
-
-        cur.close()
-        return first_select_ttfr, rows_returned, statements_executed, select_statements, retval
+        return ttfr, rows_returned, retval
     finally:
         try:
+            cur.close()
+        finally:
             conn.close()
-        except Exception:
-            pass
 
 
 # ------------------------------ Public API --------------------------------- #
@@ -229,16 +192,8 @@ def _run_statements_chdb(
 def run_query_with_ttfr(engine: str, db_path: Optional[str], query: str,
                         threads: Optional[int] = None) -> dict:
     """
-    Execute a semicolon-separated SQL string on the chosen engine and collect:
-      - first_select_ttfr_seconds: TTFR of the FIRST SELECT (None if no SELECT)
-      - rows_returned: total rows returned by the LAST SELECT (0 if no SELECT)
-      - statements_executed: number of statements executed
-      - select_statements: number of SELECT-like statements encountered
-      - retval: "OK" or rows_returned for the last SELECT
-
-    TTFR definition in this implementation:
-      Time from `execute()` start to completion of the first `fetchmany(1)`.
-      For vectorized engines (DuckDB/chDB) this approximates "time-to-first-block".
+    Execute a semicolon-separated SQL string as one task and report metrics.
+    API/return keys are preserved for compatibility.
 
     Parameters:
       engine: "duckdb" | "sqlite" | "chdb"
@@ -247,28 +202,31 @@ def run_query_with_ttfr(engine: str, db_path: Optional[str], query: str,
       threads: optional engine-specific parallelism (DuckDB: PRAGMA threads, chdb: max_threads)
 
     Returns:
-      dict with the keys described above.
+      dict with keys:
+        - ttfr_seconds: TTFR of the LAST SELECT from *script start* to first output
+        - rows_returned: total rows of the LAST SELECT
+        - statements_executed: number of statements executed
+        - select_statements: number of SELECT-like statements
+        - retval: "OK" or rows_returned for the last SELECT
     """
     if not db_path:
         raise ValueError("db_path must be provided")
 
     statements = split_statements(query)
+    preamble, final_select, n_exec, n_select = _extract_preamble_and_final(statements)
 
     if engine == "duckdb":
-        first_ttfr, rows_returned, n_exec, n_select, retval = \
-            _run_statements_duckdb(db_path, statements, threads)
+        ttfr, rows_returned, retval = _duckdb_run(db_path, preamble, final_select, threads)
     elif engine == "sqlite":
-        first_ttfr, rows_returned, n_exec, n_select, retval = \
-            _run_statements_sqlite(db_path, statements)
+        ttfr, rows_returned, retval = _sqlite_run(db_path, preamble, final_select)
     elif engine == "chdb":
-        first_ttfr, rows_returned, n_exec, n_select, retval = \
-            _run_statements_chdb(db_path, statements, threads)
+        ttfr, rows_returned, retval = _chdb_run(db_path, preamble, final_select, threads)
     else:
         raise ValueError(f"Unsupported engine: {engine}")
 
     return {
         "retval": retval,
-        "first_select_ttfr_seconds": first_ttfr,
+        "ttfr_seconds": ttfr,
         "rows_returned": rows_returned,
         "statements_executed": n_exec,
         "select_statements": n_select,
