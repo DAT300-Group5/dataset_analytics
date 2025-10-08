@@ -226,15 +226,6 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
     }
     return out
 
-# -------------------------- summarize helpers --------------------------
-def _collect(runs, key, allow_none=False):
-    vals = [r.get(key) for r in runs if allow_none or r.get(key) is not None]
-    if not allow_none:
-        vals = [v for v in vals if v is not None]
-    return vals
-
-def _mean_or_none(lst):
-    return (sum(lst) / len(lst)) if lst else None
 
 # -------------------------------------- main --------------------------------------
 def main():
