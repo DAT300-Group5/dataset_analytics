@@ -134,14 +134,14 @@ Operations: joins, statistics, aggregation of raw data, CASE/IF
 
 ### Fitness index trend analysis
 
-Idea: using a simple measure of fitness index, we can check whether the fitness of the person is increasing or decreasing by fitting a simple regression line. 
+Idea: using a simple measure of fitness index, we can check whether the fitness of the person is increasing or decreasing by fitting a simple regression line.
 
 Tables: hrm, ped
 Operations: joins, division, filtering, aggregation of raw data, regression line
 
 ### Categorization of activity
 
-Idea: classifying intervals as either sitting, light or heavy activity by using simple decision rule based method using data from hrm, ped, acc, and lit. 
+Idea: classifying intervals as either sitting, light or heavy activity by using simple decision rule based method using data from hrm, ped, acc, and lit.
 
 Tables: hrm, ped, acc, lit
 Operations: joins, aggregation of raw data, filtering
