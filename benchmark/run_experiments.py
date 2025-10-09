@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from config import BenchmarkConfig, Dataset, QueryGroup
+from models import BenchmarkResult
 
 # Constants
 HERE = Path(__file__).parent.resolve()
@@ -82,10 +83,10 @@ class BenchmarkRunner:
                 out_json=pilot_out
             )
             
-            with open(pilot_out, "r", encoding="utf-8") as f:
-                pilot_data = json.load(f)
+            # Load result using the new model class
+            benchmark_result = BenchmarkResult.load_from_file(pilot_out)
             
-            mean_wall = pilot_data["summary"]["mean_wall_time_seconds"]
+            mean_wall = benchmark_result.summary.mean_wall_time_seconds
             return pick_interval(
                 mean_wall,
                 self.config.target_samples,
@@ -281,27 +282,26 @@ class ResultsProcessor:
             interval: Time interval used
             result_path: Path to result JSON file
         """
-        with open(result_path, "r", encoding="utf-8") as f:
-            result_data = json.load(f)
-        
-        summary = result_data["summary"]
+        # Load result using the new model class
+        benchmark_result = BenchmarkResult.load_from_file(result_path)
+        summary = benchmark_result.summary
         
         row = {
             "dataset": dataset.name,
             "query_id": query_group.id,
             "engine": engine,
-            "mode": summary["mode"],
-            "threads": summary["threads"],
-            "repeat": summary["repeat"],
-            "warmups": summary["warmups"],
+            "mode": summary.mode,
+            "threads": summary.threads,
+            "repeat": summary.repeat,
+            "warmups": summary.warmups,
             "interval": interval,
-            "mean_wall_s": summary["mean_wall_time_seconds"],
-            "p50_wall_s": summary["p50_wall_time_seconds"],
-            "p99_wall_s": summary["p99_wall_time_seconds"],
-            "mean_ttfr_s": summary["mean_ttfr_seconds"],
-            "mean_cpu_pct": summary["mean_cpu_avg_percent"],
-            "mean_rss_mb": (summary["mean_peak_rss_bytes_true"] or 0) / BYTES_PER_MB,
-            "mean_rows": summary["mean_rows_returned"],
+            "mean_wall_s": summary.mean_wall_time_seconds,
+            "p50_wall_s": summary.p50_wall_time_seconds,
+            "p99_wall_s": summary.p99_wall_time_seconds,
+            "mean_ttfr_s": summary.mean_ttfr_seconds,
+            "mean_cpu_pct": summary.mean_cpu_avg_percent,
+            "mean_rss_mb": (summary.mean_peak_rss_bytes_true or 0) / BYTES_PER_MB,
+            "mean_rows": summary.mean_rows_returned,
         }
         
         self.rows.append(row)
