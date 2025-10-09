@@ -129,7 +129,7 @@ Page Cache Misses:    5
 
 ## How to Complile SQLite
 
-**However, some of the dot commands need another build of SQLite3**.
+**However, some of the dot commands need another build of SQLite3 with certain flag**.
 
 | Command          | Purpose                       | Requires Special Compilation            |
 | ---------------- | ----------------------------- | --------------------------------------- |
