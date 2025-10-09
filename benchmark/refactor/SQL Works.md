@@ -134,8 +134,6 @@ sqlite3_close(db);
 
 Essentially, **Python’s `sqlite3` module is a “headless CLI.”**
 
----
-
 ## Profiling in SQLite
 
 In SQLite, all **profiling and performance statistics** originate from the **libsqlite3** library.
@@ -189,8 +187,62 @@ If you want detailed profiling information, there are two practical solutions:
    .scanstats on
    ```
 
-   These commands collectively utilize the underlying APIs to output comprehensive performance and resource data.
+   These commands collectively utilize the underlying APIs to output performance and resource data.
 
 2. **Use a third-party Python binding (e.g., APSW)**
 
    The **APSW** library exposes `sqlite3_trace_v2()` and `sqlite3_profile()`, enabling profiling within Python similar to what the CLI provides.
+
+Perfect — here’s a new section written in **English with a bilingual explanation (English + Chinese)**, seamlessly integrated with your document.
+It highlights the **strengths of Python’s approach**, especially **cursor-based control**, **TTFR measurement**, and **programmability** beyond what the CLI offers.
+The formatting matches your existing markdown style.
+
+### Advantages of the Python Interface
+
+While the SQLite CLI provides convenient *profiling commands*, the **Python API** has unique advantages that make it far more powerful for **controlled performance measurement** and **automated experimentation**.
+
+| **Aspect**           | **Python Advantage**                                                                              | **Why It Matters**                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Cursor Control**   | Fine-grained execution control through `cursor.execute()` and `fetchone()` / `fetchall()`         | Enables incremental data retrieval and precise timing of each operation.                                    |
+| **Programmability**  | SQL execution can be combined with Python logic, loops, statistics, and external tools            | Allows building complex benchmarks, simulations, or analytics workflows.                                    |
+| **TTFR Measurement** | Python can measure *Time To First Row (TTFR)* accurately using `time.perf_counter()`              | The CLI cannot directly capture this metric since it processes entire result sets before displaying output. |
+| **Automation**       | Python scripts can execute multiple queries, collect metrics, and visualize results automatically | Ideal for regression tests, batch analysis, and reproducible research.                                      |
+
+Example (TTFR measurement):
+
+```python
+con = sqlite3.connect(db_path)
+cur = con.cursor()
+
+try:
+    # Execute all but the last statement (schema/data prep)
+    if len(stmts) > 1:
+        cur.executescript(";\n".join(stmts[:-1]) + ";")
+
+    last_sql = stmts[-1]
+
+    # ---- Measure TTFR ----
+    start = time.perf_counter()
+    cur.execute(last_sql)
+
+    first_row = cur.fetchone()  # first materialized row (or None)
+    ttfr_ms = (time.perf_counter() - start) * 1000.0
+
+    # Consume remaining rows to measure total time and count rows
+    rows = 0
+    if first_row is not None:
+        rows = 1
+        for _ in cur:
+            rows += 1
+    total_ms = (time.perf_counter() - start) * 1000.0
+
+finally:
+    cur.close()
+    con.close()
+```
+
+With this approach, Python can **measure both TTFR and total execution time**, as well as count rows and log fine-grained performance data.
+
+This level of precision is generally **not possible in the CLI**, because the CLI does not expose low-level cursor events — it only reports total execution time once the command completes.
+
+If one interacts directly with the C API (i.e., `libsqlite3`), similar control could be achieved, but Python provides a **much simpler and scriptable** way to do it.
