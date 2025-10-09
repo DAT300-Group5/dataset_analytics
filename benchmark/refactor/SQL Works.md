@@ -84,8 +84,6 @@ All higher-level interfaces (CLI, Python, C programs) call the same core C APIs:
 - sqlite3_finalize()
 - sqlite3_close()
 
----
-
 ## **Python Module vs. CLI**
 
 Python example:
