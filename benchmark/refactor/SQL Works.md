@@ -1,15 +1,14 @@
 # How SQLite Works — Library, CLI, and Python Module
 
-Questions:
+Q: Is operating SQLite through the CLI better (like more effective) than using Python?
 
-- Is operating SQLite through the CLI better than using Python?
-- Is it more effective to obtain profiling data through the CLI rather than via Python?
+A:
 
-Answer:
+Essentially, both the CLI and Python are interfaces to the same SQLite core engine, so in terms of query execution, they are fundamentally equivalent.
 
-- Essentially, both the CLI and Python are interfaces to the same core engine, so in that sense, neither is inherently better.
-- If you want to directly obtain metrics such as execution time or memory usage, the CLI is more convenient.
-- However, if you need to measure finer-grained metrics such as TTFR (Time To First Row), you can only achieve that through Python.
+However, the SQLite CLI is a compiled C program that interacts with the engine more directly, whereas Python communicates through a binding layer (the sqlite3 module). As a result, there can be minor differences in overhead and measured performance metrics — the CLI may appear slightly faster or more consistent in profiling results because it avoids Python’s interpreter overhead.
+
+That said, if you need to capture finer-grained metrics such as TTFR (Time To First Row) or perform custom instrumentation, this is only feasible through Python, since the CLI does not expose such detailed hooks.
 
 ## Two Levels of SQLite
 
