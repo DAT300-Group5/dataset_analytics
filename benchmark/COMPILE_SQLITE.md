@@ -1,42 +1,10 @@
-# How to Complile SQLite
+# Use Complete Dot Command in SQLite CLI
 
-1. Download the SQLite source code from the official website: <https://www.sqlite.org/download.html>
-2. Extract the downloaded file to a directory of your choice.
-3. Open a terminal and navigate to the directory where you extracted the SQLite source code.
-4. Run the following commands to compile SQLite:
+## Dot Command
 
-    ```bash
-    ./configure CFLAGS="-O2 -DSQLITE_ENABLE_STMT_SCANSTATUS" --prefix=<your_installation_path>
-    make
-    make install
-    ```
+Inside the SQLite shell, you can enable various diagnostic and profiling features to analyze query performance:
 
-After running these commands, SQLite will be compiled and installed in the specified installation path. You should see dirctory tree like below:
-
-```shell
-<your_installation_path>/
-├── bin
-│   └── sqlite3
-├── include
-│   └── sqlite3.h
-├── lib
-│   └── libsqlite3.a
-└── share
-```
-
-## How to Use
-
-Execute the following command to launch the compiled SQLite:
-
-```bash
-<your_installation_path>/bin/sqlite3 [database_file]
-```
-
-### Performance Analysis Commands
-
-Once inside the SQLite shell, you can enable various diagnostic and profiling features to analyze query performance:
-
-#### 1. `.timer on` - Enable Query Timing
+### 1. `.timer on` - Enable Query Timing
 
 ```sql
 .timer on
@@ -56,7 +24,7 @@ Run Time: real 0.123 user 0.098000 sys 0.025000
 
 **Use Case:** Essential for benchmarking queries and identifying slow operations.
 
-#### 2. `.scanstatus on` - Enable Scan Status Reporting
+### 2. `.scanstatus on` - Enable Scan Status Reporting
 
 ```sql
 .scanstatus on
@@ -87,7 +55,7 @@ Loop Rows Visited  Rows Examined
 - Index effectiveness
 - Join performance bottlenecks
 
-#### 3. `.eqp full` - Display Query Execution Plan
+### 3. `.eqp full` - Display Query Execution Plan
 
 ```sql
 .eqp full
@@ -117,7 +85,7 @@ QUERY PLAN
 - Table scan vs. index scan decisions
 - Sort and temporary table usage
 
-#### 4. `.stat on` - Display SQLite Statistics
+### 4. `.stat on` - Display SQLite Statistics
 
 ```sql
 .stat on
@@ -148,6 +116,68 @@ Page Cache Misses:    5
 - I/O performance
 - Memory allocation overhead
 
+### Additional Useful Commands
+
+```sql
+.headers on          -- Show column headers in output
+.mode column         -- Display results in column format
+.width auto          -- Auto-adjust column widths
+.output file.txt     -- Redirect output to file
+.schema tablename    -- Show table schema
+.indexes tablename   -- Show indexes for a table
+```
+
+## How to Complile SQLite
+
+**However, some of the dot commands need another build of SQLite3**.
+
+| Command          | Purpose                       | Requires Special Compilation            |
+| ---------------- | ----------------------------- | --------------------------------------- |
+| `.timer on`      | Measure query execution time  | No                                      |
+| `.scanstatus on` | Show detailed scan statistics | Yes (`-DSQLITE_ENABLE_STMT_SCANSTATUS`) |
+| `.eqp full`      | Display query execution plan  | No                                      |
+| `.stat on`       | Show memory and cache stats   | No                                      |
+
+1. Download the SQLite source code from the official website: <https://www.sqlite.org/download.html>
+2. Extract the downloaded file to a directory of your choice.
+3. Open a terminal and navigate to the directory where you extracted the SQLite source code.
+4. Run the following commands to compile SQLite:
+
+    ```bash
+    ./configure CFLAGS="-O2 -DSQLITE_ENABLE_STMT_SCANSTATUS" --prefix=<your_installation_path>
+    make
+    make install
+    ```
+
+After running these commands, SQLite will be compiled and installed in the specified installation path. You should see dirctory tree like below:
+
+```shell
+<your_installation_path>/
+├── bin
+│   └── sqlite3
+├── include
+│   └── sqlite3.h
+├── lib
+│   └── libsqlite3.a
+└── share
+```
+
+### How to Use
+
+Execute the following command to launch the compiled SQLite:
+
+```bash
+<your_installation_path>/bin/sqlite3 [database_file]
+```
+
+### Use your own SQLite in Python
+
+To use your own compiled SQLite in Python, you can set the `LD_LIBRARY_PATH` environment variable to point to the directory where the SQLite shared library is located. You can do this by running the following command in your terminal:
+
+```bash
+export LD_LIBRARY_PATH=<your_installation_path>/lib:$LD_LIBRARY_PATH
+```
+
 ## Complete Setup Example
 
 Here's a complete example of setting up SQLite for performance analysis:
@@ -171,32 +201,4 @@ sqlite> SELECT * FROM users WHERE age > 25;
 # - Scan statistics
 # - Timing information
 # - Memory and cache statistics
-```
-
-## Quick Reference Table
-
-| Command | Purpose | Requires Special Compilation |
-|---------|---------|------------------------------|
-| `.timer on` | Measure query execution time | No |
-| `.scanstatus on` | Show detailed scan statistics | Yes (`-DSQLITE_ENABLE_STMT_SCANSTATUS`) |
-| `.eqp full` | Display query execution plan | No |
-| `.stat on` | Show memory and cache stats | No |
-
-### Additional Useful Commands
-
-```sql
-.headers on          -- Show column headers in output
-.mode column         -- Display results in column format
-.width auto          -- Auto-adjust column widths
-.output file.txt     -- Redirect output to file
-.schema tablename    -- Show table schema
-.indexes tablename   -- Show indexes for a table
-```
-
-## Use your own SQLite in Python
-
-To use your own compiled SQLite in Python, you can set the `LD_LIBRARY_PATH` environment variable to point to the directory where the SQLite shared library is located. You can do this by running the following command in your terminal:
-
-```bash
-export LD_LIBRARY_PATH=<your_installation_path>/lib:$LD_LIBRARY_PATH
 ```
