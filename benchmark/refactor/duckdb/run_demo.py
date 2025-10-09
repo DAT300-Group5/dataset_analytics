@@ -10,138 +10,196 @@ import sys
 import subprocess
 import json
 import argparse
-import time
 from pathlib import Path
 from typing import Dict, Optional
 
 # Import the log parser module
 from log_parser import parse_duckdb_profile, DuckDBProfileParser
 
-# Import CPU monitor
+# Import process monitor
 try:
-    from cpu_monitor import CPUMonitor
-    CPU_MONITOR_AVAILABLE = True
+    from process_monitor import ProcessMonitor
+    PROCESS_MONITOR_AVAILABLE = True
 except ImportError:
-    CPU_MONITOR_AVAILABLE = False
-    print("⚠ Warning: psutil not installed, CPU monitoring disabled")
+    PROCESS_MONITOR_AVAILABLE = False
+    print("⚠ Warning: psutil not installed, process monitoring disabled")
 
 # Try to import config, use defaults if not available
 try:
     import config
     DEFAULT_DUCKDB_CMD = config.DUCKDB_CMD
+    DEFAULT_SQL_FILE = config.SQL_FILE
+    DEFAULT_DB_FILE = config.DB_FILE
+    DEFAULT_PROFILING_OUTPUT = config.PROFILING_OUTPUT
+    DEFAULT_JSON_OUTPUT = config.JSON_OUTPUT
 except (ImportError, AttributeError):
     DEFAULT_DUCKDB_CMD = "duckdb"
+    DEFAULT_SQL_FILE = "demo.sql"
+    DEFAULT_DB_FILE = "demo.db"
+    DEFAULT_PROFILING_OUTPUT = "profiling_output.json"
+    DEFAULT_JSON_OUTPUT = "results.json"
 
 
 class DuckDBRunner:
-    """Class to run DuckDB SQL scripts and collect performance metrics"""
+    """Class to manage DuckDB execution and result parsing"""
     
     def __init__(self, 
-                 duckdb_cmd: str = DEFAULT_DUCKDB_CMD,
                  sql_file: str = "demo.sql",
                  db_file: str = "demo.db",
                  profiling_output: str = "profiling_output.json",
-                 results_file: str = "results.json",
-                 enable_cpu_monitor: bool = True):
+                 duckdb_cmd: str = "duckdb",
+                 cpu_sample_interval: float = 0.1):
         """
-        Initialize DuckDB runner.
+        Initialize the DuckDB runner.
         
         Args:
-            duckdb_cmd: Path to duckdb executable
-            sql_file: Path to SQL script file
-            db_file: Path to database file (will be created)
-            profiling_output: Path to profiling JSON output
-            results_file: Path to save final results JSON
-            enable_cpu_monitor: Whether to enable CPU monitoring
+            sql_file: Path to the SQL script to execute
+            db_file: Path to the DuckDB database file
+            profiling_output: Path to the profiling JSON output
+            duckdb_cmd: DuckDB command (default: "duckdb")
+            cpu_sample_interval: Process sampling interval in seconds (default: 0.1)
         """
+        self.sql_file = Path(sql_file)
+        self.db_file = Path(db_file)
+        self.profiling_output = Path(profiling_output)
         self.duckdb_cmd = duckdb_cmd
-        self.sql_file = sql_file
-        self.db_file = db_file
-        self.profiling_output = profiling_output
-        self.results_file = results_file
-        self.enable_cpu_monitor = enable_cpu_monitor and CPU_MONITOR_AVAILABLE
+        self.cpu_sample_interval = cpu_sample_interval
+        self.execution_result = None
         self.cpu_result = None
         
-    def execute_sql(self) -> tuple[int, str, str]:
+    def check_duckdb_installed(self) -> bool:
         """
-        Execute the SQL file using DuckDB CLI.
+        Check if DuckDB is installed and accessible.
         
         Returns:
-            Tuple of (return_code, stdout, stderr)
+            True if DuckDB is available, False otherwise
         """
-        print(f"🦆 Executing DuckDB script: {self.sql_file}")
-        print(f"   Using DuckDB: {self.duckdb_cmd}")
-        print(f"   Database: {self.db_file}")
-        print(f"   Profiling output: results/profiling_query_*.json")
+        try:
+            result = subprocess.run(
+                [self.duckdb_cmd, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                print(f"✓ DuckDB found: {result.stdout.strip()}")
+                return True
+            return False
+        except (subprocess.SubprocessError, FileNotFoundError):
+            print(f"✗ DuckDB not found or not accessible")
+            return False
+    
+    def prepare_environment(self):
+        """Prepare the environment for execution"""
+        # Remove old database and profiling files
+        if self.db_file.exists():
+            print(f"Removing old database: {self.db_file}")
+            self.db_file.unlink()
+        
+        if self.profiling_output.exists():
+            print(f"Removing old profiling output: {self.profiling_output}")
+            self.profiling_output.unlink()
+        
+        # Remove old profiling query files in results directory
+        import glob
+        results_dir = Path("results")
+        if results_dir.exists():
+            for old_file in glob.glob("results/profiling_query_*.json"):
+                Path(old_file).unlink()
+                print(f"Removing old profiling file: {old_file}")
+        
+        # Also clean up any old profiling files in current directory
+        for old_file in glob.glob("profiling_query_*.json"):
+            Path(old_file).unlink()
+            print(f"Removing old profiling file: {old_file}")
+        
+        # Check if SQL file exists
+        if not self.sql_file.exists():
+            raise FileNotFoundError(f"SQL file not found: {self.sql_file}")
+    
+    def execute_sql(self) -> Dict:
+        """
+        Execute the SQL script using duckdb command.
+        
+        Returns:
+            Dictionary containing execution information
+            
+        Raises:
+            subprocess.SubprocessError: If execution fails
+        """
+        print(f"\n{'='*60}")
+        print(f"Executing SQL script: {self.sql_file}")
+        print(f"Database: {self.db_file}")
+        print(f"Profiling output: results/profiling_query_*.json")
+        print(f"Process monitoring: Enabled (sampling every {self.cpu_sample_interval}s)")
+        print(f"{'='*60}\n")
         
         # Create results directory
         results_dir = Path("results")
         results_dir.mkdir(exist_ok=True)
-        
-        # Remove old database and profiling output if they exist
-        Path(self.db_file).unlink(missing_ok=True)
-        Path(self.profiling_output).unlink(missing_ok=True)
-        
-        # Remove old profiling query files in results directory
-        import glob
-        for old_file in glob.glob("results/profiling_query_*.json"):
-            Path(old_file).unlink(missing_ok=True)
-        
-        # Also clean up any old profiling files in current directory
-        for old_file in glob.glob("profiling_query_*.json"):
-            Path(old_file).unlink(missing_ok=True)
-        
-        start_time = time.time()
-        
-        # Construct command: duckdb database_file < script.sql
-        command = [self.duckdb_cmd, self.db_file]
-        
+
         try:
-            # Start the subprocess
+            # Execute: duckdb demo.db < demo.sql
             with open(self.sql_file, 'r') as sql_input:
+                # Start process with Popen to get PID for monitoring
                 process = subprocess.Popen(
-                    command,
+                    [self.duckdb_cmd, str(self.db_file)],
                     stdin=sql_input,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True
                 )
                 
-                # Start CPU monitoring if enabled
-                if self.enable_cpu_monitor:
-                    print("📊 CPU monitoring enabled")
-                    monitor = CPUMonitor(process.pid, interval=0.1)
-                    monitor.start()
-                
+                # Start process monitoring if enabled
+                cpu_monitor = ProcessMonitor(process.pid, interval=self.cpu_sample_interval)
+                cpu_monitor.start()
+                print(f"✓ Process monitoring started for PID {process.pid}")
+
                 # Wait for process to complete
-                stdout, stderr = process.communicate()
+                stdout, stderr = process.communicate(timeout=300)
+                returncode = process.returncode
                 
-                # Stop CPU monitoring
-                if self.enable_cpu_monitor:
-                    self.cpu_result = monitor.stop()
-                
-                end_time = time.time()
-                elapsed = end_time - start_time
-                
-                print(f"✅ Execution completed in {elapsed:.3f} seconds")
-                
-                return process.returncode, stdout, stderr
-                
-        except FileNotFoundError:
-            print(f"❌ Error: DuckDB executable not found: {self.duckdb_cmd}")
-            print("   Please install DuckDB or specify the correct path using --duckdb-cmd")
-            sys.exit(1)
+                # Stop process monitoring
+                self.cpu_result = cpu_monitor.stop()
+                if self.cpu_result:
+                    print(f"✓ Process monitoring completed ({self.cpu_result.samples_count} samples)")
+            
+            self.execution_result = {
+                'returncode': returncode,
+                'stdout': stdout,
+                'stderr': stderr,
+            }
+            
+            if returncode == 0:
+                print(f"✓ SQL execution completed successfully")
+            else:
+                print(f"✗ SQL execution failed with return code: {returncode}")
+                if stderr:
+                    print(f"  Error output:\n{stderr}")
+            
+            # Check if profiling files were created
+            import glob
+            profiling_files = glob.glob("results/profiling_query_*.json")
+            if profiling_files:
+                print(f"✓ Profiling files created: {len(profiling_files)} file(s)")
+            else:
+                print(f"⚠ Warning: No profiling files created")
+            
+            return self.execution_result
+            
+        except subprocess.TimeoutExpired:
+            print(f"✗ Execution timed out after 300 seconds")
+            raise
         except Exception as e:
-            print(f"❌ Error executing DuckDB: {e}")
-            sys.exit(1)
+            print(f"✗ Execution failed with error: {e}")
+            raise
     
-    def parse_results(self) -> Dict:
+    def parse_results(self) -> Optional[Dict]:
         """
-        Parse the profiling JSON output and extract metrics.
-        Handles multiple profiling files (results/profiling_query_N.json).
+        Parse the profiling JSON output to extract metrics.
         
         Returns:
-            Dictionary with parsed results
+            Dictionary containing parsed metrics or None if parsing fails
         """
         import glob
         
@@ -150,237 +208,252 @@ class DuckDBRunner:
         profiling_files = sorted(glob.glob(profiling_pattern))
         
         if not profiling_files:
-            print(f"⚠ Warning: No profiling files found matching {profiling_pattern}")
             # Try current directory as fallback
-            profiling_pattern_fallback = "profiling_query_*.json"
-            profiling_files = sorted(glob.glob(profiling_pattern_fallback))
-            if not profiling_files:
-                print("   Falling back to single profiling output file...")
-                profiling_files = [self.profiling_output]
+            profiling_files = sorted(glob.glob("profiling_query_*.json"))
+            if not profiling_files and self.profiling_output.exists():
+                profiling_files = [str(self.profiling_output)]
         
-        print(f"\n📊 Parsing {len(profiling_files)} profiling file(s)")
+        if not profiling_files:
+            print(f"✗ Cannot parse results: no profiling files found")
+            return None
         
-        all_queries = []
-        
-        for idx, profiling_file in enumerate(profiling_files, 1):
-            try:
-                print(f"   [{idx}/{len(profiling_files)}] Parsing {profiling_file}")
-                parser = DuckDBProfileParser(profiling_file)
-                parser.read_json()
-                parser.parse_all()
-                
-                # Add queries from this file
-                for query in parser.queries:
-                    # Override query number to maintain sequence
-                    query.query_number = len(all_queries) + 1
-                    all_queries.append(query)
+        try:
+            print(f"\n{'='*60}")
+            print(f"Parsing profiling output: {len(profiling_files)} file(s)")
+            print(f"{'='*60}\n")
+            
+            all_queries = []
+            
+            for idx, profiling_file in enumerate(profiling_files, 1):
+                try:
+                    parser = DuckDBProfileParser(profiling_file)
+                    parser.read_json()
+                    parser.parse_all()
                     
-            except FileNotFoundError:
-                print(f"   ⚠ Warning: File not found: {profiling_file}")
-                continue
-            except Exception as e:
-                print(f"   ⚠ Warning: Error parsing {profiling_file}: {e}")
-                continue
-        
-        if not all_queries:
-            return {"error": "No profiling data could be parsed"}
-        
-        # Create a temporary parser to use its export methods
-        temp_parser = DuckDBProfileParser(profiling_files[0])
-        temp_parser.queries = all_queries
-        results = temp_parser.export_to_dict()
-        
-        # Add CPU monitoring results if available
-        if self.cpu_result:
-            results['cpu_monitoring'] = self.cpu_result.to_dict()
-        
-        return results
+                    # Add queries from this file
+                    for query in parser.queries:
+                        query.query_number = len(all_queries) + 1
+                        all_queries.append(query)
+                        
+                except Exception as e:
+                    print(f"⚠ Warning: Error parsing {profiling_file}: {e}")
+                    continue
+            
+            if not all_queries:
+                print(f"✗ No profiling data could be parsed")
+                return None
+            
+            # Create a temporary parser to use its export methods
+            temp_parser = DuckDBProfileParser(profiling_files[0])
+            temp_parser.queries = all_queries
+            results = temp_parser.export_to_dict()
+            
+            # Print summary
+            summary = results.get('summary', {})
+            print(f"Summary:")
+            print(f"  Total queries: {summary.get('total_queries', 0)}")
+            
+            timing = summary.get('timing', {})
+            if timing:
+                print(f"\nTiming:")
+                print(f"  Total wall time: {timing.get('total_wall_time', 0):.4f} seconds")
+                print(f"  Average wall time: {timing.get('avg_wall_time', 0):.4f} seconds")
+                print(f"  Min wall time: {timing.get('min_wall_time', 0):.4f} seconds")
+                print(f"  Max wall time: {timing.get('max_wall_time', 0):.4f} seconds")
+                
+                # DuckDB profiling also includes CPU time if available
+                if timing.get('total_cpu_time'):
+                    print(f"  Total CPU time: {timing.get('total_cpu_time', 0):.4f} seconds")
+                if timing.get('avg_cpu_time'):
+                    print(f"  Average CPU time: {timing.get('avg_cpu_time', 0):.4f} seconds")
+            
+            memory = summary.get('memory', {})
+            if memory and memory.get('peak_memory_kb', 0) > 0:
+                print(f"\nMemory:")
+                avg_mem_kb = memory.get('avg_memory_kb', 0)
+                peak_mem_kb = memory.get('peak_memory_kb', 0)
+                
+                if avg_mem_kb > 0:
+                    print(f"  Average memory used: {avg_mem_kb*1024:.0f} bytes ({avg_mem_kb:.2f} KB)")
+                print(f"  Peak memory used: {peak_mem_kb*1024:.0f} bytes ({peak_mem_kb:.2f} KB)")
+                
+                # Show MB conversion if memory is significant
+                if peak_mem_kb > 1024:
+                    print(f"  Peak memory used (MB): {peak_mem_kb/1024:.2f} MB")
+            
+            # Print throughput statistics
+            throughput = summary.get('throughput', {})
+            if throughput and throughput.get('total_output_rows', 0) > 0:
+                print(f"\nThroughput:")
+                print(f"  Total output rows: {throughput.get('total_output_rows', 0)}")
+                print(f"  Overall throughput: {throughput.get('overall_throughput_rows_per_sec', 0):.2f} rows/sec")
+                
+                last_query_rows = throughput.get('last_query_rows', 0)
+                last_query_time = throughput.get('last_query_time', 0)
+                last_query_throughput = throughput.get('last_query_throughput_rows_per_sec', 0)
+                
+                if last_query_rows > 0:
+                    print(f"\n  Last query performance:")
+                    print(f"    Output rows: {last_query_rows}")
+                    print(f"    Execution time: {last_query_time:.4f} seconds")
+                    print(f"    Throughput: {last_query_throughput:.2f} rows/sec")
+            
+            # Print process monitoring results if available
+            if self.cpu_result:
+                print(f"\nProcess Resource Usage (sampled):")
+                print(f"  Process duration: {self.cpu_result.process_duration_seconds:.4f} seconds")
+                print(f"  Peak CPU: {self.cpu_result.peak_cpu_percent:.2f}%")
+                print(f"  Average CPU: {self.cpu_result.avg_cpu_percent:.2f}%")
+                print(f"  Min CPU: {self.cpu_result.min_cpu_percent:.2f}%")
+                print(f"  Samples collected: {self.cpu_result.samples_count}")
+                print(f"  Peak memory (RSS): {self.cpu_result.peak_memory_mb:.2f} MB")
+            
+            return results
+            
+        except Exception as e:
+            print(f"✗ Error parsing results: {e}")
+            return None
     
-    def save_results(self, results: Dict):
+    def save_results(self, results: Dict, output_file: str = "results.json"):
         """
-        Save results to JSON file in results directory.
+        Save parsed results to a JSON file.
         
         Args:
-            results: Dictionary to save
+            results: Dictionary containing parsed results
+            output_file: Path to the output JSON file
+        """
+        output_path = Path(output_file)
+        
+        try:
+            # Combine execution info and parsed results
+            combined = {
+                'execution': self.execution_result,
+                'metrics': results
+            }
+            
+            # Add process monitoring results if available
+            if self.cpu_result:
+                combined['cpu_monitoring'] = self.cpu_result.to_dict()
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(combined, f, indent=2, ensure_ascii=False)
+            
+            print(f"\n✓ Results saved to: {output_path}")
+            
+        except Exception as e:
+            print(f"✗ Error saving results: {e}")
+    
+    def run(self, save_json: bool = True, json_output: str = "results.json") -> Dict:
+        """
+        Run the complete workflow: prepare, execute, parse, and save.
+        
+        Args:
+            save_json: Whether to save results to JSON file
+            json_output: Path to the output JSON file
+            
+        Returns:
+            Dictionary containing all results
         """
         try:
-            # Ensure results directory exists
-            results_dir = Path("results")
-            results_dir.mkdir(exist_ok=True)
+            # Check environment
+            if not self.check_duckdb_installed():
+                raise RuntimeError("DuckDB is not installed or not accessible")
             
-            # Save to results directory
-            results_path = results_dir / self.results_file
-            with open(results_path, 'w', encoding='utf-8') as f:
-                json.dump(results, f, indent=2)
-            print(f"💾 Results saved to: {results_path}")
+            # Prepare
+            self.prepare_environment()
+            
+            # Execute SQL
+            execution_info = self.execute_sql()
+            
+            # Parse results
+            parsed_results = self.parse_results()
+            
+            # Save results
+            if save_json and parsed_results:
+                self.save_results(parsed_results, json_output)
+            
+            return {
+                'success': execution_info['returncode'] == 0,
+                'execution': execution_info,
+                'metrics': parsed_results
+            }
+            
         except Exception as e:
-            print(f"⚠ Warning: Could not save results: {e}")
-    
-    def display_results(self, results: Dict):
-        """
-        Display formatted results to console.
-        
-        Args:
-            results: Parsed results dictionary
-        """
-        if 'error' in results:
-            print(f"\n❌ Error: {results['error']}")
-            return
-        
-        print("\n" + "=" * 60)
-        print("=== DuckDB Performance Demo Results ===")
-        print("=" * 60)
-        
-        summary = results.get('summary', {})
-        
-        print("\n📈 Overall Summary:")
-        print(f"  Total Queries:        {summary.get('total_queries', 0)}")
-        print(f"  Total Wall Time:      {summary.get('total_wall_time', 0):.4f} seconds")
-        print(f"  Peak Memory Used:     {summary.get('peak_memory_kb', 0):.2f} KB")
-        print(f"  Total Output Rows:    {summary.get('total_output_rows', 0)}")
-        print(f"  Overall Throughput:   {summary.get('overall_throughput_rows_per_sec', 0):.2f} rows/sec")
-        print(f"  Last Query Throughput: {summary.get('last_query_throughput_rows_per_sec', 0):.2f} rows/sec")
-        
-        # Display CPU monitoring results if available
-        if 'cpu_monitoring' in results:
-            cpu_data = results['cpu_monitoring']
-            print("\n🖥️  CPU Monitoring:")
-            print(f"  Peak CPU Usage:       {cpu_data.get('peak_cpu_percent', 0):.2f}%")
-            print(f"  Average CPU Usage:    {cpu_data.get('avg_cpu_percent', 0):.2f}%")
-            print(f"  Peak Memory (RSS):    {cpu_data.get('peak_memory_mb', 0):.2f} MB")
-            print(f"  Average Memory (RSS): {cpu_data.get('avg_memory_mb', 0):.2f} MB")
-            print(f"  Samples Collected:    {cpu_data.get('samples_count', 0)}")
-        
-        # Display per-query results
-        queries = results.get('queries', [])
-        if queries:
-            print(f"\n📋 Per-Query Results ({len(queries)} queries):")
-            print("-" * 60)
-            
-            for query in queries:
-                qnum = query.get('query_number', '?')
-                qdesc = query.get('query_description', 'N/A')
-                
-                # Truncate long descriptions
-                if len(qdesc) > 50:
-                    qdesc = qdesc[:47] + "..."
-                
-                print(f"\n  Query {qnum}: {qdesc}")
-                
-                timing = query.get('timing', {})
-                if timing and timing.get('wall_time') is not None:
-                    print(f"    Wall Time:     {timing.get('wall_time', 0):.6f} seconds")
-                
-                memory = query.get('memory', {})
-                if memory and memory.get('memory_used') is not None:
-                    mem_kb = memory.get('memory_used', 0) / 1024
-                    print(f"    Memory Used:   {mem_kb:.2f} KB")
-                
-                output_rows = query.get('output_rows')
-                if output_rows is not None:
-                    print(f"    Output Rows:   {output_rows}")
-                    
-                    # Calculate query-specific throughput
-                    if timing and timing.get('wall_time', 0) > 0:
-                        throughput = output_rows / timing['wall_time']
-                        print(f"    Throughput:    {throughput:.2f} rows/sec")
-        
-        print("\n" + "=" * 60)
-    
-    def run(self):
-        """Main execution method"""
-        # Execute SQL
-        return_code, stdout, stderr = self.execute_sql()
-        
-        if return_code != 0:
-            print(f"\n⚠ DuckDB exited with code {return_code}")
-            if stderr:
-                print(f"Error output:\n{stderr}")
-        
-        # Parse results
-        results = self.parse_results()
-        
-        # Display results
-        self.display_results(results)
-        
-        # Save results
-        self.save_results(results)
-        
-        return results
+            print(f"\n✗ Error during execution: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
 
 
 def main():
-    """Main entry point"""
+    """Main entry point for the script"""
     parser = argparse.ArgumentParser(
-        description="Run DuckDB performance demo with profiling",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Run with default settings
-  python3 run_demo.py
-  
-  # Use custom DuckDB binary
-  python3 run_demo.py --duckdb-cmd /path/to/duckdb
-  
-  # Disable CPU monitoring
-  python3 run_demo.py --no-cpu-monitor
-  
-  # Use custom SQL file
-  python3 run_demo.py --sql-file my_queries.sql
-        """
+        description="Execute DuckDB SQL script and parse performance metrics",
+        epilog="Note: Command line arguments override config.py settings"
     )
-    
     parser.add_argument(
-        '--duckdb-cmd',
+        "--sql-file",
+        default=DEFAULT_SQL_FILE,
+        help=f"Path to the SQL script file (default: {DEFAULT_SQL_FILE})"
+    )
+    parser.add_argument(
+        "--db-file",
+        default=DEFAULT_DB_FILE,
+        help=f"Path to the DuckDB database file (default: {DEFAULT_DB_FILE})"
+    )
+    parser.add_argument(
+        "--profiling-output",
+        default=DEFAULT_PROFILING_OUTPUT,
+        help=f"Path to the profiling output file (default: {DEFAULT_PROFILING_OUTPUT})"
+    )
+    parser.add_argument(
+        "--json-output",
+        default=DEFAULT_JSON_OUTPUT,
+        help=f"Path to save JSON results (default: {DEFAULT_JSON_OUTPUT})"
+    )
+    parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help="Don't save results to JSON file"
+    )
+    parser.add_argument(
+        "--duckdb-cmd",
         default=DEFAULT_DUCKDB_CMD,
-        help=f'Path to DuckDB executable (default: {DEFAULT_DUCKDB_CMD})'
+        help=f"DuckDB command or full path (default: {DEFAULT_DUCKDB_CMD})"
     )
-    
     parser.add_argument(
-        '--sql-file',
-        default='demo.sql',
-        help='Path to SQL script file (default: demo.sql)'
+        "--no-cpu-monitor",
+        action="store_true",
+        help="Disable process monitoring"
     )
-    
     parser.add_argument(
-        '--db-file',
-        default='demo.db',
-        help='Path to database file (default: demo.db)'
-    )
-    
-    parser.add_argument(
-        '--profiling-output',
-        default='profiling_output.json',
-        help='Path to profiling JSON output (default: profiling_output.json)'
-    )
-    
-    parser.add_argument(
-        '--results-file',
-        default='results.json',
-        help='Path to save results JSON (default: results.json)'
-    )
-    
-    parser.add_argument(
-        '--no-cpu-monitor',
-        action='store_true',
-        help='Disable CPU monitoring'
+        "--cpu-interval",
+        type=float,
+        default=0.1,
+        help="Process sampling interval in seconds (default: 0.1)"
     )
     
     args = parser.parse_args()
     
     # Create runner
     runner = DuckDBRunner(
-        duckdb_cmd=args.duckdb_cmd,
         sql_file=args.sql_file,
         db_file=args.db_file,
         profiling_output=args.profiling_output,
-        results_file=args.results_file,
-        enable_cpu_monitor=not args.no_cpu_monitor
+        duckdb_cmd=args.duckdb_cmd,
+        cpu_sample_interval=args.cpu_interval
     )
     
-    # Run demo
-    runner.run()
+    # Run
+    results = runner.run(
+        save_json=not args.no_save,
+        json_output=args.json_output
+    )
+    
+    # Exit with appropriate code
+    sys.exit(0 if results.get('success', False) else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -229,44 +229,82 @@ class DuckDBProfileParser:
         if not self.queries:
             return {
                 "total_queries": 0,
-                "total_wall_time": 0.0,
-                "peak_memory_kb": 0,
-                "total_output_rows": 0,
-                "overall_throughput_rows_per_sec": 0.0
+                "timing": {},
+                "memory": {},
+                "throughput": {}
             }
         
+        # Collect timing data
+        wall_times = []
         total_wall_time = 0.0
+        
+        # Collect memory data
+        memory_values = []
         peak_memory = 0
+        
+        # Collect output rows
         total_output_rows = 0
         
         for query in self.queries:
             if query.timing and query.timing.wall_time:
+                wall_times.append(query.timing.wall_time)
                 total_wall_time += query.timing.wall_time
             
             if query.memory and query.memory.memory_used:
+                memory_values.append(query.memory.memory_used)
                 peak_memory = max(peak_memory, query.memory.memory_used)
             
             if query.output_rows:
                 total_output_rows += query.output_rows
         
+        # Calculate timing statistics
+        timing = {
+            "total_wall_time": round(total_wall_time, 4),
+        }
+        
+        if wall_times:
+            timing["avg_wall_time"] = round(sum(wall_times) / len(wall_times), 4)
+            timing["min_wall_time"] = round(min(wall_times), 4)
+            timing["max_wall_time"] = round(max(wall_times), 4)
+        
+        # Calculate memory statistics (in KB for easier reading)
+        memory = {}
+        if memory_values:
+            peak_memory_kb = peak_memory / 1024
+            avg_memory_kb = sum(memory_values) / len(memory_values) / 1024
+            memory["peak_memory_kb"] = round(peak_memory_kb, 2)
+            memory["avg_memory_kb"] = round(avg_memory_kb, 2)
+        
         # Calculate throughput
         overall_throughput = total_output_rows / total_wall_time if total_wall_time > 0 else 0
         
-        # Calculate last query throughput
+        # Calculate last query performance
         last_query_throughput = 0.0
+        last_query_rows = 0
+        last_query_time = 0.0
+        
         if self.queries:
             last_query = self.queries[-1]
-            if (last_query.timing and last_query.timing.wall_time and 
-                last_query.timing.wall_time > 0 and last_query.output_rows):
-                last_query_throughput = last_query.output_rows / last_query.timing.wall_time
+            if last_query.output_rows:
+                last_query_rows = last_query.output_rows
+            if last_query.timing and last_query.timing.wall_time:
+                last_query_time = last_query.timing.wall_time
+                if last_query_time > 0 and last_query_rows > 0:
+                    last_query_throughput = last_query_rows / last_query_time
+        
+        throughput = {
+            "total_output_rows": total_output_rows,
+            "overall_throughput_rows_per_sec": round(overall_throughput, 2),
+            "last_query_rows": last_query_rows,
+            "last_query_time": round(last_query_time, 4),
+            "last_query_throughput_rows_per_sec": round(last_query_throughput, 2)
+        }
         
         return {
             "total_queries": len(self.queries),
-            "total_wall_time": round(total_wall_time, 4),
-            "peak_memory_kb": round(peak_memory / 1024, 2) if peak_memory > 0 else 0,
-            "total_output_rows": total_output_rows,
-            "overall_throughput_rows_per_sec": round(overall_throughput, 2),
-            "last_query_throughput_rows_per_sec": round(last_query_throughput, 2)
+            "timing": timing,
+            "memory": memory,
+            "throughput": throughput
         }
     
     def export_to_dict(self) -> Dict:
