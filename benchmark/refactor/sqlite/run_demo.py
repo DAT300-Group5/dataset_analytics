@@ -16,13 +16,13 @@ from typing import Dict, Optional
 # Import the log parser module
 from log_parser import parse_sqlite_log
 
-# Import CPU monitor
+# Import process monitor
 try:
     from process_monitor import ProcessMonitor
     PROCESS_MONITOR_AVAILABLE = True
 except ImportError:
     PROCESS_MONITOR_AVAILABLE = False
-    print("⚠ Warning: psutil not installed, CPU monitoring disabled")
+    print("⚠ Warning: psutil not installed, process monitoring disabled")
 
 # Try to import config, use defaults if not available
 try:
@@ -57,7 +57,7 @@ class SQLiteRunner:
             db_file: Path to the SQLite database file
             output_log: Path to the output log file
             sqlite_cmd: SQLite3 command (default: "sqlite3")
-            cpu_sample_interval: CPU sampling interval in seconds (default: 0.1)
+            cpu_sample_interval: Process sampling interval in seconds (default: 0.1)
         """
         self.sql_file = Path(sql_file)
         self.db_file = Path(db_file)
@@ -118,7 +118,7 @@ class SQLiteRunner:
         print(f"Executing SQL script: {self.sql_file}")
         print(f"Database: {self.db_file}")
         print(f"Output log: {self.output_log}")
-        print(f"CPU monitoring: Enabled (sampling every {self.cpu_sample_interval}s)")
+        print(f"Process monitoring: Enabled (sampling every {self.cpu_sample_interval}s)")
         print(f"{'='*60}\n")
 
         try:
@@ -133,19 +133,19 @@ class SQLiteRunner:
                     text=True
                 )
                 
-                # Start CPU monitoring if enabled
+                # Start process monitoring if enabled
                 cpu_monitor = ProcessMonitor(process.pid, interval=self.cpu_sample_interval)
                 cpu_monitor.start()
-                print(f"✓ CPU monitoring started for PID {process.pid}")
+                print(f"✓ Process monitoring started for PID {process.pid}")
 
                 # Wait for process to complete
                 stdout, stderr = process.communicate(timeout=300)
                 returncode = process.returncode
                 
-                # Stop CPU monitoring
+                # Stop process monitoring
                 self.cpu_result = cpu_monitor.stop()
                 if self.cpu_result:
-                    print(f"✓ CPU monitoring completed ({self.cpu_result.samples_count} samples)")
+                    print(f"✓ Process monitoring completed ({self.cpu_result.samples_count} samples)")
             
             self.execution_result = {
                 'returncode': returncode,
@@ -234,7 +234,7 @@ class SQLiteRunner:
                     print(f"    Execution time: {last_query_time:.4f} seconds")
                     print(f"    Throughput: {last_query_throughput:.2f} rows/sec")
             
-            # Print CPU monitoring results if available
+            # Print process monitoring results if available
             if self.cpu_result:
                 print(f"\nProcess Resource Usage (sampled):")
                 print(f"  Process duration: {self.cpu_result.process_duration_seconds:.4f} seconds")
@@ -267,7 +267,7 @@ class SQLiteRunner:
                 'metrics': results
             }
             
-            # Add CPU monitoring results if available
+            # Add process monitoring results if available
             if self.cpu_result:
                 combined['cpu_monitoring'] = self.cpu_result.to_dict()
             
@@ -361,13 +361,13 @@ def main():
     parser.add_argument(
         "--no-cpu-monitor",
         action="store_true",
-        help="Disable CPU monitoring"
+        help="Disable process monitoring"
     )
     parser.add_argument(
         "--cpu-interval",
         type=float,
         default=0.1,
-        help="CPU sampling interval in seconds (default: 0.1)"
+        help="Process sampling interval in seconds (default: 0.1)"
     )
     
     args = parser.parse_args()
