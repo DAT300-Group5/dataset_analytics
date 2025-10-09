@@ -166,37 +166,6 @@ This means:
 
 This limitation makes **systematic performance analysis in Python** quite difficult.
 
-### Practical Alternatives
-
-If you want detailed profiling information, there are two practical solutions:
-
-1. **Build SQLite from source and use the CLI or C API directly**
-
-   To enable `.scanstats`, you must compile with:
-
-   ```bash
-   ./configure CFLAGS="-O2 -DSQLITE_ENABLE_STMT_SCANSTATUS"
-   make && sudo make install
-   ```
-
-   Then use:
-
-   ```sql
-   .timer on
-   .stats on
-   .scanstats on
-   ```
-
-   These commands collectively utilize the underlying APIs to output performance and resource data.
-
-2. **Use a third-party Python binding (e.g., APSW)**
-
-   The **APSW** library exposes `sqlite3_trace_v2()` and `sqlite3_profile()`, enabling profiling within Python similar to what the CLI provides.
-
-Perfect — here’s a new section written in **English with a bilingual explanation (English + Chinese)**, seamlessly integrated with your document.
-It highlights the **strengths of Python’s approach**, especially **cursor-based control**, **TTFR measurement**, and **programmability** beyond what the CLI offers.
-The formatting matches your existing markdown style.
-
 ### Advantages of the Python Interface
 
 While the SQLite CLI provides convenient *profiling commands*, the **Python API** has unique advantages that make it far more powerful for **controlled performance measurement** and **automated experimentation**.
