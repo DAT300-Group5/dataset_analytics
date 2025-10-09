@@ -1,24 +1,26 @@
 # How SQLite Works — Library, CLI, and Python Module
 
-## Overview: The Three Layers of SQLite
+Questions:
 
-| **Layer**                                 | **Component**           | **Role**              | **Description**                                       |
-| ----------------------------------------- | ----------------------- | --------------------- | ----------------------------------------------------- |
-| **Layer 1: Core Engine**                  | libsqlite3              | Database engine       | Parses, optimizes, executes SQL, and handles file I/O |
-| **Layer 2: Command-Line Interface (CLI)** | sqlite3                 | Interactive shell     | Reads user input and forwards SQL to the engine       |
-| **Layer 3: Language Binding**             | Python’s sqlite3 module | Programming interface | Provides API access to the same SQLite engine         |
+- Is operating SQLite through the CLI better than using Python?
+- Is it more effective to obtain **profiling** data through the CLI rather than via Python?
 
-Whether you use the CLI or Python, both ultimately run on **libsqlite3**.
+## Two Levels of SQLite
+
+| **Level**                 | **Component Example**                   | **Role**                    | **Description**                                                                           |
+| ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------- |
+| **Core (Engine Layer)**   | `libsqlite3`                            | Database engine             | Implements the SQL parser, optimizer, storage manager, transaction control, and file I/O. |
+| **Front-End (Interface)** | `sqlite3` CLI, Python’s `sqlite3`, etc. | API / interactive interface | Provides access to the same engine through the C API or higher-level bindings.            |
+
+Regardless of whether you use the **CLI** or **Python**, both ultimately depend on **libsqlite3**.
 
 The CLI is a **human interface**, while Python provides a **programmatic interface**.
-
-## Execution Flow Overview
 
 ```ASCII
 User inputs SQL
        │
        ▼
-[sqlite3 CLI program]
+[sqlite3 CLI program / Python]
    ├─ Parses .commands (like .timer on)
    └─ Sends SQL to libsqlite3 engine
          │
@@ -35,7 +37,29 @@ User inputs SQL
    └─ Python → Returned as objects
 ```
 
-## What Happens When You Run SQL in the CLI
+## Responsibilities of libsqlite3
+
+The **libsqlite3 library** is the core engine of SQLite, shared by all interfaces.
+
+| **Module**                         | **Description**                                   |
+| ---------------------------------- | ------------------------------------------------- |
+| **Parser**                         | Converts SQL text into an abstract syntax tree.   |
+| **Optimizer**                      | Builds and optimizes the query execution plan.    |
+| **VDBE (Virtual Database Engine)** | Executes compiled bytecode instructions.          |
+| **Pager + B-Tree**                 | Manages on-disk pages, caching, and transactions. |
+
+All higher-level interfaces (CLI, Python, or C programs) call the same **C APIs**:
+
+- `sqlite3_open()`
+- `sqlite3_prepare_v2()`
+- `sqlite3_step()`
+- `sqlite3_column_*()`
+- `sqlite3_finalize()`
+- `sqlite3_close()`
+
+## Python Module vs. CLI
+
+### How SQL Execution Works in the CLI
 
 Example:
 
@@ -46,7 +70,7 @@ sqlite> INSERT INTO users VALUES (1, 'Alice');
 sqlite> SELECT * FROM users;
 ```
 
-Inside the CLI, the process is roughly equivalent to:
+Internally, the CLI performs roughly this:
 
 ```C
 // Read input
@@ -60,33 +84,11 @@ while (sqlite3_step(stmt) == SQLITE_ROW) {      // Execute and fetch rows
 sqlite3_finalize(stmt);                         // Clean up
 ```
 
-The **CLI itself doesn’t execute SQL** — it merely **forwards it to libsqlite3** and displays the output.
+The **CLI does not execute SQL itself** — it merely **forwards SQL text to libsqlite3** and displays the result.
 
-## Responsibilities of libsqlite3
+### Python Module
 
-The **libsqlite3 library** is the core of SQLite — shared by all interfaces.
-
-Its main modules include:
-
-| **Module**                         | **Description**                                  |
-| ---------------------------------- | ------------------------------------------------ |
-| **Parser**                         | Converts SQL text into an abstract syntax tree   |
-| **Optimizer**                      | Generates and optimizes the execution plan       |
-| **VDBE (Virtual Database Engine)** | Executes bytecode instructions                   |
-| **Pager + B-Tree**                 | Manages on-disk pages, transactions, and caching |
-
-All higher-level interfaces (CLI, Python, C programs) call the same core **C APIs**:
-
-- `sqlite3_open()`
-- `sqlite3_prepare_v2()`
-- `sqlite3_step()`
-- `sqlite3_column_*()`
-- `sqlite3_finalize()`
-- `sqlite3_close()`
-
-## Python Module vs. CLI
-
-Python example:
+Example in Python:
 
 ```python
 import sqlite3
@@ -110,7 +112,7 @@ cur.close()
 conn.close()
 ```
 
-Under the hood, Python calls the same SQLite C API:
+Under the hood, Python calls the same low-level SQLite functions:
 
 ```C
 sqlite3_open("my.db", &db);
@@ -121,91 +123,74 @@ sqlite3_finalize(stmt);
 sqlite3_close(db);
 ```
 
-| **Comparison** | **CLI**                                | **Python Module**          |
-| -------------- | -------------------------------------- | -------------------------- |
-| Input          | User command                           | Function calls             |
-| SQL execution  | Uses sqlite3_prepare_v2 / sqlite3_step | Same mechanism             |
-| Output         | Printed to terminal                    | Returned as Python objects |
-| Environment    | Interactive shell                      | Scripted runtime           |
+### Comparison
 
-In essence, **Python’s sqlite3 module is a “headless CLI”**.
+| **Aspect**         | **CLI**                                    | **Python Module**          |
+| ------------------ | ------------------------------------------ | -------------------------- |
+| Input              | User command                               | Function calls             |
+| SQL Execution Path | Uses `sqlite3_prepare_v2` / `sqlite3_step` | Same mechanism             |
+| Output             | Printed to terminal                        | Returned as Python objects |
+| Environment        | Interactive shell                          | Scripted runtime           |
 
-## CLI-Specific .commands
+Essentially, **Python’s `sqlite3` module is a “headless CLI.”**
 
-| **Type**                    | **Example**                           | **Execution Layer** | **Available in Python?** |
-| --------------------------- | ------------------------------------- | ------------------- | ------------------------ |
-| **Dot Commands (.command)** | .timer on, .scanstats on              | CLI shell layer     | ❌ No                     |
-| **SQL / PRAGMA**            | EXPLAIN QUERY PLAN, PRAGMA cache_size | Engine layer        | ✅ Yes                    |
-| **C API Functions**         | sqlite3_trace_v2(), sqlite3_profile() | Library layer       | ✅ Indirectly             |
+---
 
-**Explanation:**
+## Profiling in SQLite
 
-.timer, .scanstats, etc., are **features of the CLI shell** and part of Dot Commands, but not SQL commands.
+In SQLite, all **profiling and performance statistics** originate from the **libsqlite3** library.
+The command-line tool (CLI) simply exposes these functions through its built-in *dot commands*.
 
-They’re not part of the SQLite engine, which is why Python can’t execute them directly.
+| **Category**         | **lib Interface**                                                    | **Purpose / Data Provided**                                                                                                      |
+| -------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Memory & Cache**   | `sqlite3_status()` / `sqlite3_db_status()`                           | Provides global or per-connection statistics such as memory usage, cache hit rate, and I/O counters.                             |
+| **Query Scan Stats** | `sqlite3_stmt_scanstatus()`                                          | Reports per-query-plan node metrics like rows scanned, loop counts, and step costs (requires `-DSQLITE_ENABLE_STMT_SCANSTATUS`). |
+| **Execution Time**   | `sqlite3_profile()` or `sqlite3_trace_v2(..., SQLITE_TRACE_PROFILE)` | Measures total execution time per SQL statement in nanoseconds (does not include I/O or cache details).                          |
 
-To analyze performance in Python, you can use:
+These APIs are wrapped in the CLI as convenient *dot commands*:
 
-- EXPLAIN ANALYZE
-- or sqlite3.set_profile() for timing callbacks.
+| **CLI Command** | **Underlying Mechanism**                    | **Description**                                                                         |
+| --------------- | ------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `.timer on`     | Internal timer logic (high-precision clock) | Reports total execution time per SQL command; not directly tied to `sqlite3_profile()`. |
+| `.stats on`     | `sqlite3_status()` / `sqlite3_db_status()`  | Displays memory usage, cache, and I/O statistics.                                       |
+| `.scanstats on` | `sqlite3_stmt_scanstatus()`                 | Shows scan counts and loop iterations for each query-plan node.                         |
+| `.eqp full`     | `EXPLAIN QUERY PLAN ...`                    | Displays query-plan structure; complementary to `.scanstats`.                           |
 
-## Call Stack Comparison
+Thus, the CLI’s profiling capability is essentially a **combination of multiple lib-level interfaces**.
 
-### CLI Execution Path
+### Limitations of the Python Standard Library
 
-```ASCII
-┌──────────────────────────────┐
-│ User inputs SQL              │
-└──────────────┬───────────────┘
-               ▼
-    ┌─────────────────────────┐
-    │ sqlite3 CLI Shell       │
-    │ (.commands / SQL parser)│
-    └──────────┬──────────────┘
-               ▼
-    ┌─────────────────────────┐
-    │ libsqlite3 Engine       │
-    │ Parse → Optimize → Run  │
-    └──────────┬──────────────┘
-               ▼
-    ┌─────────────────────────┐
-    │ Output to Terminal      │
-    └─────────────────────────┘
-```
+Unfortunately, the built-in Python `sqlite3` module **does not expose** any of these profiling interfaces.
+This means:
 
-### Python Execution Path
+- You **cannot directly measure** per-statement execution time (unless you time it manually).
+- You **cannot access** internal metrics such as cache hits, memory usage, or scan counts.
 
-```ASCII
-┌──────────────────────────────┐
-│ Python Script Calls sqlite3  │
-└──────────────┬───────────────┘
-               ▼
-    ┌─────────────────────────┐
-    │ Python sqlite3 Wrapper  │
-    │ Calls C-level API       │
-    └──────────┬──────────────┘
-               ▼
-    ┌─────────────────────────┐
-    │ libsqlite3 Engine       │
-    │ Executes SQL            │
-    └──────────┬──────────────┘
-               ▼
-    ┌─────────────────────────┐
-    │ Returns Python Objects  │
-    │ (list, tuple, etc.)     │
-    └─────────────────────────┘
-```
+This limitation makes **systematic performance analysis in Python** quite difficult.
 
-**Key takeaway:**
+### Practical Alternatives
 
-- CLI = interactive shell
-- Python = programmatic interface
-- libsqlite3 = the shared execution core
+If you want detailed profiling information, there are two practical solutions:
 
-## Summary
+1. **Build SQLite from source and use the CLI or C API directly**
 
-- The SQLite CLI is essentially a **demo shell**
+   To enable `.scanstats`, you must compile with:
 
-- the real SQL execution happens in **libsqlite3**
+   ```bash
+   ./configure CFLAGS="-O2 -DSQLITE_ENABLE_STMT_SCANSTATUS"
+   make && sudo make install
+   ```
 
-- Python’s sqlite3 module uses the same core engine, but provides a *programmatic* *interactive*
+   Then use:
+
+   ```sql
+   .timer on
+   .stats on
+   .scanstats on
+   ```
+
+   These commands collectively utilize the underlying APIs to output comprehensive performance and resource data.
+
+2. **Use a third-party Python binding (e.g., APSW)**
+
+   The **APSW** library exposes `sqlite3_trace_v2()` and `sqlite3_profile()`, enabling profiling within Python similar to what the CLI provides.
