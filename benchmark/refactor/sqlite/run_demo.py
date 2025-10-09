@@ -242,7 +242,6 @@ class SQLiteRunner:
                 print(f"  Min CPU: {self.cpu_result.min_cpu_percent:.2f}%")
                 print(f"  Samples collected: {self.cpu_result.samples_count}")
                 print(f"  Peak memory (RSS): {self.cpu_result.peak_memory_mb:.2f} MB")
-                print(f"  Average memory (RSS): {self.cpu_result.avg_memory_mb:.2f} MB")
             
             return results
             

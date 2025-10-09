@@ -15,41 +15,47 @@ import psutil
 
 @dataclass
 class CPUSnapshot:
-    """Single CPU usage snapshot"""
+    """Single CPU usage snapshot with basic memory info"""
     timestamp: float
     cpu_percent: float
-    num_threads: int
-    memory_mb: float
+    rss_mb: float          # Resident Set Size (physical memory)
 
 
 @dataclass
 class CPUMonitorResult:
-    """CPU monitoring results"""
+    """CPU and memory monitoring results with peak memory only"""
+    # CPU statistics
     peak_cpu_percent: float
     avg_cpu_percent: float
     min_cpu_percent: float
     samples_count: int
     sampling_interval: float
+    
+    # Memory statistics (only peak RSS)
     peak_memory_mb: float
-    avg_memory_mb: float
+    
+    # All snapshots for detailed analysis
     snapshots: List[CPUSnapshot]
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization"""
         return {
+            # CPU stats
             'peak_cpu_percent': self.peak_cpu_percent,
             'avg_cpu_percent': self.avg_cpu_percent,
             'min_cpu_percent': self.min_cpu_percent,
             'samples_count': self.samples_count,
             'sampling_interval': self.sampling_interval,
+            
+            # Memory stats (simplified)
             'peak_memory_mb': self.peak_memory_mb,
-            'avg_memory_mb': self.avg_memory_mb,
+            
+            # Detailed snapshots
             'snapshots': [
                 {
                     'timestamp': s.timestamp,
                     'cpu_percent': s.cpu_percent,
-                    'num_threads': s.num_threads,
-                    'memory_mb': s.memory_mb
+                    'rss_mb': s.rss_mb
                 }
                 for s in self.snapshots
             ]
@@ -115,19 +121,15 @@ class CPUMonitor:
                 # Get CPU usage
                 cpu_percent = self.process.cpu_percent(interval=None)
                 
-                # Get memory info
+                # Get memory info (only RSS for peak tracking)
                 mem_info = self.process.memory_info()
-                memory_mb = mem_info.rss / (1024 * 1024)  # Convert to MB
+                rss_mb = mem_info.rss / (1024 * 1024)
                 
-                # Get thread count
-                num_threads = self.process.num_threads()
-                
-                # Record snapshot
+                # Record simplified snapshot
                 snapshot = CPUSnapshot(
                     timestamp=time.time(),
                     cpu_percent=cpu_percent,
-                    num_threads=num_threads,
-                    memory_mb=memory_mb
+                    rss_mb=rss_mb
                 )
                 self.snapshots.append(snapshot)
                 
@@ -143,7 +145,7 @@ class CPUMonitor:
     
     def get_results(self) -> Optional[CPUMonitorResult]:
         """
-        Get monitoring results.
+        Get monitoring results with simplified memory statistics.
         
         Returns:
             CPUMonitorResult or None if no samples
@@ -151,17 +153,22 @@ class CPUMonitor:
         if not self.snapshots:
             return None
         
+        # Extract values for calculations
         cpu_values = [s.cpu_percent for s in self.snapshots]
-        memory_values = [s.memory_mb for s in self.snapshots]
+        rss_values = [s.rss_mb for s in self.snapshots]
         
         result = CPUMonitorResult(
+            # CPU statistics
             peak_cpu_percent=max(cpu_values),
             avg_cpu_percent=sum(cpu_values) / len(cpu_values),
             min_cpu_percent=min(cpu_values),
             samples_count=len(self.snapshots),
             sampling_interval=self.interval,
-            peak_memory_mb=max(memory_values),
-            avg_memory_mb=sum(memory_values) / len(memory_values),
+            
+            # Memory statistics (only peak)
+            peak_memory_mb=max(rss_values),
+            
+            # All snapshots
             snapshots=self.snapshots
         )
         
