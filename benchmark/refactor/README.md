@@ -4,7 +4,7 @@
 
 Unified benchmarking tool for S**Output:**
 
-```
+```shell
 🎯 5 Core Metrics:
 ┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
 ┃                ┃      SQLite ┃      DuckDB ┃
@@ -24,9 +24,12 @@ Unified benchmarking tool for S**Output:**
   ⚡ DuckDB is 1.18x faster (wall time)
   🧠 DuckDB uses 34.0x more memory
   🚀 DuckDB has 1.18x higher throughput
-``` Provides identical interface for both engines, measures 5 core performance metrics, and supports side-by-side comparison.
+```
+
+Provides identical interface for both engines, measures 5 core performance metrics, and supports side-by-side comparison.
 
 **5 Core Metrics:**
+
 1. Wall Time (total execution time)
 2. Peak Memory (maximum memory usage)
 3. Total Output Rows (number of rows returned)
@@ -35,7 +38,7 @@ Unified benchmarking tool for S**Output:**
 
 ## Project Structure
 
-```
+```shell
 refactor/
 ├── run_benchmark.py           # CLI entry point
 ├── benchmark_interface.py     # Abstract base class + factory function
@@ -56,18 +59,19 @@ refactor/
 
 ## Command Line Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `--engine` | Yes | `sqlite`, `duckdb`, or `both` |
-| `--db` | Yes | Database filename (e.g., `test.db`) |
-| `--sql` | Conditional | SQL file for single-engine mode |
-| `--sqlite-sql` | Conditional | SQLite SQL file for comparison mode |
-| `--duckdb-sql` | Conditional | DuckDB SQL file for comparison mode |
-| `--sqlite-cmd` | Optional | Path to `sqlite3` executable (default: `sqlite3`) |
-| `--duckdb-cmd` | Optional | Path to `duckdb` executable (default: `duckdb`) |
-| `--output` | Optional | JSON output file path |
+| Argument       | Required    | Description                                       |
+| -------------- | ----------- | ------------------------------------------------- |
+| `--engine`     | Yes         | `sqlite`, `duckdb`, or `both`                     |
+| `--db`         | Yes         | Database filename (e.g., `test.db`)               |
+| `--sql`        | Conditional | SQL file for single-engine mode                   |
+| `--sqlite-sql` | Conditional | SQLite SQL file for comparison mode               |
+| `--duckdb-sql` | Conditional | DuckDB SQL file for comparison mode               |
+| `--sqlite-cmd` | Optional    | Path to `sqlite3` executable (default: `sqlite3`) |
+| `--duckdb-cmd` | Optional    | Path to `duckdb` executable (default: `duckdb`)   |
+| `--output`     | Optional    | JSON output file path                             |
 
 **Notes:**
+
 - Single-engine mode: use `--sql`
 - Comparison mode (`--engine both`): use `--sqlite-sql` and `--duckdb-sql`
 - System `sqlite3` may not support `.timer on`. Use custom-compiled version if needed.
@@ -83,7 +87,7 @@ pip install psutil tabulate
 ### Single Engine Test
 
 ```bash
-cd /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/refactor
+cd benchmark/refactor
 
 python3 run_benchmark.py \
     --engine duckdb \
@@ -94,7 +98,7 @@ python3 run_benchmark.py \
 ### Comparison Mode (Full Command)
 
 ```bash
-cd /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/refactor
+cd benchmark/refactor
 
 python3 run_benchmark.py \
     --engine both \
@@ -107,7 +111,7 @@ python3 run_benchmark.py \
 
 **Output:**
 
-```
+```shell
 🎯 5 Core Metrics:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                         SQLite          DuckDB
@@ -169,4 +173,3 @@ python3 run_benchmark.py \
   }
 }
 ```
-
