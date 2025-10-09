@@ -10,7 +10,7 @@
 
 Whether you use the CLI or Python, both ultimately run on **libsqlite3**.
 
-The CLI is a *human interface* *programmatic interface*
+The CLI is a **human interface**, while Python provides a **programmatic interface**.
 
 ## Execution Flow Overview
 
@@ -140,7 +140,7 @@ In essence, **Python’s sqlite3 module is a “headless CLI”**.
 
 **Explanation:**
 
-.timer, .scanstats, etc., are **features of the CLI shell**, not SQL commands.
+.timer, .scanstats, etc., are **features of the CLI shell** and part of Dot Commands, but not SQL commands.
 
 They’re not part of the SQLite engine, which is why Python can’t execute them directly.
 
