@@ -19,9 +19,9 @@ from log_parser import parse_sqlite_log
 # Import CPU monitor
 try:
     from process_monitor import ProcessMonitor
-    CPU_MONITOR_AVAILABLE = True
+    PROCESS_MONITOR_AVAILABLE = True
 except ImportError:
-    CPU_MONITOR_AVAILABLE = False
+    PROCESS_MONITOR_AVAILABLE = False
     print("⚠ Warning: psutil not installed, CPU monitoring disabled")
 
 # Try to import config, use defaults if not available
