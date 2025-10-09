@@ -76,7 +76,7 @@ refactor/
 
 - Single-engine mode: use `--sql`
 - Comparison mode (`--engine both`): use `--sqlite-sql` and `--duckdb-sql`
-- System `sqlite3` may not support `.timer on`. Use custom-compiled version if needed.
+- System `sqlite3` may not support `.scanstatus on` CLI dot command. Use custom-compiled version if needed.
 
 ## Complete Example
 
