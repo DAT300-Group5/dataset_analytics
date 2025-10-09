@@ -3,7 +3,13 @@
 Questions:
 
 - Is operating SQLite through the CLI better than using Python?
-- Is it more effective to obtain **profiling** data through the CLI rather than via Python?
+- Is it more effective to obtain profiling data through the CLI rather than via Python?
+
+Answer:
+
+- Essentially, both the CLI and Python are interfaces to the same core engine, so in that sense, neither is inherently better.
+- If you want to directly obtain metrics such as execution time or memory usage, the CLI is more convenient.
+- However, if you need to measure finer-grained metrics such as TTFR (Time To First Row), you can only achieve that through Python.
 
 ## Two Levels of SQLite
 
