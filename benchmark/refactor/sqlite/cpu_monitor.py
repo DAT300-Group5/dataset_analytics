@@ -34,6 +34,9 @@ class CPUMonitorResult:
     # Memory statistics (only peak RSS)
     peak_memory_mb: float
     
+    # Process timing
+    process_duration_seconds: float
+    
     # All snapshots for detailed analysis
     snapshots: List[CPUSnapshot]
     
@@ -49,6 +52,9 @@ class CPUMonitorResult:
             
             # Memory stats (simplified)
             'peak_memory_mb': self.peak_memory_mb,
+            
+            # Process timing
+            'process_duration_seconds': self.process_duration_seconds,
             
             # Detailed snapshots
             'snapshots': [
@@ -79,6 +85,8 @@ class CPUMonitor:
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self.process: Optional[psutil.Process] = None
+        self.start_time: Optional[float] = None
+        self.end_time: Optional[float] = None
         
     def start(self):
         """Start monitoring in a background thread"""
@@ -93,6 +101,7 @@ class CPUMonitor:
             print(f"⚠ Warning: Process {self.pid} not found")
             return
         
+        self.start_time = time.time()
         self.running = True
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
@@ -105,6 +114,7 @@ class CPUMonitor:
             CPUMonitorResult or None if no samples collected
         """
         self.running = False
+        self.end_time = time.time()
         
         if self.thread:
             self.thread.join(timeout=2.0)
@@ -157,6 +167,11 @@ class CPUMonitor:
         cpu_values = [s.cpu_percent for s in self.snapshots]
         rss_values = [s.rss_mb for s in self.snapshots]
         
+        # Calculate process duration
+        duration = 0.0
+        if self.start_time and self.end_time:
+            duration = self.end_time - self.start_time
+        
         result = CPUMonitorResult(
             # CPU statistics
             peak_cpu_percent=max(cpu_values),
@@ -167,6 +182,9 @@ class CPUMonitor:
             
             # Memory statistics (only peak)
             peak_memory_mb=max(rss_values),
+            
+            # Process timing
+            process_duration_seconds=duration,
             
             # All snapshots
             snapshots=self.snapshots
