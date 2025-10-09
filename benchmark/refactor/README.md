@@ -2,7 +2,9 @@
 
 ## What It Does
 
-Unified benchmarking tool for S**Output:**
+Unified benchmarking tool for SQLite and DuckDB. Provides identical interface for both engines, measures 5 core performance metrics, and supports side-by-side comparison.
+
+**Output:**
 
 ```shell
 🎯 5 Core Metrics:
