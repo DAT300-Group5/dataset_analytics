@@ -8,6 +8,7 @@ import tracemalloc
 from multiprocessing import Process, Pipe
 from utils import load_query_from_file
 from query_db import run_query_with_ttfr
+from models import BenchmarkRun, BenchmarkSummary, BenchmarkResult
 
 # -------------------------- percentile helpers --------------------------
 def nearest_rank_percentile(values, p):
@@ -127,21 +128,20 @@ def run_once_inproc(engine='duckdb', db_path=None, sample_interval=0.2, query=''
         tracemalloc.stop()
     t1 = time.perf_counter()
 
-    out = {
-        "retval": exec_info["retval"],
-        "wall_time_seconds": t1 - t0,
-        "ttfr_seconds": exec_info["first_select_ttfr_seconds"],
-        "rows_returned": exec_info["rows_returned"],
-        "statements_executed": exec_info["statements_executed"],
-        "select_statements": exec_info["select_statements"],
-        "peak_rss_bytes_sampled": stats.get("peak_rss_bytes", 0),
-        "peak_rss_bytes_true": stats.get("peak_rss_bytes_true", stats.get("peak_rss_bytes", 0)),
-        "cpu_avg_percent": stats.get("cpu_avg_percent", 0.0),
-        "samples": stats.get("samples", 0),
-        "python_heap_peak_bytes": py_peak,  # Python only; DB C layer excluded
-        "mode": "inproc",
-    }
-    return out
+    return BenchmarkRun(
+        retval=exec_info["retval"],
+        wall_time_seconds=t1 - t0,
+        ttfr_seconds=exec_info["first_select_ttfr_seconds"],
+        rows_returned=exec_info["rows_returned"],
+        statements_executed=exec_info["statements_executed"],
+        select_statements=exec_info["select_statements"],
+        peak_rss_bytes_sampled=stats.get("peak_rss_bytes", 0),
+        peak_rss_bytes_true=stats.get("peak_rss_bytes_true", stats.get("peak_rss_bytes", 0)),
+        cpu_avg_percent=stats.get("cpu_avg_percent", 0.0),
+        samples=stats.get("samples", 0),
+        python_heap_peak_bytes=py_peak,  # Python only; DB C layer excluded
+        mode="inproc",
+    )
 
 # -------------------------- per-run child (existing) --------------------------
 def _child_worker_oneshot(conn, engine, db_path, query, threads):
@@ -209,22 +209,21 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
         raise RuntimeError(f"Child process failed: {err}")
 
     exec_info = payload["exec_info"]
-    out = {
-        "retval": exec_info["retval"],
-        "wall_time_seconds": t1 - t0,  # parent-observed wall
-        "ttfr_seconds": exec_info["first_select_ttfr_seconds"],
-        "rows_returned": exec_info["rows_returned"],
-        "statements_executed": exec_info["statements_executed"],
-        "select_statements": exec_info["select_statements"],
-        "peak_rss_bytes_sampled": stats.get("peak_rss_bytes", 0),
-        "peak_rss_bytes_true": stats.get("peak_rss_bytes_true", stats.get("peak_rss_bytes", 0)),
-        "cpu_avg_percent": stats.get("cpu_avg_percent", 0.0),
-        "samples": stats.get("samples", 0),
-        "python_heap_peak_bytes": payload["child_python_heap_peak_bytes"],
-        "child_wall_time_seconds": payload["child_wall_time_seconds"],
-        "mode": "child",
-    }
-    return out
+    return BenchmarkRun(
+        retval=exec_info["retval"],
+        wall_time_seconds=t1 - t0,  # parent-observed wall
+        ttfr_seconds=exec_info["first_select_ttfr_seconds"],
+        rows_returned=exec_info["rows_returned"],
+        statements_executed=exec_info["statements_executed"],
+        select_statements=exec_info["select_statements"],
+        peak_rss_bytes_sampled=stats.get("peak_rss_bytes", 0),
+        peak_rss_bytes_true=stats.get("peak_rss_bytes_true", stats.get("peak_rss_bytes", 0)),
+        cpu_avg_percent=stats.get("cpu_avg_percent", 0.0),
+        samples=stats.get("samples", 0),
+        python_heap_peak_bytes=payload["child_python_heap_peak_bytes"],
+        child_wall_time_seconds=payload["child_wall_time_seconds"],
+        mode="child",
+    )
 
 
 # -------------------------------------- main --------------------------------------
@@ -308,77 +307,60 @@ def main():
                       eng=args.engine.upper(),
                       mode=("CHILD" if args.child else "INPROC"),
                       k=i+1, n=args.repeat,
-                      wall=res["wall_time_seconds"],
-                      child_wall=("child_wall=%.3fs" % res["child_wall_time_seconds"]) if "child_wall_time_seconds" in res else "",
-                      ttfr=("%.3f s" % res["ttfr_seconds"]) if res["ttfr_seconds"] is not None else "None",
-                      rss_s=res["peak_rss_bytes_sampled"] / (1024**2),
-                      rss_t=res["peak_rss_bytes_true"] / (1024**2),
-                      cpu=res["cpu_avg_percent"],
-                      py=res["python_heap_peak_bytes"] / (1024**2),
-                      rows=res["rows_returned"],
-                      sels=res["select_statements"], stmts=res["statements_executed"],
-                      smp=res["samples"],
+                      wall=res.wall_time_seconds,
+                      child_wall=("child_wall=%.3fs" % res.child_wall_time_seconds) if res.child_wall_time_seconds is not None else "",
+                      ttfr=("%.3f s" % res.ttfr_seconds) if res.ttfr_seconds is not None else "None",
+                      rss_s=res.peak_rss_bytes_sampled / (1024**2),
+                      rss_t=res.peak_rss_bytes_true / (1024**2),
+                      cpu=res.cpu_avg_percent,
+                      py=res.python_heap_peak_bytes / (1024**2),
+                      rows=res.rows_returned,
+                      sels=res.select_statements, stmts=res.statements_executed,
+                      smp=res.samples,
                   ))
 
     # ---------------- Aggregation ----------------
-    wall_list = [r.get("wall_time_seconds") for r in runs if r.get("wall_time_seconds") is not None]
-    ttfr_list = [r.get("ttfr_seconds") for r in runs if r.get("ttfr_seconds") is not None]
-    rss_true_list = [r.get("peak_rss_bytes_true") for r in runs if r.get("peak_rss_bytes_true") is not None]
-    cpu_avg_list = [r.get("cpu_avg_percent") for r in runs if r.get("cpu_avg_percent") is not None]
-    rows_list = [r.get("rows_returned") for r in runs if r.get("rows_returned") is not None]
+    wall_list = [r.wall_time_seconds for r in runs if r.wall_time_seconds is not None]
+    ttfr_list = [r.ttfr_seconds for r in runs if r.ttfr_seconds is not None]
+    rss_true_list = [r.peak_rss_bytes_true for r in runs if r.peak_rss_bytes_true is not None]
+    cpu_avg_list = [r.cpu_avg_percent for r in runs if r.cpu_avg_percent is not None]
+    rows_list = [r.rows_returned for r in runs if r.rows_returned is not None]
 
     wall_summary = summarize_percentiles(wall_list)
     ttfr_summary = summarize_percentiles(ttfr_list) if ttfr_list else {"mean": None, "p50": None, "p95": None, "p99": None}
 
-    summary = {
-        "engine": args.engine,
-        "mode": "child" if args.child else "inproc",
-        "db_path": args.db_path,
-        "query_file": query_file,
-        "repeat": args.repeat,
-        "warmups": args.warmups,
-        "threads": args.threads,
-        # Means
-        "mean_wall_time_seconds": wall_summary["mean"],
-        "mean_ttfr_seconds": ttfr_summary["mean"],
-        "mean_peak_rss_bytes_true": (sum(rss_true_list)/len(rss_true_list)) if rss_true_list else None,
-        "mean_cpu_avg_percent": (sum(cpu_avg_list)/len(cpu_avg_list)) if cpu_avg_list else None,
-        "mean_rows_returned": (sum(rows_list)/len(rows_list)) if rows_list else None,
-        # Percentiles
-        "p50_wall_time_seconds": wall_summary["p50"],
-        "p95_wall_time_seconds": wall_summary["p95"],
-        "p99_wall_time_seconds": wall_summary["p99"],
-        "p50_ttfr_seconds": ttfr_summary["p50"],
-        "p95_ttfr_seconds": ttfr_summary["p95"],
-        "p99_ttfr_seconds": ttfr_summary["p99"],
-    }
+    summary = BenchmarkSummary(
+        engine=args.engine,
+        mode="child" if args.child else "inproc",
+        db_path=args.db_path,
+        query_file=query_file,
+        repeat=args.repeat,
+        warmups=args.warmups,
+        threads=args.threads,
+        # Wall time statistics
+        mean_wall_time_seconds=wall_summary["mean"],
+        p50_wall_time_seconds=wall_summary["p50"],
+        p95_wall_time_seconds=wall_summary["p95"],
+        p99_wall_time_seconds=wall_summary["p99"],
+        # TTFR statistics
+        mean_ttfr_seconds=ttfr_summary["mean"],
+        p50_ttfr_seconds=ttfr_summary["p50"],
+        p95_ttfr_seconds=ttfr_summary["p95"],
+        p99_ttfr_seconds=ttfr_summary["p99"],
+        # Resource usage averages
+        mean_peak_rss_bytes_true=(sum(rss_true_list)/len(rss_true_list)) if rss_true_list else None,
+        mean_cpu_avg_percent=(sum(cpu_avg_list)/len(cpu_avg_list)) if cpu_avg_list else None,
+        mean_rows_returned=(sum(rows_list)/len(rows_list)) if rows_list else None,
+    )
 
-    print("\n=== Summary ===")
-    def fmt(v, unit="s"):
-        return "None" if v is None else f"{v:.3f}{unit}"
-    print("wall: mean={}  p50={}  p95={}  p99={}".format(
-        fmt(summary["mean_wall_time_seconds"]),
-        fmt(summary["p50_wall_time_seconds"]),
-        fmt(summary["p95_wall_time_seconds"]),
-        fmt(summary["p99_wall_time_seconds"]),
-    ))
-    print("ttfr: mean={}  p50={}  p95={}  p99={}".format(
-        fmt(summary["mean_ttfr_seconds"]),
-        fmt(summary["p50_ttfr_seconds"]),
-        fmt(summary["p95_ttfr_seconds"]),
-        fmt(summary["p99_ttfr_seconds"]),
-    ))
-    if rss_true_list:
-        print("peak_rss_true: mean={:.1f} MB".format(summary["mean_peak_rss_bytes_true"] / (1024**2)))
-    if cpu_avg_list:
-        print("cpu_avg_percent: mean={:.1f}%".format(summary["mean_cpu_avg_percent"]))
-    if rows_list:
-        print("rows_returned: mean={:.1f}".format(summary["mean_rows_returned"]))
+    # Create complete benchmark result
+    result = BenchmarkResult(runs=runs, summary=summary)
+    
+    # Print summary using the new formatted methods
+    result.print_summary()
 
     if args.out:
-        out_obj = {"runs": runs, "summary": summary}
-        with open(args.out, "w", encoding="utf-8") as f:
-            json.dump(out_obj, f, ensure_ascii=False, indent=2)
+        result.save_to_file(args.out)
         print(f"[Info] Results written to {args.out}")
 
 if __name__ == "__main__":
