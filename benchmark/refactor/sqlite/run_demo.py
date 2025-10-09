@@ -236,7 +236,7 @@ class SQLiteRunner:
             
             # Print CPU monitoring results if available
             if self.cpu_result:
-                print(f"\nCPU Usage (sampled):")
+                print(f"\nProcess Resource Usage (sampled):")
                 print(f"  Peak CPU: {self.cpu_result.peak_cpu_percent:.2f}%")
                 print(f"  Average CPU: {self.cpu_result.avg_cpu_percent:.2f}%")
                 print(f"  Min CPU: {self.cpu_result.min_cpu_percent:.2f}%")
