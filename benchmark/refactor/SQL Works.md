@@ -8,13 +8,13 @@
 | **Layer 2: Command-Line Interface (CLI)** | sqlite3                 | Interactive shell     | Reads user input and forwards SQL to the engine       |
 | **Layer 3: Language Binding**             | Python’s sqlite3 module | Programming interface | Provides API access to the same SQLite engine         |
 
-Whether you use the CLI or Python, both ultimately run on **libsqlite3**
+Whether you use the CLI or Python, both ultimately run on **libsqlite3**.
 
 The CLI is a *human interface* *programmatic interface*
 
-## **Execution Flow Overview**
+## Execution Flow Overview
 
-```
+```ASCII
 User inputs SQL
        │
        ▼
@@ -35,11 +35,11 @@ User inputs SQL
    └─ Python → Returned as objects
 ```
 
-## **What Happens When You Run SQL in the CLI**
+## What Happens When You Run SQL in the CLI
 
 Example:
 
-```
+```shell
 $ sqlite3 my.db
 sqlite> CREATE TABLE users(id INTEGER, name TEXT);
 sqlite> INSERT INTO users VALUES (1, 'Alice');
@@ -48,7 +48,7 @@ sqlite> SELECT * FROM users;
 
 Inside the CLI, the process is roughly equivalent to:
 
-```
+```C
 // Read input
 sql = "SELECT * FROM users;"
 
@@ -62,7 +62,7 @@ sqlite3_finalize(stmt);                         // Clean up
 
 The **CLI itself doesn’t execute SQL** — it merely **forwards it to libsqlite3** and displays the output.
 
-## **Responsibilities of libsqlite3**
+## Responsibilities of libsqlite3
 
 The **libsqlite3 library** is the core of SQLite — shared by all interfaces.
 
@@ -75,16 +75,16 @@ Its main modules include:
 | **VDBE (Virtual Database Engine)** | Executes bytecode instructions                   |
 | **Pager + B-Tree**                 | Manages on-disk pages, transactions, and caching |
 
-All higher-level interfaces (CLI, Python, C programs) call the same core C APIs:
+All higher-level interfaces (CLI, Python, C programs) call the same core **C APIs**:
 
-- sqlite3_open()
-- sqlite3_prepare_v2()
-- sqlite3_step()
-- sqlite3_column_*()
-- sqlite3_finalize()
-- sqlite3_close()
+- `sqlite3_open()`
+- `sqlite3_prepare_v2()`
+- `sqlite3_step()`
+- `sqlite3_column_*()`
+- `sqlite3_finalize()`
+- `sqlite3_close()`
 
-## **Python Module vs. CLI**
+## Python Module vs. CLI
 
 Python example:
 
@@ -112,7 +112,7 @@ conn.close()
 
 Under the hood, Python calls the same SQLite C API:
 
-```
+```C
 sqlite3_open("my.db", &db);
 sqlite3_prepare_v2(db, "SELECT * FROM users;", &stmt, 0);
 sqlite3_step(stmt);
@@ -128,9 +128,9 @@ sqlite3_close(db);
 | Output         | Printed to terminal                    | Returned as Python objects |
 | Environment    | Interactive shell                      | Scripted runtime           |
 
-In essence, **Python’s sqlite3 module is a “headless CLI”**
+In essence, **Python’s sqlite3 module is a “headless CLI”**.
 
-## **CLI-Specific** .commands
+## CLI-Specific .commands
 
 | **Type**                    | **Example**                           | **Execution Layer** | **Available in Python?** |
 | --------------------------- | ------------------------------------- | ------------------- | ------------------------ |
@@ -149,51 +149,51 @@ To analyze performance in Python, you can use:
 - EXPLAIN ANALYZE
 - or sqlite3.set_profile() for timing callbacks.
 
-## **Call Stack Comparison**
+## Call Stack Comparison
 
-### **CLI Execution Path**
+### CLI Execution Path
 
-```
+```ASCII
 ┌──────────────────────────────┐
 │ User inputs SQL              │
 └──────────────┬───────────────┘
                ▼
-    ┌────────────────────────┐
+    ┌─────────────────────────┐
     │ sqlite3 CLI Shell       │
     │ (.commands / SQL parser)│
-    └──────────┬─────────────┘
+    └──────────┬──────────────┘
                ▼
-    ┌────────────────────────┐
+    ┌─────────────────────────┐
     │ libsqlite3 Engine       │
     │ Parse → Optimize → Run  │
-    └──────────┬─────────────┘
+    └──────────┬──────────────┘
                ▼
-    ┌────────────────────────┐
+    ┌─────────────────────────┐
     │ Output to Terminal      │
-    └────────────────────────┘
+    └─────────────────────────┘
 ```
 
-### **Python Execution Path**
+### Python Execution Path
 
-```
+```ASCII
 ┌──────────────────────────────┐
 │ Python Script Calls sqlite3  │
 └──────────────┬───────────────┘
                ▼
-    ┌────────────────────────┐
+    ┌─────────────────────────┐
     │ Python sqlite3 Wrapper  │
     │ Calls C-level API       │
-    └──────────┬─────────────┘
+    └──────────┬──────────────┘
                ▼
-    ┌────────────────────────┐
+    ┌─────────────────────────┐
     │ libsqlite3 Engine       │
     │ Executes SQL            │
-    └──────────┬─────────────┘
+    └──────────┬──────────────┘
                ▼
-    ┌────────────────────────┐
+    ┌─────────────────────────┐
     │ Returns Python Objects  │
     │ (list, tuple, etc.)     │
-    └────────────────────────┘
+    └─────────────────────────┘
 ```
 
 **Key takeaway:**
@@ -202,7 +202,7 @@ To analyze performance in Python, you can use:
 - Python = programmatic interface
 - libsqlite3 = the shared execution core
 
-## **Summary**
+## Summary
 
 - The SQLite CLI is essentially a **demo shell**
 
