@@ -18,7 +18,7 @@ from log_parser import parse_sqlite_log
 
 # Import CPU monitor
 try:
-    from cpu_monitor import ProcessMonitor
+    from process_monitor import ProcessMonitor
     CPU_MONITOR_AVAILABLE = True
 except ImportError:
     CPU_MONITOR_AVAILABLE = False
