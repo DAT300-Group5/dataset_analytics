@@ -18,7 +18,7 @@ from log_parser import parse_sqlite_log
 
 # Import CPU monitor
 try:
-    from cpu_monitor import CPUMonitor
+    from cpu_monitor import ProcessMonitor
     CPU_MONITOR_AVAILABLE = True
 except ImportError:
     CPU_MONITOR_AVAILABLE = False
@@ -134,7 +134,7 @@ class SQLiteRunner:
                 )
                 
                 # Start CPU monitoring if enabled
-                cpu_monitor = CPUMonitor(process.pid, interval=self.cpu_sample_interval)
+                cpu_monitor = ProcessMonitor(process.pid, interval=self.cpu_sample_interval)
                 cpu_monitor.start()
                 print(f"✓ CPU monitoring started for PID {process.pid}")
 

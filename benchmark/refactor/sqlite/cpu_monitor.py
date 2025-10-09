@@ -14,16 +14,16 @@ import psutil
 
 
 @dataclass
-class CPUSnapshot:
-    """Single CPU usage snapshot with basic memory info"""
+class ProcessSnapshot:
+    """Single process resource usage snapshot"""
     timestamp: float
     cpu_percent: float
     rss_mb: float          # Resident Set Size (physical memory)
 
 
 @dataclass
-class CPUMonitorResult:
-    """CPU and memory monitoring results with peak memory only"""
+class ProcessMonitorResult:
+    """Process resource monitoring results"""
     # CPU statistics
     peak_cpu_percent: float
     avg_cpu_percent: float
@@ -38,7 +38,7 @@ class CPUMonitorResult:
     process_duration_seconds: float
     
     # All snapshots for detailed analysis
-    snapshots: List[CPUSnapshot]
+    snapshots: List[ProcessSnapshot]
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization"""
@@ -68,8 +68,8 @@ class CPUMonitorResult:
         }
 
 
-class CPUMonitor:
-    """Monitor CPU usage of a process"""
+class ProcessMonitor:
+    """Monitor resource usage of a process"""
     
     def __init__(self, pid: int, interval: float = 0.1):
         """
@@ -81,7 +81,7 @@ class CPUMonitor:
         """
         self.pid = pid
         self.interval = interval
-        self.snapshots: List[CPUSnapshot] = []
+        self.snapshots: List[ProcessSnapshot] = []
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self.process: Optional[psutil.Process] = None
@@ -106,12 +106,12 @@ class CPUMonitor:
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
     
-    def stop(self) -> Optional[CPUMonitorResult]:
+    def stop(self) -> Optional[ProcessMonitorResult]:
         """
         Stop monitoring and return results.
         
         Returns:
-            CPUMonitorResult or None if no samples collected
+            ProcessMonitorResult or None if no samples collected
         """
         self.running = False
         self.end_time = time.time()
@@ -136,7 +136,7 @@ class CPUMonitor:
                 rss_mb = mem_info.rss / (1024 * 1024)
                 
                 # Record simplified snapshot
-                snapshot = CPUSnapshot(
+                snapshot = ProcessSnapshot(
                     timestamp=time.time(),
                     cpu_percent=cpu_percent,
                     rss_mb=rss_mb
@@ -153,12 +153,12 @@ class CPUMonitor:
                 print(f"⚠ CPU monitor error: {e}")
                 break
     
-    def get_results(self) -> Optional[CPUMonitorResult]:
+    def get_results(self) -> Optional[ProcessMonitorResult]:
         """
         Get monitoring results with simplified memory statistics.
         
         Returns:
-            CPUMonitorResult or None if no samples
+            ProcessMonitorResult or None if no samples
         """
         if not self.snapshots:
             return None
@@ -172,7 +172,7 @@ class CPUMonitor:
         if self.start_time and self.end_time:
             duration = self.end_time - self.start_time
         
-        result = CPUMonitorResult(
+        result = ProcessMonitorResult(
             # CPU statistics
             peak_cpu_percent=max(cpu_values),
             avg_cpu_percent=sum(cpu_values) / len(cpu_values),
@@ -193,18 +193,18 @@ class CPUMonitor:
         return result
 
 
-def monitor_subprocess(process: 'subprocess.Popen', interval: float = 0.1) -> Optional[CPUMonitorResult]:
+def monitor_subprocess(process: 'subprocess.Popen', interval: float = 0.1) -> Optional[ProcessMonitorResult]:
     """
-    Monitor a subprocess and return CPU usage statistics.
+    Monitor a subprocess and return process resource usage statistics.
     
     Args:
         process: subprocess.Popen instance
         interval: Sampling interval in seconds
         
     Returns:
-        CPUMonitorResult or None if monitoring failed
+        ProcessMonitorResult or None if monitoring failed
     """
-    monitor = CPUMonitor(process.pid, interval=interval)
+    monitor = ProcessMonitor(process.pid, interval=interval)
     monitor.start()
     
     # Wait for process to complete
