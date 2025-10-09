@@ -10,21 +10,12 @@ from typing import Any, Dict, List
 
 import yaml
 
+from .dataset import Dataset
+from .query_group import QueryGroup
+
 # Constants for configuration validation
 SUPPORTED_MODES = {"child", "inproc"}
 SUPPORTED_ENGINES = {"duckdb", "sqlite", "chdb"}
-
-ENGINE_DB_MAPPING = {
-    "duckdb": "duckdb_db",
-    "sqlite": "sqlite_db",
-    "chdb": "chdb_db_dir"
-}
-
-ENGINE_SQL_MAPPING = {
-    "duckdb": "duckdb_sql",
-    "sqlite": "sqlite_sql",
-    "chdb": "chdb_sql"
-}
 
 
 class BenchmarkConfig:
@@ -40,8 +31,8 @@ class BenchmarkConfig:
         # Core Configuration
         engines (List[str]): List of database engines to benchmark (duckdb, sqlite, chdb)
         mode (str): Execution mode (child, inproc)
-        datasets (List[Dict[str, Any]]): Dataset configurations with database paths
-        query_groups (List[Dict[str, Any]]): Query group configurations with SQL paths
+        datasets (List[Dataset]): Dataset configurations with database paths
+        query_groups (List[QueryGroup]): Query group configurations with SQL paths
         
         # Thread Configuration  
         threads_duckdb (int): Number of threads for DuckDB (default: 4)
@@ -77,6 +68,25 @@ class BenchmarkConfig:
         
         # Store all configuration as member variables
         self._parse_and_store_config(config_data)
+    
+    @classmethod
+    def load(cls, config_path: Path) -> 'BenchmarkConfig':
+        """
+        Load benchmark configuration from YAML file.
+        
+        This is the preferred way to create a BenchmarkConfig instance,
+        providing clearer semantics than direct constructor call.
+        
+        Args:
+            config_path: Path to configuration YAML file
+            
+        Returns:
+            BenchmarkConfig: Configured benchmark configuration instance
+            
+        Example:
+            config = BenchmarkConfig.load(Path("config.yaml"))
+        """
+        return cls(config_path)
     
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from YAML file."""
@@ -122,8 +132,8 @@ class BenchmarkConfig:
         # Core configuration
         self.engines: List[str] = config["engines"]
         self.mode: str = config["mode"]
-        self.datasets: List[Dict[str, Any]] = config["datasets"]
-        self.query_groups: List[Dict[str, Any]] = config["query_groups"]
+        self.datasets: List[Dataset] = [Dataset.from_dict(d) for d in config["datasets"]]
+        self.query_groups: List[QueryGroup] = [QueryGroup.from_dict(q) for q in config["query_groups"]]
         
         # Thread configuration per engine
         self.threads_duckdb: int = config.get("threads_duckdb", 4)
@@ -160,12 +170,12 @@ class BenchmarkConfig:
         }
         return thread_mapping.get(engine, 0)
     
-    def get_database_path(self, dataset: Dict[str, Any], engine: str) -> str:
+    def get_database_path(self, dataset: Dataset, engine: str) -> str:
         """
         Get database path for specific dataset and engine.
         
         Args:
-            dataset: Dataset configuration dictionary
+            dataset: Dataset configuration object
             engine: Database engine name
         
         Returns:
@@ -174,21 +184,14 @@ class BenchmarkConfig:
         Raises:
             ValueError: If engine is not supported
         """
-        if engine not in ENGINE_DB_MAPPING:
-            raise ValueError(f"Unsupported engine: {engine}")
-        
-        db_key = ENGINE_DB_MAPPING[engine]
-        if db_key not in dataset:
-            raise ValueError(f"Missing database path for engine '{engine}' in dataset '{dataset.get('name', 'unknown')}'")
-        
-        return dataset[db_key]
+        return dataset.get_database_path(engine)
     
-    def get_sql_path(self, query_group: Dict[str, Any], engine: str) -> str:
+    def get_sql_path(self, query_group: QueryGroup, engine: str) -> str:
         """
         Get SQL path for specific query group and engine.
         
         Args:
-            query_group: Query group configuration dictionary
+            query_group: Query group configuration object
             engine: Database engine name
         
         Returns:
@@ -197,11 +200,4 @@ class BenchmarkConfig:
         Raises:
             ValueError: If engine is not supported
         """
-        if engine not in ENGINE_SQL_MAPPING:
-            raise ValueError(f"Unsupported engine: {engine}")
-        
-        sql_key = ENGINE_SQL_MAPPING[engine]
-        if sql_key not in query_group:
-            raise ValueError(f"Missing SQL path for engine '{engine}' in query group '{query_group.get('id', 'unknown')}'")
-        
-        return query_group[sql_key]
+        return query_group.get_sql_path(engine)

@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from config import BenchmarkConfig
+from config import BenchmarkConfig, Dataset, QueryGroup
 
 # Constants
 HERE = Path(__file__).parent.resolve()
@@ -51,8 +51,8 @@ class BenchmarkRunner:
     def run_pilot(
         self,
         engine: str,
-        dataset: Dict[str, Any],
-        query_group: Dict[str, Any]
+        dataset: Dataset,
+        query_group: QueryGroup
     ) -> float:
         """
         Run pilot benchmark to determine optimal interval.
@@ -67,7 +67,7 @@ class BenchmarkRunner:
         """
         db_path = self.config.get_database_path(dataset, engine)
         sql_path = self.config.get_sql_path(query_group, engine)
-        pilot_out = self.results_dir / f"pilot__{dataset['name']}__{query_group['id']}__{engine}.json"
+        pilot_out = self.results_dir / f"pilot__{dataset.name}__{query_group.id}__{engine}.json"
         
         try:
             run_bench(
@@ -94,14 +94,14 @@ class BenchmarkRunner:
             )
         
         except Exception as e:
-            print(f"[WARN] pilot failed for {engine} {dataset['name']} {query_group['id']}: {e}")
+            print(f"[WARN] pilot failed for {engine} {dataset.name} {query_group.id}: {e}")
             return DEFAULT_PILOT_INTERVAL
     
     def run_full_benchmark(
         self,
         engine: str,
-        dataset: Dict[str, Any],
-        query_group: Dict[str, Any],
+        dataset: Dataset,
+        query_group: QueryGroup,
         interval: float
     ) -> Path:
         """
@@ -118,7 +118,7 @@ class BenchmarkRunner:
         """
         db_path = self.config.get_database_path(dataset, engine)
         sql_path = self.config.get_sql_path(query_group, engine)
-        out_path = self.results_dir / f"{dataset['name']}__{query_group['id']}__{engine}.json"
+        out_path = self.results_dir / f"{dataset.name}__{query_group.id}__{engine}.json"
         
         run_bench(
             engine=engine,
@@ -265,8 +265,8 @@ class ResultsProcessor:
     
     def add_result(
         self,
-        dataset: Dict[str, Any],
-        query_group: Dict[str, Any],
+        dataset: Dataset,
+        query_group: QueryGroup,
         engine: str,
         interval: float,
         result_path: Path
@@ -287,8 +287,8 @@ class ResultsProcessor:
         summary = result_data["summary"]
         
         row = {
-            "dataset": dataset["name"],
-            "query_id": query_group["id"],
+            "dataset": dataset.name,
+            "query_id": query_group.id,
             "engine": engine,
             "mode": summary["mode"],
             "threads": summary["threads"],
@@ -337,7 +337,7 @@ def main() -> None:
     5. Collect and export results to CSV manifest
     """
     # Initialize components
-    config = BenchmarkConfig(HERE / "config.yaml")
+    config = BenchmarkConfig.load(HERE / "config.yaml")
     results_dir = HERE / "results"
     runner = BenchmarkRunner(config, results_dir)
     processor = ResultsProcessor(results_dir)
@@ -348,13 +348,13 @@ def main() -> None:
     
     for dataset in config.datasets:
         for query_group in config.query_groups:
-            dataset_query_key = (dataset['name'], query_group['id'])
+            dataset_query_key = (dataset.name, query_group.id)
             pilot_intervals[dataset_query_key] = {}
             
-            print(f"[INFO] Running pilots for {dataset['name']} - {query_group['id']}")
+            print(f"[INFO] Running pilots for {dataset.name} - {query_group.id}")
             
             for engine in config.engines:
-                print(f"[INFO] Pilot test: {dataset['name']} - {query_group['id']} - {engine}")
+                print(f"[INFO] Pilot test: {dataset.name} - {query_group.id} - {engine}")
                 interval = runner.run_pilot(engine, dataset, query_group)
                 pilot_intervals[dataset_query_key][engine] = interval
     
@@ -375,11 +375,11 @@ def main() -> None:
     
     for dataset in config.datasets:
         for query_group in config.query_groups:
-            dataset_query_key = (dataset['name'], query_group['id'])
+            dataset_query_key = (dataset.name, query_group.id)
             unified_interval = unified_intervals[dataset_query_key]
             
             for engine in config.engines:
-                print(f"[INFO] Full benchmark: {dataset['name']} - {query_group['id']} - {engine} (interval={unified_interval:.6f})")
+                print(f"[INFO] Full benchmark: {dataset.name} - {query_group.id} - {engine} (interval={unified_interval:.6f})")
                 
                 # Run full benchmark with unified interval
                 result_path = runner.run_full_benchmark(engine, dataset, query_group, unified_interval)
