@@ -27,6 +27,7 @@ class DuckdbRunner:
                     stdin=sql_input,
                     stdout=stdout_file,
                     stderr=stderr_file,
+                    cwd=self.cwd,
                     text=True
                 )
                 return process
@@ -38,7 +39,8 @@ class DuckdbRunner:
 if __name__ == "__main__":
     sql_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql"
     db_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/db_vs14/vs14_data.duckdb"
-    runner = DuckdbRunner(sql_file=sql_file, db_file=db_file)
+    cwd = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test"
+    runner = DuckdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd)
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()
     if process.returncode == 0:
