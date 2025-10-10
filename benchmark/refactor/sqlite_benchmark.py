@@ -72,7 +72,7 @@ class SQLiteBenchmark(DatabaseBenchmark):
                 throughput = output_rows / wall_time if wall_time > 0 else 0
                 
                 queries.append(QueryResult(
-                    query_number=query.query_number or 0,
+                    query_number=query.query_count or 0,
                     query_sql=query.query_description or "",
                     wall_time=wall_time,
                     peak_memory_bytes=memory_bytes,
