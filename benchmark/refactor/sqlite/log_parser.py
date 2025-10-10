@@ -209,9 +209,6 @@ class SQLiteLogParser:
         query_pattern = r'(Query \d+:.*?)(?=Query \d+:|=== Demo Complete ===|$)'
         query_sections = re.findall(query_pattern, self.content, re.DOTALL)
         
-        # Also split by Run Time for sections without Query markers
-        timing_sections = re.split(r'(?=Run Time:)', self.content)
-        
         all_metrics = []
         query_index = 0
         
@@ -246,29 +243,24 @@ class SQLiteLogParser:
                     all_metrics.append(metrics)
                     query_index += 1
         
-        # Process remaining timing sections (for non-query operations)
-        for section in timing_sections:
-            if not section.strip():
-                continue
-            
-            # Skip if this section is already part of a query
-            if re.search(r'Query \d+:', section):
-                continue
-                
-            metrics = QueryMetrics()
-            
-            # Parse timing
-            timing = self.parse_timing(section)
+        # If no query markers found, treat the entire log as a single execution
+        if not all_metrics:
+            # Check if there's any timing information in the content
+            timing = self.parse_timing(self.content)
             if timing:
+                metrics = QueryMetrics()
                 metrics.timing = timing
-            
-            # Parse memory
-            memory = self.parse_memory(section)
-            if memory:
-                metrics.memory = memory
-            
-            # Only add if we found something and it's not a duplicate
-            if metrics.timing or metrics.memory:
+                
+                # Parse memory from the entire content
+                memory = self.parse_memory(self.content)
+                if memory:
+                    metrics.memory = memory
+                
+                # Count output rows (data lines before statistics)
+                output_rows = self.parse_output_rows(self.content)
+                if output_rows > 0:
+                    metrics.output_rows = output_rows
+                
                 all_metrics.append(metrics)
         
         self.queries = all_metrics

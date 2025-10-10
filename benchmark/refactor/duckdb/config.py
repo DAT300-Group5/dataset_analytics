@@ -18,5 +18,5 @@ PROFILING_OUTPUT = "results/profiling_output.json"
 # Results JSON file path (will be saved in results/ directory)
 RESULTS_FILE = "results.json"
 
-# CPU monitoring settings
-CPU_MONITOR_INTERVAL = 0.1  # seconds (100ms)
+# Process monitoring settings
+PROCESS_MONITOR_INTERVAL = 0.1  # seconds (100ms)

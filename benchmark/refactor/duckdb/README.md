@@ -20,8 +20,8 @@ python3 run_demo.py [OPTIONS]
 | `--json-output` | `results.json` | Path to save JSON results |
 | `--duckdb-cmd` | `duckdb` | DuckDB command or full path |
 | `--no-save` | - | Don't save results to JSON file |
-| `--no-cpu-monitor` | - | Disable process resource monitoring |
-| `--cpu-interval` | `0.1` | Process sampling interval in seconds |
+| `--no-process-monitor` | - | Disable process resource monitoring |
+| `--monitor-interval` | `0.1` | Process sampling interval in seconds |
 
 ## Examples
 
@@ -38,7 +38,7 @@ python3 run_demo.py --duckdb-cmd /path/to/duckdb
 python3 run_demo.py --sql-file my_queries.sql --db-file my_database.db
 
 # Disable process monitoring for faster execution
-python3 run_demo.py --no-cpu-monitor
+python3 run_demo.py --no-process-monitor
 
 # Don't save JSON results
 python3 run_demo.py --no-save
@@ -53,7 +53,7 @@ python3 run_demo.py \
     --profiling-output profiling.json \
     --json-output results/metrics.json \
     --duckdb-cmd /usr/local/bin/duckdb \
-    --cpu-interval 0.05
+    --monitor-interval 0.05
 ```
 
 ## Output Files

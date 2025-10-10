@@ -1,5 +1,10 @@
 SET timezone='UTC';
 
+-- Enable JSON profiling for DuckDB
+PRAGMA enable_profiling='json';
+
+SET profiling_output='results/profiling_query_1.json';
+
 WITH
 hrm_minute AS (
   SELECT

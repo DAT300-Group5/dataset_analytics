@@ -48,7 +48,8 @@ class DuckDBRunner:
                  db_file: str = "demo.db",
                  profiling_output: str = "profiling_output.json",
                  duckdb_cmd: str = "duckdb",
-                 cpu_sample_interval: float = 0.1):
+                 cpu_sample_interval: float = 0.1,
+                 enable_process_monitor: bool = True):
         """
         Initialize the DuckDB runner.
         
@@ -58,12 +59,16 @@ class DuckDBRunner:
             profiling_output: Path to the profiling JSON output
             duckdb_cmd: DuckDB command (default: "duckdb")
             cpu_sample_interval: Process sampling interval in seconds (default: 0.1)
+            enable_process_monitor: Enable process resource monitoring (default: True)
         """
         self.sql_file = Path(sql_file)
         self.db_file = Path(db_file)
+        self.original_db_file = Path(db_file)  # Keep track of original
+        self.working_db_file = None  # Will be set to temp copy
         self.profiling_output = Path(profiling_output)
         self.duckdb_cmd = duckdb_cmd
         self.cpu_sample_interval = cpu_sample_interval
+        self.enable_process_monitor = enable_process_monitor and PROCESS_MONITOR_AVAILABLE
         self.execution_result = None
         self.cpu_result = None
         
@@ -91,17 +96,15 @@ class DuckDBRunner:
     
     def prepare_environment(self):
         """Prepare the environment for execution"""
-        # Remove old database and profiling files
-        if self.db_file.exists():
-            print(f"Removing old database: {self.db_file}")
-            self.db_file.unlink()
+        import shutil
+        import glob
         
+        # Remove old profiling files to get fresh profiling data
         if self.profiling_output.exists():
             print(f"Removing old profiling output: {self.profiling_output}")
             self.profiling_output.unlink()
         
         # Remove old profiling query files in results directory
-        import glob
         results_dir = Path("results")
         if results_dir.exists():
             for old_file in glob.glob("results/profiling_query_*.json"):
@@ -116,6 +119,48 @@ class DuckDBRunner:
         # Check if SQL file exists
         if not self.sql_file.exists():
             raise FileNotFoundError(f"SQL file not found: {self.sql_file}")
+        
+        # Create a temporary copy of the database file if it exists
+        if self.original_db_file.exists():
+            self.working_db_file = self.original_db_file.parent / f"{self.original_db_file.stem}_temp{self.original_db_file.suffix}"
+            print(f"Creating temporary copy of database: {self.working_db_file}")
+            shutil.copy2(self.original_db_file, self.working_db_file)
+            self.db_file = self.working_db_file
+        else:
+            # If original doesn't exist, work with the specified file directly
+            print(f"Original database not found, will create new: {self.db_file}")
+            self.working_db_file = self.db_file
+    
+    def cleanup_environment(self):
+        """Clean up temporary files after execution"""
+        # Remove temporary database copy
+        if self.working_db_file and self.working_db_file.exists() and self.working_db_file != self.original_db_file:
+            print(f"Removing temporary database: {self.working_db_file}")
+            self.working_db_file.unlink()
+    
+    def _extract_rows_from_stdout(self, stdout: str) -> int:
+        """
+        Extract the number of output rows from DuckDB's stdout.
+        
+        DuckDB outputs a footer line like: "│ 25051 rows (40 shown) 7 columns │"
+        
+        Args:
+            stdout: The standard output from DuckDB execution
+            
+        Returns:
+            Number of rows, or 0 if not found
+        """
+        import re
+        
+        # Pattern to match: "│ 25051 rows" or "│ 25051 rows (40 shown)"
+        pattern = r'│\s+(\d+)\s+rows?\s*(?:\(.*?\))?\s+'
+        
+        matches = re.findall(pattern, stdout)
+        if matches:
+            # Return the last match (footer line)
+            return int(matches[-1])
+        
+        return 0
     
     def execute_sql(self) -> Dict:
         """
@@ -127,11 +172,12 @@ class DuckDBRunner:
         Raises:
             subprocess.SubprocessError: If execution fails
         """
+        monitor_status = f"Enabled (sampling every {self.cpu_sample_interval}s)" if self.enable_process_monitor else "Disabled"
         print(f"\n{'='*60}")
         print(f"Executing SQL script: {self.sql_file}")
         print(f"Database: {self.db_file}")
         print(f"Profiling output: results/profiling_query_*.json")
-        print(f"Process monitoring: Enabled (sampling every {self.cpu_sample_interval}s)")
+        print(f"Process monitoring: {monitor_status}")
         print(f"{'='*60}\n")
         
         # Create results directory
@@ -151,18 +197,20 @@ class DuckDBRunner:
                 )
                 
                 # Start process monitoring if enabled
-                cpu_monitor = ProcessMonitor(process.pid, interval=self.cpu_sample_interval)
-                cpu_monitor.start()
-                print(f"✓ Process monitoring started for PID {process.pid}")
+                if self.enable_process_monitor:
+                    process_monitor = ProcessMonitor(process.pid, interval=self.cpu_sample_interval)
+                    process_monitor.start()
+                    print(f"✓ Process monitoring started for PID {process.pid}")
 
                 # Wait for process to complete
                 stdout, stderr = process.communicate(timeout=300)
                 returncode = process.returncode
                 
                 # Stop process monitoring
-                self.cpu_result = cpu_monitor.stop()
-                if self.cpu_result:
-                    print(f"✓ Process monitoring completed ({self.cpu_result.samples_count} samples)")
+                if self.enable_process_monitor:
+                    self.cpu_result = process_monitor.stop()
+                    if self.cpu_result:
+                        print(f"✓ Process monitoring completed ({self.cpu_result.samples_count} samples)")
             
             self.execution_result = {
                 'returncode': returncode,
@@ -242,6 +290,14 @@ class DuckDBRunner:
             if not all_queries:
                 print(f"✗ No profiling data could be parsed")
                 return None
+            
+            # Try to extract output rows from stdout if available
+            if self.execution_result and 'stdout' in self.execution_result:
+                stdout = self.execution_result['stdout']
+                output_rows = self._extract_rows_from_stdout(stdout)
+                if output_rows > 0 and all_queries:
+                    # Assign to the last query (main SELECT query)
+                    all_queries[-1].output_rows = output_rows
             
             # Create a temporary parser to use its export methods
             temp_parser = DuckDBProfileParser(profiling_files[0])
@@ -333,7 +389,7 @@ class DuckDBRunner:
             
             # Add process monitoring results if available
             if self.cpu_result:
-                combined['cpu_monitoring'] = self.cpu_result.to_dict()
+                combined['process_monitoring'] = self.cpu_result.to_dict()
             
             with open(output_path, 'w', encoding='utf-8') as f:
                 json.dump(combined, f, indent=2, ensure_ascii=False)
@@ -384,6 +440,9 @@ class DuckDBRunner:
                 'success': False,
                 'error': str(e)
             }
+        finally:
+            # Always cleanup temporary files
+            self.cleanup_environment()
 
 
 def main():
@@ -423,12 +482,12 @@ def main():
         help=f"DuckDB command or full path (default: {DEFAULT_DUCKDB_CMD})"
     )
     parser.add_argument(
-        "--no-cpu-monitor",
+        "--no-process-monitor",
         action="store_true",
         help="Disable process monitoring"
     )
     parser.add_argument(
-        "--cpu-interval",
+        "--monitor-interval",
         type=float,
         default=0.1,
         help="Process sampling interval in seconds (default: 0.1)"
@@ -442,7 +501,8 @@ def main():
         db_file=args.db_file,
         profiling_output=args.profiling_output,
         duckdb_cmd=args.duckdb_cmd,
-        cpu_sample_interval=args.cpu_interval
+        cpu_sample_interval=args.monitor_interval,
+        enable_process_monitor=not args.no_process_monitor
     )
     
     # Run

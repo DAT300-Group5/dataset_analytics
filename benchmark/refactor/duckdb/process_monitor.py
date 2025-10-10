@@ -1,7 +1,7 @@
 """
-CPU Monitor Module
+Process Monitor Module
 
-This module provides CPU usage monitoring for subprocess execution.
+This module provides process resource monitoring for subprocess execution.
 Shared by both SQLite and DuckDB benchmarks.
 """
 import subprocess
@@ -73,7 +73,7 @@ class ProcessMonitor:
     
     def __init__(self, pid: int, interval: float = 0.1):
         """
-        Initialize CPU monitor.
+        Initialize Process Monitor.
         
         Args:
             pid: Process ID to monitor
@@ -150,7 +150,7 @@ class ProcessMonitor:
                 # Process ended
                 break
             except Exception as e:
-                print(f"⚠ CPU monitor error: {e}")
+                print(f"⚠ Process monitor error: {e}")
                 break
     
     def get_results(self) -> Optional[ProcessMonitorResult]:
