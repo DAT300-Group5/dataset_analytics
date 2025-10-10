@@ -12,26 +12,12 @@ queries:
    - Q3 ...
 - anomaly:
   - Q1
-    - duckdb
-    - sqlite
-    - chdb
-   - Q2
-    - duckdb
-    - sqlite
-    - chdb
-  - Q3
-    - ...
+  - Q2 ...
 - trend
   - Q1
-    - duckdb 
-    - sqlite
-    - chdb
-  - Q2
-    - duckdb
-    - sqlite
-    - chdb
+  - Q2 ...
 - category
   - Q1 ...
   - Q2 ...
-  - Q3 ...
+
     
