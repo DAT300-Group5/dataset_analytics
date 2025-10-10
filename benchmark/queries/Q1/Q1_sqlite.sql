@@ -2,9 +2,6 @@
 .timer on
 .stats on
 
--- Redirect output to log file
-.output results/output.log
-
 WITH
 hrm_minute AS (
   SELECT

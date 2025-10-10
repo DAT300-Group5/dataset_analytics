@@ -305,25 +305,6 @@ class ResultsProcessor:
         }
         
         self.rows.append(row)
-    
-    def export_manifest(self) -> Path:
-        """
-        Export all results to CSV manifest file.
-        
-        Returns:
-            Path to exported manifest file
-        """
-        df = pd.DataFrame(self.rows)
-        
-        # Calculate derived metrics
-        df["rows_per_sec"] = df["mean_rows"] / df["mean_wall_s"]
-        df["ttfr_share_pct"] = PERCENT_MULTIPLIER * df["mean_ttfr_s"] / df["mean_wall_s"]
-        
-        manifest_path = self.results_dir / "manifest.csv"
-        df.to_csv(manifest_path, index=False)
-        
-        return manifest_path
-
 
 def main() -> None:
     """
@@ -386,10 +367,6 @@ def main() -> None:
                 
                 # Collect result
                 processor.add_result(dataset, query_group, engine, unified_interval, result_path)
-    
-    # Export results manifest
-    manifest_path = processor.export_manifest()
-    print(f"[DONE] wrote {manifest_path}")
 
 if __name__ == "__main__":
     main()
