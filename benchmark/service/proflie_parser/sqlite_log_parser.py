@@ -36,39 +36,74 @@ class SqliteLogParser:
             with open(stdout_file, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
             
-            # Find where statistics start (after the data rows)
-            stats_start_idx = len(lines)
+            # Find all statistics section boundaries
+            # Statistics section starts with lines like "Memory Used:" or "Run Time:"
+            stats_indices = []
             for i, line in enumerate(lines):
-                # Statistics section starts with lines like "Memory Used:" or "Run Time:"
                 if re.match(r'^(Memory Used:|Run Time:|Number of|Largest|Lookaside|Pager|Page cache|Schema|Statement|Fullscan|Sort|Autoindex|Bloom|Virtual|Reprepare)', line):
-                    stats_start_idx = i
-                    break
+                    stats_indices.append(i)
             
-            # Count data rows (lines before statistics section)
-            output_rows = sum(1 for line in lines[:stats_start_idx] if line.strip())
+            # If there are statistics, find the start of the last statistics section
+            if stats_indices:
+                # Find the last contiguous block of statistics (last query's stats)
+                last_stats_start = stats_indices[-1]
+                # Look backwards to find where this stats block starts
+                for i in range(len(stats_indices) - 1, -1, -1):
+                    if i == 0 or stats_indices[i] - stats_indices[i-1] > 5:
+                        # Found the beginning of the last stats block
+                        last_stats_start = stats_indices[i]
+                        break
+                
+                # Count output rows from the last query (between previous stats end and last stats start)
+                # Find the end of the previous stats block (if exists)
+                if len(stats_indices) > 1:
+                    # Find where previous stats block ends by looking for the last stats line before a gap
+                    prev_stats_end = 0
+                    for i in range(len(stats_indices) - 1):
+                        if stats_indices[i+1] - stats_indices[i] > 5:
+                            # Found a gap, previous stats ends here
+                            prev_stats_end = stats_indices[i] + 20  # Approximate end of stats block
+                            break
+                    
+                    # Count rows between previous stats end and last stats start
+                    output_rows = sum(1 for line in lines[prev_stats_end:last_stats_start] if line.strip())
+                else:
+                    # Only one query, count all rows before stats
+                    output_rows = sum(1 for line in lines[:last_stats_start] if line.strip())
+                
+                stats_start_idx = stats_indices[0]
+            else:
+                # No statistics found, count all lines
+                output_rows = sum(1 for line in lines if line.strip())
+                stats_start_idx = len(lines)
             
             # Parse statistics section
             stats_content = ''.join(lines[stats_start_idx:])
             
-            # Count query_count based on number of "Run Time:" lines
-            query_count = len(re.findall(r'Run Time: real', stats_content))
-            
-            # Parse timing information (use the last Run Time line)
+            # Parse timing information and count queries
             # Format: "Run Time: real 17.338 user 14.308602 sys 2.313507"
             timing_matches = re.findall(r'Run Time: real\s+([\d.]+)\s+user\s+([\d.]+)\s+sys\s+([\d.]+)', stats_content)
+            query_count = len(timing_matches)
+            
             if timing_matches:
-                # Use the last timing result
-                last_match = timing_matches[-1]
-                timing_info.run_time = float(last_match[0])
-                timing_info.user_time = float(last_match[1])
-                timing_info.system_time = float(last_match[2])
+                # Sum up all timing results for multiple queries
+                total_run_time = sum(float(match[0]) for match in timing_matches)
+                total_user_time = sum(float(match[1]) for match in timing_matches)
+                total_system_time = sum(float(match[2]) for match in timing_matches)
+                
+                timing_info.run_time = total_run_time
+                timing_info.user_time = total_user_time
+                timing_info.system_time = total_system_time
             
             # Parse memory information
             # Format: "Memory Used: 2382384 (max 28582800) bytes"
-            memory_used_match = re.search(r'Memory Used:\s+([\d]+)\s+\(max\s+([\d]+)\)', stats_content)
-            if memory_used_match:
-                memory_info.memory_used = int(memory_used_match.group(1))
-                memory_info.max_memory_used = int(memory_used_match.group(2))
+            # Find all occurrences and take the maximum max_memory_used
+            memory_used_matches = re.findall(r'Memory Used:\s+([\d]+)\s+\(max\s+([\d]+)\)', stats_content)
+            if memory_used_matches:
+                # Use the last memory_used value
+                memory_info.memory_used = int(memory_used_matches[-1][0])
+                # Take the maximum of all max_memory_used values
+                memory_info.max_memory_used = max(int(match[1]) for match in memory_used_matches)
             else:
                 # Fallback: try without max value
                 memory_used_match = re.search(r'Memory Used:\s+([\d]+)', stats_content)
