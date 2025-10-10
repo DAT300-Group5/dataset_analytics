@@ -6,16 +6,14 @@
 ├── create_db.py
 ├── queries
 │   └── ...
-├── run_chdb_sql.py
-├── run_duckdb_sql.py
-├── run_sqlite_sql.py
+├── runsql.py
 ├── validate_sql_correctness.py
 ├── benchmark.py
 ├── query_db.py
 ├── config.yaml
 ├── run_experiments.py
 ├── analyze_results.py
-├── ttfr_sqlite.py
+├── ttfr_unified.py
 └── utils.py
 ```
 
@@ -126,13 +124,13 @@ Prepare queries, and check their usablity. Execute them under path `benchmark`.
 
 ```bash
 # DuckDB
-python run_duckdb_sql.py ./db_vs14/vs14_data.duckdb ./queries/Q1/Q1_duckdb.sql > out_duckdb.csv
+python run_sql.py --engine duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql > out_duckdb.csv
 
 # SQLite
-python run_sqlite_sql.py ./db_vs14/vs14_data.sqlite ./queries/Q1/Q1_sqlite.sql > out_sqlite.csv
+python run_sql.py --engine sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql > out_sqlite.csv
 
 # ClickHouse (chdb)
-python run_chdb_sql.py ./db_vs14/vs14_data_chdb ./queries/Q1/Q1_clickhouse.sql > out_chdb.csv
+python run_sql.py --engine chdb ./db_vs14/vs14_data_chdb queries/Q1/Q1_clickhouse.sql > out_chdb.csv
 ```
 
 ### Validate SQL Correctness
@@ -222,8 +220,6 @@ Each run produces a JSON object with these keys:
 | `wall_time_seconds`       | Wall-clock time for the run (seconds, measured by parent).                               |
 | `ttfr_seconds`            | Time to first result (seconds).                                                          |
 | `rows_returned`           | Number of rows returned by the query.                                                    |
-| `statements_executed`     | Total number of SQL statements executed.                                                 |
-| `select_statements`       | Number of SELECT statements executed.                                                    |
 | `peak_rss_bytes_sampled`  | Peak Resident Set Size (RSS) sampled periodically.                                       |
 | `peak_rss_bytes_true`     | True high-water RSS (from `/proc/[pid]/status` on Linux or OS API; fallback to sampled). |
 | `cpu_avg_percent`         | Average CPU utilization during run (%).                                                  |
@@ -285,9 +281,9 @@ python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
 Step 2: Prepare SQL files and make sure they have the same outcome
 
 ```bash
-python run_duckdb_sql.py ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql > out_duckdb.csv
-python run_sqlite_sql.py ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql > out_sqlite.csv
-python run_chdb_sql.py ./db_vs14/vs14_data_chdb queries/Q1/Q1_clickhouse.sql > out_chdb.csv
+python run_sql.py --engine duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql > out_duckdb.csv
+python run_sql.py --engine sqlite ./db_vs14/vs14_data.sqlite queries/Q1/Q1_sqlite.sql > out_sqlite.csv
+python run_sql.py --engine chdb ./db_vs14/vs14_data_chdb queries/Q1/Q1_clickhouse.sql > out_chdb.csv
 
 python validate_sql_correctness.py \
   --case duckdb ./db_vs14/vs14_data.duckdb queries/Q1/Q1_duckdb.sql \

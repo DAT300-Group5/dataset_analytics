@@ -49,7 +49,7 @@ No need for Server side design and edge - server communication module design:
 
 ### Sleep Scenario
 
-Could use ppg, hrm, acc, lit tables.
+Could use ppg, hrm, ped, acc, lit tables.
 
 Do aggregation, output: 2 tables.
 
@@ -123,12 +123,28 @@ GROUP BY deviceId, (ts / 60000) * 60000
 Findings:
 
 1. The informative HRV metrics (which is the main focus of what we are trying to get from raw data), like statistical features (SDNN, RMSSD, pNN20, pNN50, LF/HF), relay on IBI to be computed.
-2. The really important column inter-beat intervals (IBI) CANNOT be calculate using queries alone. IBI is calculated from the signal (PPG), and does go into the realm of biological signal processing, which is not the main focus of this particular course. (But technically, it would be feasible to do it on the edge device without a library like [HeartPy](https://python-heart-rate-analysis-toolkit.readthedocs.io/))
+2. The really important column inter-beat intervals (IBI) CANNOT be calculate using queries alone. IBI is calculated from the signal (PPG), and does go into the realm of biomedical signal processing, which is not the main focus of this particular course. (But technically, it would be feasible to do it on the edge device without a library like [HeartPy](https://python-heart-rate-analysis-toolkit.readthedocs.io/))
 
-Approaches:
+### Resting HR anomaly detection using statistics
 
-1. We could give up this `hrv_5min` table, and try something else on raw data.
-2. Use HeartPy to calculate the IBI, and then perform the subsequent calculations and queries in the database.
+Idea: if there is abnormaly high heart rate (HR) during resting period, it could correspond to stress, mental unrest or signs of illness. Intervals are compared to a quantile of the person's HR based on sensor hrm when activity is low (steps bellow threshold) and flag it whether it is an anomaly or not. Granuality of the detection can be adjusted.
+
+Tables: hrm, ped
+Operations: joins, statistics, aggregation of raw data, CASE/IF
+
+### Fitness index trend analysis
+
+Idea: using a simple measure of fitness index, we can check whether the fitness of the person is increasing or decreasing by fitting a simple regression line.
+
+Tables: hrm, ped
+Operations: joins, division, filtering, aggregation of raw data, regression line
+
+### Categorization of activity
+
+Idea: classifying intervals as either sitting, light or heavy activity by using simple decision rule based method using data from hrm, ped, acc, and lit.
+
+Tables: hrm, ped, acc, lit
+Operations: joins, aggregation of raw data, filtering
 
 ## Benchmark Design
 
@@ -159,7 +175,7 @@ This benchmark suite is designed to evaluate different **databases (SQLite, Duck
   - Purpose: test system stability and isolation.
 - **Complex Queries (example)**
   - Joins: `sleep_activity_1min` ⟷ `hrv_5min` aligned on time windows.
-  - Top-K: select top-N abnormal windows (e.g., low HRV, high activity).
+  - Top-K: select top-N abnormal windows (e.g., low HR, high activity).
   - Purpose: expose query optimization capabilities, even if rarely used in practice.
 
 ### Metrics
