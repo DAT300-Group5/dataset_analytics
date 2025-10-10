@@ -3,8 +3,12 @@
 Each folder corresponds to a use case. 
 
 TODO: clickhouse equivalents, more usecases where filtering comes to light more?
+
 PROBLEMS: sqlite limited functionalities, needed to modify queries and usecases
+
 KEEP IN MIND: sql files that use TEMP tables consist of multiple queries because seperate queries are needed for storing intermediate results in temp tables. This refers to the files in the anomaly folder
+
+
 REALIZATIONS: 
 - without saving CTE or temp tables, sqlite is terribly slow
 - DuckDB is much faster than SQLite for queries in the folder
