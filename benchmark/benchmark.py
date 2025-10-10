@@ -6,6 +6,8 @@ import argparse, os, sys, threading, time, json, math
 import psutil
 import tracemalloc
 from multiprocessing import Process, Pipe
+
+from benchmark.cli.benchmark_cli import parse_benchmark_args
 from utils import load_query_from_file
 from query_db import run_query_with_ttfr
 from models import BenchmarkRun, BenchmarkSummary, BenchmarkResult
@@ -228,65 +230,10 @@ def run_once_child(engine='duckdb', db_path=None, sample_interval=0.2, query='',
 
 # -------------------------------------- main --------------------------------------
 def main():
-    ap = argparse.ArgumentParser(description="SQLite / DuckDB / chDB benchmark with CPU/RSS/TTFR + P95/P99 (DB-internal memory metrics removed)")
-    ap.add_argument("--engine", choices=["duckdb", "sqlite", "chdb"], default="duckdb",
-                    help="Database engine: duckdb | sqlite | chdb (default: duckdb)")
-    ap.add_argument("--db-path", type=str, required=True,
-                    help="Path to database file/dir (.duckdb / .sqlite / chdb directory)")
-    ap.add_argument("--interval", type=float, default=0.2,
-                    help="Sampling interval in seconds (default: 0.2)")
-    ap.add_argument("--query-file", type=str, required=False, default="",
-                    help="Path to SQL file. If omitted, uses queries/sample.sql if present.")
-    ap.add_argument("--repeat", type=int, default=10,
-                    help="Number of measured runs (default: 10)")
-    ap.add_argument("--warmups", type=int, default=0,
-                    help="Number of warm-up runs not recorded (default: 0)")
 
-    # Run mode switches (mutually exclusive): inproc | child
-    ap.add_argument("--child", action="store_true",
-                    help="Run each measured run in a separate child process")
+    args = parse_benchmark_args()
 
-    # DuckDB knobs
-    ap.add_argument("--threads", type=int, default=0,
-                    help="DuckDB PRAGMA threads or chDB max_threads (0=engine default)")
-
-    # Output
-    ap.add_argument("--out", type=str, default="",
-                    help="If set, write all measured runs and summary as JSON to this path")
-
-    args = ap.parse_args()
-
-    # Mode validation
-    # No additional validation needed for child vs inproc modes
-
-    if not os.path.exists(args.db_path):
-        print(f"Error: Database path not found: {args.db_path}", file=sys.stderr)
-        sys.exit(1)
-
-    query_file = args.query_file.strip()
-    if query_file:
-        if not os.path.exists(query_file):
-            print(f"Error: Query file not found: {query_file}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        query_file = "queries/sample.sql"
-        if not os.path.exists(query_file):
-            print("Error: no --query-file provided and default queries/sample.sql not found.", file=sys.stderr)
-            sys.exit(1)
-        print("[Info] No --query-file provided, falling back to queries/sample.sql")
-
-    query = load_query_from_file(query_file)
-
-    # ---------------- Warmups ----------------
-    for i in range(args.warmups):
-        _ = (run_once_child if args.child else run_once_inproc)(
-            engine=args.engine,
-            db_path=args.db_path,
-            sample_interval=args.interval,
-            query=query,
-            threads=(args.threads if args.threads > 0 else None),
-        )
-        print(f"[Warmup {i+1}/{args.warmups}] done.")
+    query = load_query_from_file(args.query_file)
 
     # ---------------- Measured runs ----------------
     runs = []
@@ -333,7 +280,7 @@ def main():
         engine=args.engine,
         mode="child" if args.child else "inproc",
         db_path=args.db_path,
-        query_file=query_file,
+        query_file=args.query_file,
         repeat=args.repeat,
         warmups=args.warmups,
         threads=args.threads,
