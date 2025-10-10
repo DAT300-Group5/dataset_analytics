@@ -10,7 +10,6 @@ class ProcessMonitorResult:
     # CPU statistics
     peak_cpu_percent: float
     avg_cpu_percent: float
-    min_cpu_percent: float
     samples_count: int
     sampling_interval: float
 
@@ -23,7 +22,6 @@ class ProcessMonitorResult:
             # CPU stats
             'peak_cpu_percent': self.peak_cpu_percent,
             'avg_cpu_percent': self.avg_cpu_percent,
-            'min_cpu_percent': self.min_cpu_percent,
             'samples_count': self.samples_count,
             'sampling_interval': self.sampling_interval,
 
