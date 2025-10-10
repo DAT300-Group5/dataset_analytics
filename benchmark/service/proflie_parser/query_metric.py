@@ -14,6 +14,7 @@ class TimingInfo:
 class MemoryInfo:
     """Data class to store memory statistics from SQLite"""
     memory_used: Optional[int] = None  # bytes
+    max_memory_used: Optional[int] = None  # bytes
     heap_usage: Optional[int] = None  # bytes
     page_cache_hits: Optional[int] = None
     page_cache_misses: Optional[int] = None
@@ -23,7 +24,7 @@ class MemoryInfo:
 @dataclass
 class QueryMetrics:
     """Complete metrics for a query execution"""
-    query_number: Optional[int] = None
+    query_count: Optional[int] = None
     timing: Optional[TimingInfo] = None
     memory: Optional[MemoryInfo] = None
     output_rows: Optional[int] = None  # Number of output rows

@@ -16,19 +16,21 @@ class SqliteLogParser:
             raise FileNotFoundError(f"Log file {stdout_file} does not exist.")
         
         # Parse stdout file - it contains both data rows and statistics
-        output_rows, timing_info, memory_info = self._parse_stdout(stdout_file)
+        output_rows, timing_info, memory_info, query_count = self._parse_stdout(stdout_file)
         
         return QueryMetrics(
+            query_count=query_count,
             timing=timing_info,
             memory=memory_info,
             output_rows=output_rows
         )
     
-    def _parse_stdout(self, stdout_file: Path) -> tuple[int, TimingInfo, MemoryInfo]:
+    def _parse_stdout(self, stdout_file: Path) -> tuple[int, TimingInfo, MemoryInfo, int]:
         """Parse stdout.log which contains both data rows and statistics."""
         timing_info = TimingInfo()
         memory_info = MemoryInfo()
         output_rows = 0
+        query_count = 0
         
         try:
             with open(stdout_file, 'r', encoding='utf-8') as f:
@@ -48,19 +50,30 @@ class SqliteLogParser:
             # Parse statistics section
             stats_content = ''.join(lines[stats_start_idx:])
             
-            # Parse timing information
+            # Count query_count based on number of "Run Time:" lines
+            query_count = len(re.findall(r'Run Time: real', stats_content))
+            
+            # Parse timing information (use the last Run Time line)
             # Format: "Run Time: real 17.338 user 14.308602 sys 2.313507"
-            timing_match = re.search(r'Run Time: real\s+([\d.]+)\s+user\s+([\d.]+)\s+sys\s+([\d.]+)', stats_content)
-            if timing_match:
-                timing_info.run_time = float(timing_match.group(1))
-                timing_info.user_time = float(timing_match.group(2))
-                timing_info.system_time = float(timing_match.group(3))
+            timing_matches = re.findall(r'Run Time: real\s+([\d.]+)\s+user\s+([\d.]+)\s+sys\s+([\d.]+)', stats_content)
+            if timing_matches:
+                # Use the last timing result
+                last_match = timing_matches[-1]
+                timing_info.run_time = float(last_match[0])
+                timing_info.user_time = float(last_match[1])
+                timing_info.system_time = float(last_match[2])
             
             # Parse memory information
             # Format: "Memory Used: 2382384 (max 28582800) bytes"
-            memory_used_match = re.search(r'Memory Used:\s+([\d]+)', stats_content)
+            memory_used_match = re.search(r'Memory Used:\s+([\d]+)\s+\(max\s+([\d]+)\)', stats_content)
             if memory_used_match:
                 memory_info.memory_used = int(memory_used_match.group(1))
+                memory_info.max_memory_used = int(memory_used_match.group(2))
+            else:
+                # Fallback: try without max value
+                memory_used_match = re.search(r'Memory Used:\s+([\d]+)', stats_content)
+                if memory_used_match:
+                    memory_info.memory_used = int(memory_used_match.group(1))
             
             # Format: "Pager Heap Usage: 2103296 bytes"
             heap_usage_match = re.search(r'Pager Heap Usage:\s+([\d]+)', stats_content)
@@ -84,7 +97,7 @@ class SqliteLogParser:
         except Exception as e:
             print(f"Warning: Could not parse {stdout_file}: {e}")
         
-        return output_rows, timing_info, memory_info
+        return output_rows, timing_info, memory_info, query_count
 
 if __name__ == "__main__":
     log_path = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/results"
