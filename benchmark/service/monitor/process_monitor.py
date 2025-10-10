@@ -11,8 +11,8 @@ from typing import Optional, List
 
 import psutil
 
-from benchmark.monitor.process_monitor_result import ProcessMonitorResult
-from benchmark.monitor.process_snapshot import ProcessSnapshot
+from benchmark.service.monitor.process_monitor_result import ProcessMonitorResult
+from benchmark.service.monitor.process_snapshot import ProcessSnapshot
 
 
 class ProcessMonitor:
