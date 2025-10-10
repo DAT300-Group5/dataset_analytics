@@ -24,7 +24,6 @@ class MemoryInfo:
 class QueryMetrics:
     """Complete metrics for a query execution"""
     query_number: Optional[int] = None
-    query_description: Optional[str] = None
     timing: Optional[TimingInfo] = None
     memory: Optional[MemoryInfo] = None
     output_rows: Optional[int] = None  # Number of output rows
