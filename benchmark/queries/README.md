@@ -8,12 +8,8 @@ queries:
     - duckdb
     - sqlite
     - chdb
-   - Q2
-    - duckdb
-    - sqlite
-    - chdb
-  - Q3
-    - ...
+   - Q2 ...
+   - Q3 ...
 - anomaly:
   - Q1
     - duckdb
