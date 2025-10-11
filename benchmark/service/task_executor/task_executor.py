@@ -30,7 +30,10 @@ class TaskExecutor:
         interval = self.calculate_interval()
         logger.info(f"Stage 2/2: Running benchmark ({self.std_repeat} iterations, interval={interval:.3f}s)")
         result = self._execute(self.std_repeat, interval=interval, is_pivot=False)
-        logger.info(f"✓ Stage 2/2 completed: final avg={result.execution_time.avg:.3f}s")
+        logger.info(f"✓ Stage 2/2 completed: "
+                   f"Time(avg)={result.execution_time.avg:.3f}s, "
+                   f"CPU(avg)={result.cpu_avg_percent.avg:.1f}%, "
+                   f"Memory(peak)={result.peak_memory_bytes.max / 1024 / 1024:.1f}MB")
         return result
 
     def _execute(self, repeat, interval, is_pivot=False) -> TaskExecuteResult:
@@ -43,7 +46,7 @@ class TaskExecutor:
             query_metric = self.log_parser.parse_log()
             task_execute_result = combine_results(monitor_result, query_metric)
             logger.info(f"  Run {i + 1}/{repeat}: Time={task_execute_result.execution_time:.2f}s, "
-                        f"CPU={task_execute_result.cpu_peek_percent:.1f}%, "
+                        f"CPU={task_execute_result.cpu_avg_percent:.1f}%, "
                         f"Memory={task_execute_result.peak_memory_bytes / 1024 / 1024:.1f}MB, "
                         f"Rows={task_execute_result.output_rows}")
             results.append(task_execute_result)
