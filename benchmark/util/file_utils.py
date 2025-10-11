@@ -30,5 +30,75 @@ def clean_path(path: str):
         elif item.is_dir():
             shutil.rmtree(item)
 
+def prepare_duckdb_sql_file(sql_file : str):
+    """
+    Prepare the SQL file by adding profiling configuration:
+    1. Add PRAGMA enable_profiling='json' at the beginning if not present
+    2. Add SET profiling_output before each SQL query statement
+    """
+    # Read the SQL file
+    with open(sql_file, 'r') as f:
+        content = f.read()
+
+    # Split content into statements by semicolon
+    # First, check if PRAGMA is present
+    has_pragma = 'PRAGMA enable_profiling' in content
+
+    # Split by semicolon to get individual statements
+    statements = content.split(';')
+
+    new_content_parts = []
+    query_number = 1
+
+    # Add PRAGMA at the beginning if not present
+    if not has_pragma:
+        new_content_parts.append("PRAGMA enable_profiling='json'")
+
+    for i, statement in enumerate(statements):
+        statement = statement.strip()
+
+        # Skip empty statements
+        if not statement:
+            continue
+
+        # Keep PRAGMA and existing SET statements as-is
+        if statement.startswith('PRAGMA') or statement.startswith('SET'):
+            new_content_parts.append(statement)
+            continue
+
+        # Check if this is a query statement (not a comment line only)
+        lines = statement.split('\n')
+        has_actual_sql = any(line.strip() and not line.strip().startswith('--')
+                             for line in lines)
+
+        if not has_actual_sql:
+            # Just comments or whitespace, keep as-is
+            new_content_parts.append(statement)
+            continue
+
+        # This is an actual SQL query
+        # Check if the previous statement was a SET profiling_output
+        if new_content_parts and 'SET profiling_output' in new_content_parts[-1]:
+            # Already has profiling output, just add the query
+            new_content_parts.append(statement)
+        else:
+            # Add SET profiling_output before the query
+            new_content_parts.append(f"SET profiling_output='results/profiling_query_{query_number}.json'")
+            new_content_parts.append(statement)
+
+        query_number += 1
+
+    # Reconstruct the SQL file with proper formatting
+    new_content = ';\n\n'.join(new_content_parts)
+    if new_content and not new_content.endswith(';'):
+        new_content += ';'
+
+    # Write back to the SQL file
+    with open(sql_file, 'w') as f:
+        f.write(new_content + '\n')
+
+    print(f"✓ Prepared SQL file: {sql_file}")
+
 if __name__ == "__main__":
-    clean_path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/results")
+    prepare_duckdb_sql_file("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql")
+    # clean_path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/results")
