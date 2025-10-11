@@ -99,6 +99,25 @@ def prepare_duckdb_sql_file(sql_file : str):
 
     print(f"✓ Prepared SQL file: {sql_file}")
 
+def prepare_sqlite_sql_file(sql_file : str):
+    """
+    Prepare the SQL file for SQLite by adding .timer ON at the beginning if not present.
+    """
+    # Read the SQL file
+    with open(sql_file, 'r') as f:
+        content = f.read()
+
+    # Check if .timer ON is present
+    if '.timer on \n.stats on' not in content:
+        # Add .timer ON at the beginning
+        new_content = '-- Enable timer and statistics\n.timer on\n.stats on\n\n' + content
+        # Write back to the SQL file
+        with open(sql_file, 'w') as f:
+            f.write(new_content)
+        print(f"✓ Prepared SQL file: {sql_file}")
+    else:
+        print(f"✓ SQL file already prepared: {sql_file}")
+
 if __name__ == "__main__":
-    prepare_duckdb_sql_file("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql")
+    prepare_sqlite_sql_file("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_sqlite.sql")
     # clean_path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/results")
