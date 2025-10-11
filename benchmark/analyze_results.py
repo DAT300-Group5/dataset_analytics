@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from benchmark.config.config_loader import ConfigLoader
+from benchmark.models.plot_params import PlotParams
 
 # Define colors for different engines
 ENGINE_COLORS = {
@@ -169,14 +170,7 @@ def compare_specific_results(data, comparisons, output_dir):
     plt.close()
 
 
-def create_execution_time_comparison(data, output_dir):
-    """
-    Create execution time comparison chart across queries and engines.
-    
-    Args:
-        data (dict): Summary data
-        output_dir (Path): Output directory path
-    """
+def create_execution_time_comparison(data, compare_pairs, output_dir):
     queries = list(data.keys())
     engines = set()
     for query_data in data.values():
@@ -583,7 +577,7 @@ def main():
     print("Generating visualizations...")
     print("-" * 50)
     
-    create_execution_time_comparison(data, output_dir)
+    create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
     create_memory_usage_comparison(data, output_dir)
     create_cpu_usage_comparison(data, output_dir)
     create_throughput_comparison(data, output_dir)
@@ -645,6 +639,46 @@ def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
     compare_specific_results(data, comparisons, output_dir)
     
     print(f"✅ Comparison saved to {output_dir.resolve()}")
+
+def plot_bar_chart(params : PlotParams):
+
+    x = np.arange(len(params.values))
+    fig, ax = plt.subplots(figsize=params.figsize)
+
+    ax.bar(x, params.values, color=params.colors, linewidth=1)
+
+    # Y轴和标题
+    ax.set_ylabel(params.ylabel)
+    ax.set_title(params.title)
+    ax.set_xticks(x)
+    ax.set_xticklabels(params.labels, rotation=params.rotation, ha="right")
+
+    # 加网格线
+    ax.grid(True, alpha=0.3, axis="y")
+
+    # 在柱子上标注数值
+    if params.annotate:
+        for i, v in enumerate(params.values):
+            ax.text(
+                i,
+                v + (max(params.values) * 0.01),  # 稍微上移一点
+                f"{v:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
+
+    plt.tight_layout()
+
+    # 保存或显示
+    if params.output_path:
+        output_path = Path(params.output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_path, dpi=160)
+        print(f"✓ Saved: {output_path.name}")
+    else:
+        plt.show()
+    plt.close()
 
 
 if __name__ == "__main__":
