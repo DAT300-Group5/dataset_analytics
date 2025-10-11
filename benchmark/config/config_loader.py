@@ -84,6 +84,7 @@ class ConfigLoader:
                             sql_file=Path(sql_file),
                             db_file=Path(db_file),
                             exp_name=exp_name,
+                            group_id=query_group.id,
                             engine_cmd=engine_cmd,
                             cwd=Path(self.config_data.cwd),
                             sample_count=self.config_data.sample_count,

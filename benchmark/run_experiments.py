@@ -5,15 +5,16 @@ Benchmark experiment runner for database performance testing.
 This module orchestrates benchmark experiments across multiple database engines,
 datasets, and query configurations.
 """
-import cmd
+import json
 from pathlib import Path
+
 from benchmark.config.config_loader import ConfigLoader
 from benchmark.consts.EngineType import EngineType
 from benchmark.models.experiment_params import ExperimentParams
 from benchmark.service.proflie_parser.duckdb_log_parser import DuckdbLogParser
 from benchmark.service.proflie_parser.sqlite_log_parser import SqliteLogParser
-from benchmark.service.runner.sqlite_runner import SQLiteRunner
 from benchmark.service.runner.duckdb_runner import DuckdbRunner
+from benchmark.service.runner.sqlite_runner import SQLiteRunner
 from benchmark.service.task_executor.task_executor import TaskExecutor
 
 
@@ -50,12 +51,22 @@ def main() -> None:
     config = ConfigLoader(config_path)
     experiments = config.get_experiments()
     print(f"Experiments: {len(experiments)}")
-    
+
+    summary = {}
     # Print experiment details
     for exp in experiments:
         task_executor = build_experiment(exp)
         print(f"Experiment: {exp}, TaskExecutor: {task_executor}")
-        task_executor.std_execute()
+        result = task_executor.std_execute()
+        if exp.group_id not in summary:
+            summary[exp.group_id] = []
+        summary[exp.group_id].append(result)
+
+    # Export summary to CSV
+    summary_path = config.config_data.cwd / "summary.csv"
+    with open(summary_path, 'w') as f:
+        json.dump(summary, f)
+    print(f"Summary exported to {summary_path.resolve()}")
 
 if __name__ == "__main__":
     main()
