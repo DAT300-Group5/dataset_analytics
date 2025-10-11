@@ -10,5 +10,6 @@ class BenchmarkConfig:
     repeat_pilot: int
     sample_count: int
     std_repeat: int
+    cwd: str
     datasets: List[Dataset]
     query_groups: List[QueryGroup]
