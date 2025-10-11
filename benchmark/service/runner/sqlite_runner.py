@@ -13,11 +13,11 @@ class SQLiteRunner:
         self.execution_result = None
         self.cpu_result = None
         self.cwd = Path.cwd() if cwd is None else Path(cwd)
+        self.results_dir = self.cwd / "results"
 
     def run_subprocess(self):
-        results_dir = Path(self.cwd) / "results"
-        stdout_path = results_dir / "stdout.log"
-        stderr_path = results_dir / "stderr.log"
+        stdout_path = self.results_dir / "stdout.log"
+        stderr_path = self.results_dir / "stderr.log"
         print(f"Running {self.sql_file} \n on {self.db_file} \n using {self.cmd} \n in {self.cwd}")
         try:
             with open(self.sql_file, 'r') as sql_input, \

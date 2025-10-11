@@ -1,7 +1,7 @@
 import dataclasses
 
 
-@dataclasses
+@dataclasses.dataclass
 class TaskExecuteResult:
     cpu_peek_percent: float
     cpu_avg_percent: float
