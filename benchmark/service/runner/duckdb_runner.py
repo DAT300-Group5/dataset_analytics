@@ -2,6 +2,9 @@
 import subprocess
 from pathlib import Path
 
+from benchmark.util.file_utils import prepare_duckdb_sql_file
+
+
 class DuckdbRunner:
 
     def __init__(self, sql_file: str, db_file: str, cmd: str = "duckdb", cwd: str = None):
@@ -16,6 +19,8 @@ class DuckdbRunner:
         
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
+
+        prepare_duckdb_sql_file(sql_file)
 
     def run_subprocess(self):
         results_dir = Path(self.cwd) / "results"

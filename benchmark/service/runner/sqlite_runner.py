@@ -3,6 +3,9 @@ import logging
 import subprocess
 from pathlib import Path
 
+from benchmark.util.file_utils import prepare_sqlite_sql_file
+
+
 class SQLiteRunner:
 
     def __init__(self, sql_file: str, db_file: str, cmd: str = "sqlite3", cwd: str = None):
@@ -17,6 +20,8 @@ class SQLiteRunner:
 
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
+
+        prepare_sqlite_sql_file(sql_file)
 
     def run_subprocess(self) -> subprocess.Popen:
         stdout_path = self.results_dir / "stdout.log"

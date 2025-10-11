@@ -17,7 +17,7 @@ datasets:
     chdb_db_dir: ./db_vs14/vs14_data_chdb
 
 query_groups:
-  - id: Q1
-    duckdb_sql: queries/Q1/Q1_duckdb.sql
-    sqlite_sql: queries/Q1/Q1_sqlite.sql
+  - id: Q2
+    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q2_duckdb.sql
+    sqlite_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q2_sqlite.sql
     chdb_sql:   queries/Q1/Q1_clickhouse.sql
