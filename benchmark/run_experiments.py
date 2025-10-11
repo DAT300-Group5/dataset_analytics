@@ -37,7 +37,7 @@ def build_experiment(params : ExperimentParams) :
 def add_result_to_summary(summary: dict, group_id: str, engine: EngineType, result: dict) -> None:
     if group_id not in summary:
         summary[group_id] = {}
-    summary[group_id][engine] = result
+    summary[group_id][engine.value] = result
 
 def main() -> None:
     """
