@@ -70,16 +70,20 @@ class ConfigLoader:
                     db_file = getattr(dataset, f"{engine.value}_db") or getattr(dataset, f"{engine.value}_db_dir")
 
                     if sql_file and db_file:
+                        # Generate experiment name as query_id + engine
+                        exp_name = f"{query_group.id}_{engine.value}"
+                        
                         exp_params = ExperimentParams(
                             sql_file=Path(sql_file),
                             db_file=Path(db_file),
+                            exp_name=exp_name,
                             engine_cmd=engine.value,
                             cwd=Path(self.config_data.cwd),
                             sample_count=self.config_data.sample_count,
                             std_repeat=self.config_data.std_repeat
                         )
                         experiments.append(exp_params)
-
+                        print(f"Created experiment", exp_params)
         return experiments
     
 if __name__ == "__main__":
