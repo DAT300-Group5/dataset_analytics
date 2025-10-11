@@ -33,6 +33,140 @@ def load_summary_data(file_path):
         return json.load(f)
 
 
+def compare_specific_results(data, comparisons, output_dir):
+    """
+    Compare specific (group_id, engine) combinations and generate visualization.
+    
+    Args:
+        data (dict): Summary data
+        comparisons (list): List of tuples [(group_id, engine), ...]
+        output_dir (Path): Output directory path
+        
+    Example:
+        comparisons = [('Q1', 'duckdb'), ('Q1', 'sqlite'), ('Q2', 'duckdb')]
+    """
+    # Validate comparisons
+    valid_comparisons = []
+    labels = []
+    for group_id, engine in comparisons:
+        if group_id in data and engine in data[group_id]:
+            valid_comparisons.append((group_id, engine))
+            labels.append(f"{group_id}_{engine}")
+        else:
+            print(f"⚠️  Warning: ({group_id}, {engine}) not found in data")
+    
+    if not valid_comparisons:
+        print("❌ No valid comparisons found")
+        return
+    
+    # Extract metrics for comparison
+    exec_times = []
+    memory_usage = []
+    cpu_avg = []
+    cpu_peak = []
+    throughput = []
+    
+    for group_id, engine in valid_comparisons:
+        metrics = data[group_id][engine]
+        exec_times.append(metrics['execution_time']['avg'])
+        memory_usage.append(metrics['peak_memory_bytes']['avg'] / (1024 * 1024))
+        cpu_avg.append(metrics['cpu_avg_percent']['avg'])
+        cpu_peak.append(metrics['cpu_peek_percent']['avg'])
+        
+        time_sec = metrics['execution_time']['avg']
+        rows = metrics['output_rows']
+        throughput.append(rows / time_sec if time_sec > 0 else 0)
+    
+    # Create comparison visualization
+    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+    
+    x = np.arange(len(valid_comparisons))
+    colors = [ENGINE_COLORS.get(engine, '#333333') for _, engine in valid_comparisons]
+    
+    # 1. Execution Time
+    ax = axes[0, 0]
+    ax.bar(x, exec_times, color=colors, edgecolor='black', linewidth=1)
+    ax.set_ylabel('Time (seconds)')
+    ax.set_title('Execution Time')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha='right')
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    # 2. Memory Usage
+    ax = axes[0, 1]
+    ax.bar(x, memory_usage, color=colors, edgecolor='black', linewidth=1)
+    ax.set_ylabel('Memory (MB)')
+    ax.set_title('Peak Memory Usage')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha='right')
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    # 3. CPU Average
+    ax = axes[0, 2]
+    ax.bar(x, cpu_avg, color=colors, edgecolor='black', linewidth=1)
+    ax.set_ylabel('CPU (%)')
+    ax.set_title('Average CPU Usage')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha='right')
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    # 4. CPU Peak
+    ax = axes[1, 0]
+    ax.bar(x, cpu_peak, color=colors, edgecolor='black', linewidth=1)
+    ax.set_ylabel('CPU (%)')
+    ax.set_title('Peak CPU Usage')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha='right')
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    # 5. Throughput
+    ax = axes[1, 1]
+    ax.bar(x, throughput, color=colors, edgecolor='black', linewidth=1)
+    ax.set_ylabel('Rows/sec')
+    ax.set_title('Throughput')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha='right')
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    # 6. Summary Table
+    ax = axes[1, 2]
+    ax.axis('off')
+    table_data = []
+    for i, (group_id, engine) in enumerate(valid_comparisons):
+        table_data.append([
+            labels[i],
+            f"{exec_times[i]:.3f}s",
+            f"{memory_usage[i]:.1f}MB",
+            f"{throughput[i]:.0f}/s"
+        ])
+    
+    table = ax.table(cellText=table_data,
+                    colLabels=['Label', 'Time', 'Memory', 'Throughput'],
+                    cellLoc='center',
+                    loc='center',
+                    bbox=[0, 0, 1, 1])
+    table.auto_set_font_size(False)
+    table.set_fontsize(9)
+    table.scale(1, 2)
+    
+    # Style header
+    for i in range(4):
+        table[(0, i)].set_facecolor('#40466e')
+        table[(0, i)].set_text_props(weight='bold', color='white')
+    
+    plt.tight_layout()
+    
+    # Generate filename from comparisons
+    comparison_name = "_vs_".join([f"{g}_{e}" for g, e in valid_comparisons[:3]])
+    if len(valid_comparisons) > 3:
+        comparison_name += "_and_more"
+    
+    output_file = output_dir / f"comparison_{comparison_name}.png"
+    plt.savefig(output_file, dpi=160)
+    print(f"✓ Generated: {output_file.name}")
+    plt.close()
+
+
 def create_execution_time_comparison(data, output_dir):
     """
     Create execution time comparison chart across queries and engines.
@@ -434,7 +568,7 @@ def main():
     """Main function: load data and generate all visualizations."""
     script_dir = Path(__file__).parent.resolve()
     summary_file = script_dir / "results" / "summary.json"
-    output_dir = script_dir / "results"
+    output_dir = script_dir / "results" / "visual"
     
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -454,9 +588,60 @@ def main():
     create_comprehensive_dashboard(data, output_dir)
     create_performance_summary_table(data, output_dir)
     
+    # Example: Compare specific results
+    print("\nGenerating custom comparisons...")
+    print("-" * 50)
+    
+    # Get all available combinations
+    available = []
+    for group_id, engines in data.items():
+        for engine in engines.keys():
+            available.append((group_id, engine))
+    
+    # If there are multiple engines/queries, create a comparison
+    if len(available) > 1:
+        compare_specific_results(data, available, output_dir)
+    
     print("-" * 50)
     print(f"\n✅ All visualizations generated successfully!")
     print(f"📁 Output directory: {output_dir.resolve()}")
+    print(f"\n💡 Available combinations for custom comparison:")
+    for group_id, engine in available:
+        print(f"   - ('{group_id}', '{engine}')")
+
+
+def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
+    """
+    Public API for generating custom comparisons.
+    
+    Args:
+        summary_file_path (str or Path): Path to summary.json
+        comparisons (list): List of tuples [(group_id, engine), ...]
+        output_dir (str or Path, optional): Output directory. Defaults to results/visual/
+        
+    Example:
+        generate_custom_comparison(
+            'results/summary.json',
+            [('Q1', 'duckdb'), ('Q1', 'sqlite'), ('Q2', 'duckdb')],
+            'results/visual/'
+        )
+    """
+    summary_file = Path(summary_file_path)
+    
+    if output_dir is None:
+        output_dir = summary_file.parent / "visual"
+    else:
+        output_dir = Path(output_dir)
+    
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    print(f"Loading data from {summary_file}...")
+    data = load_summary_data(summary_file)
+    
+    print(f"Generating comparison for {len(comparisons)} combinations...")
+    compare_specific_results(data, comparisons, output_dir)
+    
+    print(f"✅ Comparison saved to {output_dir.resolve()}")
 
 
 if __name__ == "__main__":
