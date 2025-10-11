@@ -20,7 +20,7 @@ def calculate_stat_summary(values: list[float]) -> StatSummary:
         avg=sum(sorted_values) / n
     )
 
-def combine_results(self, monitor_result : ProcessMonitorResult, query_metric : QueryMetrics) -> SingleTaskExecuteResult:
+def combine_results(monitor_result : ProcessMonitorResult, query_metric : QueryMetrics) -> SingleTaskExecuteResult:
     return SingleTaskExecuteResult(
         cpu_peek_percent=monitor_result.peak_cpu_percent,
         cpu_avg_percent=monitor_result.avg_cpu_percent,
@@ -29,4 +29,5 @@ def combine_results(self, monitor_result : ProcessMonitorResult, query_metric : 
         peak_memory_bytes=query_metric.memory.max_memory_used,
         execution_time=query_metric.timing.run_time,
         output_rows=query_metric.output_rows,
+        monitor_record_execution_time=monitor_result.execution_time
     )

@@ -20,6 +20,7 @@ class TaskExecuteResult:
     cpu_sampling_interval: float
     peak_memory_bytes: StatSummary
     execution_time: StatSummary
+    monitor_record_execution_time: StatSummary
     output_rows: int
 
 @dataclasses.dataclass
@@ -30,4 +31,5 @@ class SingleTaskExecuteResult:
     cpu_sampling_interval: float
     peak_memory_bytes: float
     execution_time: float
+    monitor_record_execution_time: float
     output_rows: int

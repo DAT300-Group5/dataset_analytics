@@ -49,7 +49,7 @@ class ProcessMonitor:
             print(f"⚠ Warning: Process {self.pid} not found")
             return
 
-        self.start_time = time.time()
+        self.start_time = time.perf_counter()
         self.running = True
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
@@ -62,7 +62,7 @@ class ProcessMonitor:
             ProcessMonitorResult or None if no samples collected
         """
         self.running = False
-        self.end_time = time.time()
+        self.end_time = time.perf_counter()
 
         if self.thread:
             self.thread.join(timeout=2.0)
@@ -115,7 +115,7 @@ class ProcessMonitor:
             avg_cpu_percent=sum(cpu_values) / len(cpu_values),
             samples_count=len(self.snapshots),
             sampling_interval=self.interval,
-
+            execution_time=self.end_time - self.start_time,
             # All snapshots
             snapshots=self.snapshots
         )

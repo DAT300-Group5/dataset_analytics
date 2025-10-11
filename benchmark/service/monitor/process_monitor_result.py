@@ -12,6 +12,7 @@ class ProcessMonitorResult:
     avg_cpu_percent: float
     samples_count: int
     sampling_interval: float
+    execution_time: float
 
     # All snapshots for detailed analysis
     snapshots: List[ProcessSnapshot]

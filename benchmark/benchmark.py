@@ -238,7 +238,7 @@ def main():
     # ---------------- Measured runs ----------------
     runs = []
 
-    for i in range(args.repeat):
+    for i in range(args.std_repeat):
             res = (run_once_child if args.child else run_once_inproc)(
                 engine=args.engine,
                 db_path=args.db_path,
@@ -253,7 +253,7 @@ def main():
                   .format(
                       eng=args.engine.upper(),
                       mode=("CHILD" if args.child else "INPROC"),
-                      k=i+1, n=args.repeat,
+                      k=i+1, n=args.std_repeat,
                       wall=res.wall_time_seconds,
                       child_wall=("child_wall=%.3fs" % res.child_wall_time_seconds) if res.child_wall_time_seconds is not None else "",
                       ttfr=("%.3f s" % res.ttfr_seconds) if res.ttfr_seconds is not None else "None",
@@ -281,7 +281,7 @@ def main():
         mode="child" if args.child else "inproc",
         db_path=args.db_path,
         query_file=args.query_file,
-        repeat=args.repeat,
+        repeat=args.std_repeat,
         warmups=args.warmups,
         threads=args.threads,
         # Wall time statistics
