@@ -12,6 +12,7 @@ import yaml
 
 from .dataset import Dataset
 from .query_group import QueryGroup
+from ..models.experiment_params import ExperimentParams
 
 # Constants for configuration validation
 SUPPORTED_MODES = {"child", "inproc"}
@@ -201,3 +202,6 @@ class BenchmarkConfig:
             ValueError: If engine is not supported
         """
         return query_group.get_sql_path(engine)
+
+    def get_experiments(self) -> List[ExperimentParams]:
+        continue
