@@ -4,6 +4,7 @@ Configuration manager for benchmark experiments.
 This module provides the BenchmarkConfig class for loading and validating
 benchmark configuration from YAML files.
 """
+from pathlib import Path
 from typing import List
 
 import yaml
@@ -70,10 +71,10 @@ class ConfigLoader:
 
                     if sql_file and db_file:
                         exp_params = ExperimentParams(
-                            sql_file=sql_file,
-                            db_file=db_file,
+                            sql_file=Path(sql_file),
+                            db_file=Path(db_file),
                             engine_cmd=engine.value,
-                            cwd=self.config_data.cwd,
+                            cwd=Path(self.config_data.cwd),
                             sample_count=self.config_data.sample_count,
                             std_repeat=self.config_data.std_repeat
                         )
