@@ -54,25 +54,39 @@ def main() -> None:
     5. Collect and export results to CSV manifest
     """
     # Initialize components
+    logger.info("=" * 60)
+    logger.info("Starting Benchmark Experiments")
+    logger.info("=" * 60)
+    
     # Get config path relative to this file
     config_path = Path(__file__).parent / "config.yaml"
     config = ConfigLoader(config_path)
     experiments = config.get_experiments()
-    logger.info(f"Loaded {len(experiments)} experiments")
+    logger.info(f"Loaded {len(experiments)} experiments from config")
+    logger.info("")
 
     summary = {}
     # Execute experiments
     for idx, exp in enumerate(experiments, 1):
-        logger.info(f"[{idx}/{len(experiments)}] {exp.group_id} - {exp.engine.value}")
+        logger.info("-" * 60)
+        logger.info(f"Experiment {idx}/{len(experiments)}: {exp.group_id} ({exp.engine.value})")
+        logger.info("-" * 60)
         task_executor = build_experiment(exp)
         result = task_executor.std_execute()
         add_result_to_summary(summary, exp.group_id, exp.engine, result.to_dict())
+        logger.info(f"✓ Experiment {idx}/{len(experiments)} completed")
+        logger.info("")
 
     # Export summary to JSON
+    logger.info("=" * 60)
+    logger.info("Exporting Results")
+    logger.info("=" * 60)
     summary_path = Path(config.config_data.cwd) / "summary.json"
     with open(summary_path, 'w') as f:
         json.dump(summary, f, indent=2)
-    logger.info(f"Results exported to {summary_path.resolve()}")
+    logger.info(f"✓ Results exported to: {summary_path.resolve()}")
+    logger.info("")
+    logger.info("All experiments completed successfully!")
 
 if __name__ == "__main__":
     main()
