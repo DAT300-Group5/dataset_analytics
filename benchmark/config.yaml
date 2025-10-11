@@ -1,23 +1,71 @@
-# === Edit me ===
+# ============================================================
+# Benchmark Configuration
+# ============================================================
+# This file configures the database benchmark experiments.
+# Edit the parameters below to customize your benchmark runs.
+
+# ------------------------------------------------------------
+# Execution Parameters
+# ------------------------------------------------------------
+
+# engines: List of database engines to benchmark
+# Supported values: duckdb, sqlite, chdb
 engines: [duckdb, sqlite]
 
+# repeat_pilot: Number of pilot runs to calculate sampling interval
+# Purpose: Stage 1/2 runs this many times with DEFAULT_PIVOT_INTERVAL (10s)
+# to estimate query execution time and determine optimal monitoring interval
+# Formula: sampling_interval = avg_execution_time / sample_count
+# Default: 3 runs
 repeat_pilot: 3
+
+# sample_count: Target number of monitoring samples during query execution
+# Purpose: Used to calculate monitoring interval = avg_time / sample_count
+# Higher values = more granular CPU/memory monitoring but more overhead
+# Default: 10 samples per query
 sample_count: 10
+
+# std_repeat: Number of actual benchmark iterations (Stage 2/2)
+# Purpose: Main benchmark runs for statistical analysis (avg, p50, p95, p99)
+# Higher values = more accurate statistics but longer execution time
+# Default: 5 runs
 std_repeat: 5
+
+# output_cwd: Output directory for results
+# Structure: output_cwd/
+#   ├── summary.json (aggregated results for all experiments)
+#   └── <experiment_name>/results/ (individual run logs and profiling data)
 output_cwd: ./results
 
+# ------------------------------------------------------------
+# Engine Paths
+# ------------------------------------------------------------
+
+# Absolute or relative paths to database engine executables
 engine_paths:
-  duckdb: duckdb
-  sqlite: /Users/xiejiangzhao/sqlite3/bin/sqlite3
+  duckdb: duckdb  # Use system duckdb (assumes in PATH)
+  sqlite: /Users/xiejiangzhao/sqlite3/bin/sqlite3  # Custom SQLite build path
 
+# ------------------------------------------------------------
+# Datasets
+# ------------------------------------------------------------
+
+# datasets: List of database files to benchmark
+# Each dataset can have different database files for each engine
 datasets:
-  - name: vs14
-    duckdb_db: ./db_vs14/vs14_data.duckdb
-    sqlite_db: ./db_vs14/vs14_data.sqlite
-    chdb_db_dir: ./db_vs14/vs14_data_chdb
+  - name: vs14  # Dataset identifier
+    duckdb_db: ./db_vs14/vs14_data.duckdb  # DuckDB database file
+    sqlite_db: ./db_vs14/vs14_data.sqlite  # SQLite database file
+    chdb_db_dir: ./db_vs14/vs14_data_chdb  # chDB database directory
 
+# ------------------------------------------------------------
+# Query Groups
+# ------------------------------------------------------------
+
+# query_groups: SQL queries to execute on each database
+# Each query group can have engine-specific SQL files
 query_groups:
-  - id: Q2
+  - id: Q2  # Query identifier (used in results and compare_pairs)
     duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q2_duckdb.sql
     sqlite_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q2_sqlite.sql
 
@@ -25,6 +73,14 @@ query_groups:
     duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_duckdb.sql
     sqlite_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_sqlite.sql
 
+# ------------------------------------------------------------
+# Visualization Comparison Pairs
+# ------------------------------------------------------------
+
+# compare_pairs: Define which experiments to compare in visualizations
+# Format: [ query_group_id, engine ]
+# Purpose: Used by analyze_results.py to generate comparison charts
+# These pairs will be plotted together for easy performance comparison
 compare_pairs:
   - [ Q2, duckdb ]
   - [ Q2, sqlite ]
