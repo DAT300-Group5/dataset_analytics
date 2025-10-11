@@ -34,6 +34,11 @@ def build_experiment(params : ExperimentParams) :
         task_executor = TaskExecutor(runner=runner, log_parser=duckdb_parser, sample_count=params.sample_count, std_repeat=params.std_repeat)
         return task_executor
 
+def add_result_to_summary(summary: dict, group_id: str, engine: EngineType, result: dict) -> None:
+    if group_id not in summary:
+        summary[group_id] = {}
+    summary[group_id][engine] = result
+
 def main() -> None:
     """
     Main entry point for benchmark experiment execution.
@@ -58,14 +63,12 @@ def main() -> None:
         task_executor = build_experiment(exp)
         print(f"Experiment: {exp}, TaskExecutor: {task_executor}")
         result = task_executor.std_execute()
-        if exp.group_id not in summary:
-            summary[exp.group_id] = []
-        summary[exp.group_id].append(result)
+        add_result_to_summary(summary, exp.group_id, exp.engine, result.to_dict())
 
     # Export summary to CSV
-    summary_path = config.config_data.cwd / "summary.csv"
+    summary_path = Path(config.config_data.cwd) / "summary.json"
     with open(summary_path, 'w') as f:
-        json.dump(summary, f)
+        json.dump(summary, f, indent=2)
     print(f"Summary exported to {summary_path.resolve()}")
 
 if __name__ == "__main__":

@@ -12,6 +12,10 @@ class StatSummary:
     p99: float
     avg: float
 
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization"""
+        return dataclasses.asdict(self)
+
 @dataclasses.dataclass
 class TaskExecuteResult:
     cpu_peek_percent: StatSummary
@@ -23,6 +27,10 @@ class TaskExecuteResult:
     monitor_record_execution_time: StatSummary
     output_rows: int
 
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization"""
+        return dataclasses.asdict(self)
+
 @dataclasses.dataclass
 class SingleTaskExecuteResult:
     cpu_peek_percent: float
@@ -33,3 +41,7 @@ class SingleTaskExecuteResult:
     execution_time: float
     monitor_record_execution_time: float
     output_rows: int
+
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization"""
+        return dataclasses.asdict(self)
