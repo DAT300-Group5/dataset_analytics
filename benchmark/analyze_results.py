@@ -48,19 +48,10 @@ def compare_specific_results(data, comparisons, output_dir):
     Example:
         comparisons = [('Q1', 'duckdb'), ('Q1', 'sqlite'), ('Q2', 'duckdb')]
     """
-    # Validate comparisons
-    valid_comparisons = []
     labels = []
-    for group_id, engine in comparisons:
-        if group_id in data and engine in data[group_id]:
-            valid_comparisons.append((group_id, engine))
-            labels.append(f"{group_id}_{engine}")
-        else:
-            print(f"⚠️  Warning: ({group_id}, {engine}) not found in data")
-    
-    if not valid_comparisons:
-        print("❌ No valid comparisons found")
-        return
+    for comparison in comparisons:
+        group_id, engine = comparison
+        labels.append(f"{group_id}_{engine}")
     
     # Extract metrics for comparison
     exec_times = []
@@ -69,8 +60,8 @@ def compare_specific_results(data, comparisons, output_dir):
     cpu_peak = []
     throughput = []
     
-    for group_id, engine in valid_comparisons:
-        metrics = data[group_id][engine]
+    for group_id, engine in comparisons:
+        metrics = data[group_id][engine.value]
         exec_times.append(metrics['execution_time']['avg'])
         memory_usage.append(metrics['peak_memory_bytes']['avg'] / (1024 * 1024))
         cpu_avg.append(metrics['cpu_avg_percent']['avg'])
@@ -83,8 +74,8 @@ def compare_specific_results(data, comparisons, output_dir):
     # Create comparison visualization
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
     
-    x = np.arange(len(valid_comparisons))
-    colors = [ENGINE_COLORS.get(engine, '#333333') for _, engine in valid_comparisons]
+    x = np.arange(len(comparisons))
+    colors = [ENGINE_COLORS.get(engine.value, '#333333') for _, engine in comparisons]
     
     # 1. Execution Time
     ax = axes[0, 0]
@@ -135,7 +126,7 @@ def compare_specific_results(data, comparisons, output_dir):
     ax = axes[1, 2]
     ax.axis('off')
     table_data = []
-    for i, (group_id, engine) in enumerate(valid_comparisons):
+    for i, (group_id, engine) in enumerate(comparisons):
         table_data.append([
             labels[i],
             f"{exec_times[i]:.3f}s",
@@ -160,8 +151,8 @@ def compare_specific_results(data, comparisons, output_dir):
     plt.tight_layout()
     
     # Generate filename from comparisons
-    comparison_name = "_vs_".join([f"{g}_{e}" for g, e in valid_comparisons[:3]])
-    if len(valid_comparisons) > 3:
+    comparison_name = "_vs_".join([f"{g}_{e}" for g, e in comparisons[:3]])
+    if len(comparisons) > 3:
         comparison_name += "_and_more"
     
     output_file = output_dir / f"comparison_{comparison_name}.png"
@@ -450,7 +441,7 @@ def create_performance_percentiles(data, output_dir):
         # Create box plot
         bp = ax.boxplot(box_data, positions=positions, widths=0.6,
                         patch_artist=True, showmeans=True,
-                        labels=labels)
+                        tick_labels=labels)
         
         # Color the boxes
         for patch, color in zip(bp['boxes'], colors_list):
@@ -481,15 +472,9 @@ def create_comprehensive_dashboard(data, compare_pairs, output_dir):
     if not compare_pairs:
         print("⚠️  No compare_pairs provided for comprehensive dashboard")
         return
-    
-    # Convert compare_pairs to the format expected by compare_specific_results
-    # compare_pairs has EngineType enum, but compare_specific_results expects string
-    comparisons = []
-    for group_id, engine in compare_pairs:
-        comparisons.append((group_id, engine.value))
-    
+
     # Just call compare_specific_results which already does comprehensive comparison
-    compare_specific_results(data, comparisons, output_dir)
+    compare_specific_results(data, compare_pairs, output_dir)
 
 
 def create_performance_summary_table(data, output_dir):
@@ -554,27 +539,7 @@ def main():
     create_performance_percentiles(data, output_dir)
     create_comprehensive_dashboard(data, config.config_data.compare_pairs, output_dir)
     create_performance_summary_table(data, output_dir)
-    
-    # Example: Compare specific results
-    print("\nGenerating custom comparisons...")
-    print("-" * 50)
-    
-    # Get all available combinations
-    available = []
-    for group_id, engines in data.items():
-        for engine in engines.keys():
-            available.append((group_id, engine))
-    
-    # If there are multiple engines/queries, create a comparison
-    if len(available) > 1:
-        compare_specific_results(data, available, output_dir)
-    
-    print("-" * 50)
-    print(f"\n✅ All visualizations generated successfully!")
-    print(f"📁 Output directory: {output_dir.resolve()}")
-    print(f"\n💡 Available combinations for custom comparison:")
-    for group_id, engine in available:
-        print(f"   - ('{group_id}', '{engine}')")
+
 
 
 def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
@@ -606,7 +571,7 @@ def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
     data = load_summary_data(summary_file)
     
     print(f"Generating comparison for {len(comparisons)} combinations...")
-    compare_specific_results(data, comparisons, output_dir)
+    # compare_specific_results(data, comparisons, output_dir)
     
     print(f"✅ Comparison saved to {output_dir.resolve()}")
 
