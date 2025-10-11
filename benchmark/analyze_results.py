@@ -227,168 +227,192 @@ def create_execution_time_comparison(data, compare_pairs, output_dir):
     plot_bar_chart(params)
 
 
-def create_memory_usage_comparison(data, output_dir):
+def create_memory_usage_comparison(data, compare_pairs, output_dir):
     """
-    Create memory usage comparison chart.
+    Create memory usage comparison chart using compare_pairs.
     
     Args:
-        data (dict): Summary data
+        data (dict): Summary data with structure {group_id: {engine: metrics}}
+        compare_pairs (list): List of tuples [(group_id, engine), ...]
         output_dir (Path): Output directory path
     """
-    queries = list(data.keys())
-    engines = set()
-    for query_data in data.values():
-        engines.update(query_data.keys())
-    engines = sorted(list(engines))
+    if not compare_pairs:
+        print("⚠️  No compare_pairs provided for memory usage comparison")
+        return
     
-    x = np.arange(len(queries)) * 1.5  # Increase spacing between groups
-    width = 0.25  # Width of each bar
+    # Extract data for the specified compare_pairs
+    values = []
+    labels = []
+    colors = []
     
-    fig, ax = plt.subplots(figsize=(12, 6))
-    
-    for i, engine in enumerate(engines):
-        avg_memory = []
-        for query in queries:
-            if engine in data[query]:
-                # Convert bytes to MB
-                memory_mb = data[query][engine]['peak_memory_bytes']['avg'] / (1024 * 1024)
-                avg_memory.append(memory_mb)
-            else:
-                avg_memory.append(0)
+    for group_id, engine in compare_pairs:
+        # Validate that this combination exists in data
+        if group_id not in data or engine.value not in data[group_id]:
+            print(f"⚠️  Warning: ({group_id}, {engine}) not found in data, skipping")
+            continue
         
-        offset = width * (i - len(engines) / 2 + 0.5)
-        ax.bar(x + offset, avg_memory, width, label=engine,
-               color=ENGINE_COLORS.get(engine, '#333333'), edgecolor='black', linewidth=1)
+        # Get peak memory and convert to MB
+        memory_mb = data[group_id][engine.value]['peak_memory_bytes']['avg'] / (1024 * 1024)
+        values.append(memory_mb)
+        
+        # Create label
+        label = f"{group_id}_{engine}"
+        labels.append(label)
+        
+        # Get color for this engine
+        color = ENGINE_COLORS.get(engine.value, '#333333')
+        colors.append(color)
     
-    ax.set_xlabel('Query')
-    ax.set_ylabel('Peak Memory (MB)')
-    ax.set_title('Average Peak Memory Usage by Query and Engine')
-    ax.set_xticks(x)
-    ax.set_xticklabels(queries)
-    ax.legend()
-    ax.grid(True, alpha=0.3, axis='y')
+    if not values:
+        print("❌ No valid data found for memory usage comparison")
+        return
     
-    plt.tight_layout()
-    output_file = output_dir / "memory_usage_comparison.png"
-    plt.savefig(output_file, dpi=160)
-    print(f"✓ Generated: {output_file.name}")
-    plt.close()
+    # Construct PlotParams
+    params = PlotParams(
+        values=values,
+        labels=labels,
+        colors=colors,
+        ylabel='Peak Memory (MB)',
+        title='Peak Memory Usage Comparison',
+        output_path=str(output_dir / "memory_usage_comparison.png"),
+        figsize=(12, 6),
+        rotation=0,
+        annotate=True
+    )
+    
+    # Call plot_bar_chart
+    plot_bar_chart(params)
 
 
-def create_cpu_usage_comparison(data, output_dir):
+def create_cpu_usage_comparison(data, compare_pairs, output_dir):
     """
-    Create CPU usage comparison chart.
+    Create CPU usage comparison chart using compare_pairs (Peak and Average).
     
     Args:
-        data (dict): Summary data
+        data (dict): Summary data with structure {group_id: {engine: metrics}}
+        compare_pairs (list): List of tuples [(group_id, engine), ...]
         output_dir (Path): Output directory path
     """
-    queries = list(data.keys())
-    engines = set()
-    for query_data in data.values():
-        engines.update(query_data.keys())
-    engines = sorted(list(engines))
+    if not compare_pairs:
+        print("⚠️  No compare_pairs provided for CPU usage comparison")
+        return
     
-    x = np.arange(len(queries)) * 1.5  # Increase spacing between groups
-    width = 0.25  # Width of each bar
+    # Extract data for the specified compare_pairs
+    peak_values = []
+    avg_values = []
+    labels = []
+    colors = []
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-    
-    # Peak CPU
-    for i, engine in enumerate(engines):
-        cpu_peak = []
-        for query in queries:
-            if engine in data[query]:
-                cpu_peak.append(data[query][engine]['cpu_peek_percent']['avg'])
-            else:
-                cpu_peak.append(0)
+    for group_id, engine in compare_pairs:
+        # Validate that this combination exists in data
+        if group_id not in data or engine.value not in data[group_id]:
+            print(f"⚠️  Warning: ({group_id}, {engine}) not found in data, skipping")
+            continue
         
-        offset = width * (i - len(engines) / 2 + 0.5)
-        ax1.bar(x + offset, cpu_peak, width, label=engine,
-                color=ENGINE_COLORS.get(engine, '#333333'), edgecolor='black', linewidth=1)
-    
-    ax1.set_xlabel('Query')
-    ax1.set_ylabel('CPU Peak (%)')
-    ax1.set_title('Average Peak CPU Usage by Query and Engine')
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(queries)
-    ax1.legend()
-    ax1.grid(True, alpha=0.3, axis='y')
-    
-    # Average CPU
-    for i, engine in enumerate(engines):
-        cpu_avg = []
-        for query in queries:
-            if engine in data[query]:
-                cpu_avg.append(data[query][engine]['cpu_avg_percent']['avg'])
-            else:
-                cpu_avg.append(0)
+        # Get CPU peak and average
+        cpu_peak = data[group_id][engine.value]['cpu_peek_percent']['avg']
+        cpu_avg = data[group_id][engine.value]['cpu_avg_percent']['avg']
+        peak_values.append(cpu_peak)
+        avg_values.append(cpu_avg)
         
-        offset = width * (i - len(engines) / 2 + 0.5)
-        ax2.bar(x + offset, cpu_avg, width, label=engine,
-                color=ENGINE_COLORS.get(engine, '#333333'), edgecolor='black', linewidth=1)
+        # Create label
+        label = f"{group_id}_{engine}"
+        labels.append(label)
+        
+        # Get color for this engine
+        color = ENGINE_COLORS.get(engine.value, '#333333')
+        colors.append(color)
     
-    ax2.set_xlabel('Query')
-    ax2.set_ylabel('CPU Average (%)')
-    ax2.set_title('Average CPU Usage by Query and Engine')
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(queries)
-    ax2.legend()
-    ax2.grid(True, alpha=0.3, axis='y')
+    if not peak_values:
+        print("❌ No valid data found for CPU usage comparison")
+        return
     
-    plt.tight_layout()
-    output_file = output_dir / "cpu_usage_comparison.png"
-    plt.savefig(output_file, dpi=160)
-    print(f"✓ Generated: {output_file.name}")
-    plt.close()
+    # Create Peak CPU chart
+    params_peak = PlotParams(
+        values=peak_values,
+        labels=labels,
+        colors=colors,
+        ylabel='CPU Peak (%)',
+        title='Peak CPU Usage Comparison',
+        output_path=str(output_dir / "cpu_peak_comparison.png"),
+        figsize=(12, 6),
+        rotation=0,
+        annotate=True
+    )
+    plot_bar_chart(params_peak)
+    
+    # Create Average CPU chart
+    params_avg = PlotParams(
+        values=avg_values,
+        labels=labels,
+        colors=colors,
+        ylabel='CPU Average (%)',
+        title='Average CPU Usage Comparison',
+        output_path=str(output_dir / "cpu_avg_comparison.png"),
+        figsize=(12, 6),
+        rotation=0,
+        annotate=True
+    )
+    plot_bar_chart(params_avg)
 
 
-def create_throughput_comparison(data, output_dir):
+def create_throughput_comparison(data, compare_pairs, output_dir):
     """
-    Create throughput (rows/sec) comparison chart.
+    Create throughput (rows/sec) comparison chart using compare_pairs.
     
     Args:
-        data (dict): Summary data
+        data (dict): Summary data with structure {group_id: {engine: metrics}}
+        compare_pairs (list): List of tuples [(group_id, engine), ...]
         output_dir (Path): Output directory path
     """
-    queries = list(data.keys())
-    engines = set()
-    for query_data in data.values():
-        engines.update(query_data.keys())
-    engines = sorted(list(engines))
+    if not compare_pairs:
+        print("⚠️  No compare_pairs provided for throughput comparison")
+        return
     
-    x = np.arange(len(queries)) * 1.5  # Increase spacing between groups
-    width = 0.25  # Width of each bar
+    # Extract data for the specified compare_pairs
+    values = []
+    labels = []
+    colors = []
     
-    fig, ax = plt.subplots(figsize=(12, 6))
-    
-    for i, engine in enumerate(engines):
-        throughput = []
-        for query in queries:
-            if engine in data[query]:
-                rows = data[query][engine]['output_rows']
-                time_sec = data[query][engine]['execution_time']['avg']
-                throughput.append(rows / time_sec if time_sec > 0 else 0)
-            else:
-                throughput.append(0)
+    for group_id, engine in compare_pairs:
+        # Validate that this combination exists in data
+        if group_id not in data or engine.value not in data[group_id]:
+            print(f"⚠️  Warning: ({group_id}, {engine}) not found in data, skipping")
+            continue
         
-        offset = width * (i - len(engines) / 2 + 0.5)
-        ax.bar(x + offset, throughput, width, label=engine,
-               color=ENGINE_COLORS.get(engine, '#333333'), edgecolor='black', linewidth=1)
+        # Calculate throughput
+        rows = data[group_id][engine.value]['output_rows']
+        time_sec = data[group_id][engine.value]['execution_time']['avg']
+        throughput = rows / time_sec if time_sec > 0 else 0
+        values.append(throughput)
+        
+        # Create label
+        label = f"{group_id}_{engine}"
+        labels.append(label)
+        
+        # Get color for this engine
+        color = ENGINE_COLORS.get(engine.value, '#333333')
+        colors.append(color)
     
-    ax.set_xlabel('Query')
-    ax.set_ylabel('Throughput (rows/sec)')
-    ax.set_title('Throughput by Query and Engine')
-    ax.set_xticks(x)
-    ax.set_xticklabels(queries)
-    ax.legend()
-    ax.grid(True, alpha=0.3, axis='y')
+    if not values:
+        print("❌ No valid data found for throughput comparison")
+        return
     
-    plt.tight_layout()
-    output_file = output_dir / "throughput_comparison.png"
-    plt.savefig(output_file, dpi=160)
-    print(f"✓ Generated: {output_file.name}")
-    plt.close()
+    # Construct PlotParams
+    params = PlotParams(
+        values=values,
+        labels=labels,
+        colors=colors,
+        ylabel='Throughput (rows/sec)',
+        title='Throughput Comparison',
+        output_path=str(output_dir / "throughput_comparison.png"),
+        figsize=(12, 6),
+        rotation=0,
+        annotate=True
+    )
+    
+    # Call plot_bar_chart
+    plot_bar_chart(params)
 
 
 def create_performance_percentiles(data, output_dir):
@@ -595,9 +619,9 @@ def main():
     print("-" * 50)
     
     create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
-    create_memory_usage_comparison(data, output_dir)
-    create_cpu_usage_comparison(data, output_dir)
-    create_throughput_comparison(data, output_dir)
+    create_memory_usage_comparison(data, config.config_data.compare_pairs, output_dir)
+    create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)
+    create_throughput_comparison(data, config.config_data.compare_pairs, output_dir)
     create_performance_percentiles(data, output_dir)
     create_comprehensive_dashboard(data, output_dir)
     create_performance_summary_table(data, output_dir)
