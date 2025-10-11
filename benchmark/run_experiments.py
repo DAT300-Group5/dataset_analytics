@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from config import BenchmarkConfig, Dataset, QueryGroup
+from config import ConfigLoader, Dataset, QueryGroup
 from models import BenchmarkResult
 
 # Constants
@@ -37,7 +37,7 @@ class BenchmarkRunner:
     Handles running individual benchmarks and calculating optimal intervals.
     """
     
-    def __init__(self, config: BenchmarkConfig, results_dir: Path):
+    def __init__(self, config: ConfigLoader, results_dir: Path):
         """
         Initialize benchmark runner.
         
@@ -318,7 +318,7 @@ def main() -> None:
     5. Collect and export results to CSV manifest
     """
     # Initialize components
-    config = BenchmarkConfig.load(HERE / "config.yaml")
+    config = ConfigLoader.load(HERE / "config.yaml")
     results_dir = HERE / "results"
     runner = BenchmarkRunner(config, results_dir)
     processor = ResultsProcessor(results_dir)
