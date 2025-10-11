@@ -4,7 +4,7 @@ engines: [duckdb, sqlite]
 repeat_pilot: 3
 sample_count: 10
 std_repeat: 5
-cwd : .
+cwd : ./results
 
 engine_paths:
   duckdb: duckdb
