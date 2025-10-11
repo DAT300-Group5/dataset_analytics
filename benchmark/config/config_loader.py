@@ -45,6 +45,9 @@ class ConfigLoader:
         config.std_repeat = data["std_repeat"]
         config.cwd = data["cwd"]
         
+        # Parse engine paths
+        config.engine_paths = data.get("engine_paths", {})
+        
         # Parse datasets
         config.datasets = [Dataset(**ds) for ds in data["datasets"]]
         
@@ -73,12 +76,15 @@ class ConfigLoader:
                         # Generate experiment name as query_id + engine
                         exp_name = f"{query_group.id}_{engine.value}"
                         
+                        # Get engine command from engine_paths or use engine name as default
+                        engine_cmd = self.config_data.engine_paths.get(engine.value, engine.value)
+                        
                         exp_params = ExperimentParams(
                             engine=engine,
                             sql_file=Path(sql_file),
                             db_file=Path(db_file),
                             exp_name=exp_name,
-                            engine_cmd=engine.value,
+                            engine_cmd=engine_cmd,
                             cwd=Path(self.config_data.cwd),
                             sample_count=self.config_data.sample_count,
                             std_repeat=self.config_data.std_repeat

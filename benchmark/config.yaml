@@ -6,6 +6,10 @@ sample_count: 10
 std_repeat: 5
 cwd : .
 
+engine_paths:
+  duckdb: duckdb
+  sqlite: /Users/xiejiangzhao/sqlite3/bin/sqlite3
+
 datasets:
   - name: vs14
     duckdb_db: ./db_vs14/vs14_data.duckdb

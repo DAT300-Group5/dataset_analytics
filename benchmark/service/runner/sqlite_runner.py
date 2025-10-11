@@ -15,6 +15,9 @@ class SQLiteRunner:
         self.cwd = Path.cwd() if cwd is None else Path(cwd)
         self.results_dir = self.cwd / "results"
 
+        # Create results directory if it doesn't exist
+        self.results_dir.mkdir(parents=True, exist_ok=True)
+
     def run_subprocess(self) -> subprocess.Popen:
         stdout_path = self.results_dir / "stdout.log"
         stderr_path = self.results_dir / "stderr.log"
