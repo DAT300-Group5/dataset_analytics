@@ -12,6 +12,7 @@ class DuckdbRunner:
         self.execution_result = None
         self.cpu_result = None
         self.cwd = Path.cwd() if cwd is None else Path(cwd)
+        self.results_dir = self.cwd / "results"
 
     def run_subprocess(self):
         results_dir = Path(self.cwd) / "results"

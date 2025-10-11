@@ -74,6 +74,7 @@ class ConfigLoader:
                         exp_name = f"{query_group.id}_{engine.value}"
                         
                         exp_params = ExperimentParams(
+                            engine=engine,
                             sql_file=Path(sql_file),
                             db_file=Path(db_file),
                             exp_name=exp_name,

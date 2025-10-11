@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from benchmark.consts.EngineType import EngineType
+
 
 @dataclass
 class ExperimentParams:
+    engine : EngineType
     sql_file : Path
     db_file : Path
     exp_name : str
@@ -14,6 +17,7 @@ class ExperimentParams:
 
     def __str__(self):
         return (f"ExperimentParams(\n"
+                f"  engine={self.engine},\n"
                 f"  sql_file={self.sql_file.resolve()},\n"
                 f"  db_file={self.db_file.resolve()},\n"
                 f"  exp_name={self.exp_name},\n"
