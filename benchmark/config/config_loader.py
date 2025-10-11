@@ -4,12 +4,15 @@ Configuration manager for benchmark experiments.
 This module provides the BenchmarkConfig class for loading and validating
 benchmark configuration from YAML files.
 """
+from typing import List
+
 import yaml
 
 from benchmark.config.benchmark_config import BenchmarkConfig
 from benchmark.config.dataset import Dataset
 from benchmark.config.query_group import QueryGroup
 from benchmark.consts.EngineType import EngineType
+from benchmark.models.experiment_params import ExperimentParams
 
 
 class ConfigLoader:
@@ -48,8 +51,38 @@ class ConfigLoader:
         config.query_groups = [QueryGroup(**qg) for qg in data["query_groups"]]
         
         return config
+
+    def get_experiments(self) -> List[ExperimentParams]:
+        """
+        Generate a list of ExperimentParams for all combinations of datasets,
+        query groups, and engines.
+
+        Returns:
+            List[ExperimentParams]: List of experiment parameters
+        """
+        experiments = []
+
+        for dataset in self.config_data.datasets:
+            for query_group in self.config_data.query_groups:
+                for engine in self.config_data.engines:
+                    sql_file = getattr(query_group, f"{engine.value}_sql")
+                    db_file = getattr(dataset, f"{engine.value}_db") or getattr(dataset, f"{engine.value}_db_dir")
+
+                    if sql_file and db_file:
+                        exp_params = ExperimentParams(
+                            sql_file=sql_file,
+                            db_file=db_file,
+                            engine_cmd=engine.value,
+                            cwd=self.config_data.cwd,
+                            sample_count=self.config_data.sample_count,
+                            std_repeat=self.config_data.std_repeat
+                        )
+                        experiments.append(exp_params)
+
+        return experiments
     
 if __name__ == "__main__":
 
     config = ConfigLoader("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/config.yaml")
+    config.get_experiments()
     print(config.config_data)

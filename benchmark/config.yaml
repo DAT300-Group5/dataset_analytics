@@ -1,5 +1,5 @@
 # === Edit me ===
-engines: [duckdb, chdb, sqlite]
+engines: [duckdb, sqlite]
 
 repeat_pilot: 3
 sample_count: 10
