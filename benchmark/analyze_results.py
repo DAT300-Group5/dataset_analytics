@@ -171,43 +171,60 @@ def compare_specific_results(data, comparisons, output_dir):
 
 
 def create_execution_time_comparison(data, compare_pairs, output_dir):
-    queries = list(data.keys())
-    engines = set()
-    for query_data in data.values():
-        engines.update(query_data.keys())
-    engines = sorted(list(engines))
+    """
+    Create execution time comparison chart using compare_pairs.
     
-    # Prepare data for plotting
-    x = np.arange(len(queries)) * 1.5  # Increase spacing between groups
-    width = 0.25  # Width of each bar
+    Args:
+        data (dict): Summary data with structure {group_id: {engine: metrics}}
+        compare_pairs (list): List of tuples [(group_id, engine), ...]
+        output_dir (Path): Output directory path
+    """
+    if not compare_pairs:
+        print("⚠️  No compare_pairs provided for execution time comparison")
+        return
     
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # Extract data for the specified compare_pairs
+    values = []
+    labels = []
+    colors = []
     
-    for i, engine in enumerate(engines):
-        avg_times = []
-        for query in queries:
-            if engine in data[query]:
-                avg_times.append(data[query][engine]['execution_time']['avg'])
-            else:
-                avg_times.append(0)
+    for group_id, engine in compare_pairs:
+        # Validate that this combination exists in data
+        if group_id not in data or engine.value not in data[group_id]:
+            print(f"⚠️  Warning: ({group_id}, {engine}) not found in data, skipping")
+            continue
         
-        offset = width * (i - len(engines) / 2 + 0.5)
-        ax.bar(x + offset, avg_times, width, label=engine, 
-               color=ENGINE_COLORS.get(engine, '#333333'), edgecolor='black', linewidth=1)
+        # Get execution time
+        exec_time = data[group_id][engine.value]['execution_time']['avg']
+        values.append(exec_time)
+        
+        # Create label
+        label = f"{group_id}_{engine}"
+        labels.append(label)
+        
+        # Get color for this engine
+        color = ENGINE_COLORS.get(engine.value, '#333333')
+        colors.append(color)
     
-    ax.set_xlabel('Query')
-    ax.set_ylabel('Execution Time (seconds)')
-    ax.set_title('Average Execution Time by Query and Engine')
-    ax.set_xticks(x)
-    ax.set_xticklabels(queries)
-    ax.legend()
-    ax.grid(True, alpha=0.3, axis='y')
+    if not values:
+        print("❌ No valid data found for execution time comparison")
+        return
     
-    plt.tight_layout()
-    output_file = output_dir / "execution_time_comparison.png"
-    plt.savefig(output_file, dpi=160)
-    print(f"✓ Generated: {output_file.name}")
-    plt.close()
+    # Construct PlotParams
+    params = PlotParams(
+        values=values,
+        labels=labels,
+        colors=colors,
+        ylabel='Execution Time (seconds)',
+        title='Average Execution Time Comparison',
+        output_path=str(output_dir / "execution_time_comparison.png"),
+        figsize=(12, 6),
+        rotation=0,
+        annotate=True
+    )
+    
+    # Call plot_bar_chart
+    plot_bar_chart(params)
 
 
 def create_memory_usage_comparison(data, output_dir):
