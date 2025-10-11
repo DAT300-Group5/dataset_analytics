@@ -4,7 +4,7 @@ engines: [duckdb, sqlite]
 repeat_pilot: 3
 sample_count: 10
 std_repeat: 5
-cwd : ./results
+output_cwd: ./results
 
 engine_paths:
   duckdb: duckdb
@@ -24,3 +24,7 @@ query_groups:
   - id: Q3
     duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_duckdb.sql
     sqlite_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_sqlite.sql
+
+compare_pairs:
+  - [ Q2, duckdb ]
+  - [ Q2, sqlite ]

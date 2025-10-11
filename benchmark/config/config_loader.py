@@ -18,7 +18,7 @@ from benchmark.models.experiment_params import ExperimentParams
 
 class ConfigLoader:
 
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: Path):
         self.config_path = config_path
         self.config_data = self._load_config()
 
@@ -43,7 +43,10 @@ class ConfigLoader:
         config.repeat_pilot = data["repeat_pilot"]
         config.sample_count = data["sample_count"]
         config.std_repeat = data["std_repeat"]
-        config.cwd = data["cwd"]
+        config.cwd = data["output_cwd"]
+        config.compare_pairs = []
+        for query_group, engine in data["compare_pairs"]:
+            config.compare_pairs.append((query_group, EngineType(engine)))
         
         # Parse engine paths
         config.engine_paths = data.get("engine_paths", {})
@@ -96,6 +99,6 @@ class ConfigLoader:
     
 if __name__ == "__main__":
 
-    config = ConfigLoader("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/config.yaml")
+    config = ConfigLoader(Path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/config.yaml"))
     config.get_experiments()
     print(config.config_data)

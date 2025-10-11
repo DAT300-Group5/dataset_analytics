@@ -11,6 +11,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from benchmark.config.config_loader import ConfigLoader
+
 # Define colors for different engines
 ENGINE_COLORS = {
     'duckdb': '#1f77b4',
@@ -566,9 +568,10 @@ def create_performance_summary_table(data, output_dir):
 
 def main():
     """Main function: load data and generate all visualizations."""
-    script_dir = Path(__file__).parent.resolve()
-    summary_file = script_dir / "results" / "summary.json"
-    output_dir = script_dir / "results" / "visual"
+    config_path = Path(__file__).parent / "config.yaml"
+    config = ConfigLoader(config_path)
+    summary_file = Path(config.config_data.cwd) / "summary.json"
+    output_dir = Path(config.config_data.cwd)  / "visual"
     
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)

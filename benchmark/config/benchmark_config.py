@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from benchmark.config.dataset import Dataset
 from benchmark.config.query_group import QueryGroup
@@ -14,3 +14,4 @@ class BenchmarkConfig:
     engine_paths: Dict[str, str]  # Map engine name to executable path
     datasets: List[Dataset]
     query_groups: List[QueryGroup]
+    compare_pairs: List[Tuple[str, EngineType]]
