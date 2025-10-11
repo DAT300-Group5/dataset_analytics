@@ -14,6 +14,9 @@ import psutil
 from benchmark.service.monitor.process_monitor_result import ProcessMonitorResult
 from benchmark.service.monitor.process_snapshot import ProcessSnapshot
 from benchmark.service.runner.sqlite_runner import SQLiteRunner
+from benchmark.util.log_config import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class ProcessMonitor:
@@ -46,7 +49,7 @@ class ProcessMonitor:
             # Initialize CPU percent (first call returns 0.0)
             self.process.cpu_percent(interval=None)
         except psutil.NoSuchProcess:
-            print(f"⚠ Warning: Process {self.pid} not found")
+            logger.warning(f"Process {self.pid} not found")
             return
 
         self.start_time = time.perf_counter()
@@ -93,7 +96,7 @@ class ProcessMonitor:
                 # Process ended
                 break
             except Exception as e:
-                print(f"⚠ Process monitor error: {e}")
+                logger.warning(f"Monitor error: {e}")
                 break
 
     def get_results(self) -> Optional[ProcessMonitorResult]:
@@ -153,13 +156,15 @@ if __name__ == "__main__":
     monitor = monitor_subprocess(process, interval=0.002)
     stdout, stderr = process.communicate()
     if process.returncode == 0:
-        print("✓ Execution succeeded")
-        print(stdout)
+        logger.info("Execution succeeded")
+        if stdout:
+            logger.debug(stdout)
     else:
-        print("✗ Execution failed")
-        print(stderr)
+        logger.error("Execution failed")
+        if stderr:
+            logger.error(stderr)
     if monitor:
-        print(f"Peak CPU: {monitor.peak_cpu_percent}%")
-        print(f"Avg CPU: {monitor.avg_cpu_percent}%")
-        print(f"Samples: {monitor.samples_count}")
-        print(f"Interval: {monitor.sampling_interval}s")
+        logger.info(f"Peak CPU: {monitor.peak_cpu_percent:.1f}%")
+        logger.info(f"Avg CPU: {monitor.avg_cpu_percent:.1f}%")
+        logger.info(f"Samples: {monitor.samples_count}")
+        logger.info(f"Interval: {monitor.sampling_interval}s")

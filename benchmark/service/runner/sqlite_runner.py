@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-import logging
 import subprocess
 from pathlib import Path
 
 from benchmark.util.file_utils import prepare_sqlite_sql_file
+from benchmark.util.log_config import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class SQLiteRunner:
@@ -26,7 +28,7 @@ class SQLiteRunner:
     def run_subprocess(self) -> subprocess.Popen:
         stdout_path = self.results_dir / "stdout.log"
         stderr_path = self.results_dir / "stderr.log"
-        print(f"Running {self.sql_file} \n on {self.db_file} \n using {self.cmd} \n in {self.cwd}")
+        logger.debug(f"Running SQLite: {self.sql_file.name} on {self.db_file.name}")
         try:
             with open(self.sql_file, 'r') as sql_input, \
                  open(stdout_path, 'w') as stdout_file, \
@@ -40,7 +42,7 @@ class SQLiteRunner:
                 )
                 return process
         except Exception as e:
-            print(f"✗ Execution failed with error: {e}")
+            logger.error(f"Execution failed: {e}")
             raise
 
 
@@ -53,8 +55,10 @@ if __name__ == "__main__":
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()
     if process.returncode == 0:
-        print("✓ Execution succeeded")
-        print(stdout)
+        logger.info("Execution succeeded")
+        if stdout:
+            logger.debug(stdout)
     else:
-        print("✗ Execution failed")
-        print(stderr)
+        logger.error("Execution failed")
+        if stderr:
+            logger.error(stderr)

@@ -16,6 +16,9 @@ from benchmark.service.proflie_parser.sqlite_log_parser import SqliteLogParser
 from benchmark.service.runner.duckdb_runner import DuckdbRunner
 from benchmark.service.runner.sqlite_runner import SQLiteRunner
 from benchmark.service.task_executor.task_executor import TaskExecutor
+from benchmark.util.log_config import setup_logger
+
+logger = setup_logger(__name__)
 
 
 def build_experiment(params : ExperimentParams) :
@@ -55,21 +58,21 @@ def main() -> None:
     config_path = Path(__file__).parent / "config.yaml"
     config = ConfigLoader(config_path)
     experiments = config.get_experiments()
-    print(f"Experiments: {len(experiments)}")
+    logger.info(f"Loaded {len(experiments)} experiments")
 
     summary = {}
-    # Print experiment details
-    for exp in experiments:
+    # Execute experiments
+    for idx, exp in enumerate(experiments, 1):
+        logger.info(f"[{idx}/{len(experiments)}] {exp.group_id} - {exp.engine.value}")
         task_executor = build_experiment(exp)
-        print(f"Experiment: {exp}, TaskExecutor: {task_executor}")
         result = task_executor.std_execute()
         add_result_to_summary(summary, exp.group_id, exp.engine, result.to_dict())
 
-    # Export summary to CSV
+    # Export summary to JSON
     summary_path = Path(config.config_data.cwd) / "summary.json"
     with open(summary_path, 'w') as f:
         json.dump(summary, f, indent=2)
-    print(f"Summary exported to {summary_path.resolve()}")
+    logger.info(f"Results exported to {summary_path.resolve()}")
 
 if __name__ == "__main__":
     main()
