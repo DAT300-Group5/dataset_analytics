@@ -5,6 +5,10 @@ PRAGMA enable_profiling='json';
 
 SET profiling_output='results/profiling_query_1.json';
 
+SELECT * FROM hrm LIMIT 5;
+
+SET profiling_output='results/profiling_query_2.json';
+
 WITH
 hrm_minute AS (
   SELECT
