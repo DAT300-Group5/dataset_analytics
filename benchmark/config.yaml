@@ -20,4 +20,7 @@ query_groups:
   - id: Q2
     duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q2_duckdb.sql
     sqlite_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q2_sqlite.sql
-    chdb_sql:   queries/Q1/Q1_clickhouse.sql
+
+  - id: Q3
+    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_duckdb.sql
+    sqlite_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_sqlite.sql
