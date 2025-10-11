@@ -468,99 +468,28 @@ def create_performance_percentiles(data, output_dir):
         plt.close()
 
 
-def create_comprehensive_dashboard(data, output_dir):
+def create_comprehensive_dashboard(data, compare_pairs, output_dir):
     """
     Create a comprehensive dashboard with multiple metrics.
+    Simply calls compare_specific_results with all available combinations.
     
     Args:
         data (dict): Summary data
+        compare_pairs (list): List of tuples [(group_id, engine), ...]
         output_dir (Path): Output directory path
     """
-    queries = list(data.keys())
-    engines = set()
-    for query_data in data.values():
-        engines.update(query_data.keys())
-    engines = sorted(list(engines))
+    if not compare_pairs:
+        print("⚠️  No compare_pairs provided for comprehensive dashboard")
+        return
     
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    # Convert compare_pairs to the format expected by compare_specific_results
+    # compare_pairs has EngineType enum, but compare_specific_results expects string
+    comparisons = []
+    for group_id, engine in compare_pairs:
+        comparisons.append((group_id, engine.value))
     
-    # 1. Execution Time
-    ax = axes[0, 0]
-    x = np.arange(len(queries)) * 1.5  # Increase spacing between groups
-    width = 0.25  # Width of each bar
-    for i, engine in enumerate(engines):
-        times = [data[q][engine]['execution_time']['avg'] if engine in data[q] else 0 
-                 for q in queries]
-        offset = width * (i - len(engines) / 2 + 0.5)
-        ax.bar(x + offset, times, width, label=engine,
-               color=ENGINE_COLORS.get(engine, '#333333'), edgecolor='black', linewidth=1)
-    ax.set_xlabel('Query')
-    ax.set_ylabel('Time (s)')
-    ax.set_title('Execution Time')
-    ax.set_xticks(x)
-    ax.set_xticklabels(queries)
-    ax.legend()
-    ax.grid(True, alpha=0.3, axis='y')
-    
-    # 2. Memory Usage
-    ax = axes[0, 1]
-    for i, engine in enumerate(engines):
-        memory = [data[q][engine]['peak_memory_bytes']['avg'] / (1024 * 1024) 
-                  if engine in data[q] else 0 for q in queries]
-        offset = width * (i - len(engines) / 2 + 0.5)
-        ax.bar(x + offset, memory, width, label=engine,
-               color=ENGINE_COLORS.get(engine, '#333333'), edgecolor='black', linewidth=1)
-    ax.set_xlabel('Query')
-    ax.set_ylabel('Memory (MB)')
-    ax.set_title('Peak Memory Usage')
-    ax.set_xticks(x)
-    ax.set_xticklabels(queries)
-    ax.legend()
-    ax.grid(True, alpha=0.3, axis='y')
-    
-    # 3. CPU Usage
-    ax = axes[1, 0]
-    for i, engine in enumerate(engines):
-        cpu = [data[q][engine]['cpu_avg_percent']['avg'] if engine in data[q] else 0 
-               for q in queries]
-        offset = width * (i - len(engines) / 2 + 0.5)
-        ax.bar(x + offset, cpu, width, label=engine,
-               color=ENGINE_COLORS.get(engine, '#333333'), edgecolor='black', linewidth=1)
-    ax.set_xlabel('Query')
-    ax.set_ylabel('CPU (%)')
-    ax.set_title('Average CPU Usage')
-    ax.set_xticks(x)
-    ax.set_xticklabels(queries)
-    ax.legend()
-    ax.grid(True, alpha=0.3, axis='y')
-    
-    # 4. Throughput
-    ax = axes[1, 1]
-    for i, engine in enumerate(engines):
-        throughput = []
-        for q in queries:
-            if engine in data[q]:
-                rows = data[q][engine]['output_rows']
-                time_sec = data[q][engine]['execution_time']['avg']
-                throughput.append(rows / time_sec if time_sec > 0 else 0)
-            else:
-                throughput.append(0)
-        offset = width * (i - len(engines) / 2 + 0.5)
-        ax.bar(x + offset, throughput, width, label=engine,
-               color=ENGINE_COLORS.get(engine, '#333333'), edgecolor='black', linewidth=1)
-    ax.set_xlabel('Query')
-    ax.set_ylabel('Rows/sec')
-    ax.set_title('Throughput')
-    ax.set_xticks(x)
-    ax.set_xticklabels(queries)
-    ax.legend()
-    ax.grid(True, alpha=0.3, axis='y')
-    
-    plt.tight_layout()
-    output_file = output_dir / "comprehensive_dashboard.png"
-    plt.savefig(output_file, dpi=160)
-    print(f"✓ Generated: {output_file.name}")
-    plt.close()
+    # Just call compare_specific_results which already does comprehensive comparison
+    compare_specific_results(data, comparisons, output_dir)
 
 
 def create_performance_summary_table(data, output_dir):
@@ -623,7 +552,7 @@ def main():
     create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)
     create_throughput_comparison(data, config.config_data.compare_pairs, output_dir)
     create_performance_percentiles(data, output_dir)
-    create_comprehensive_dashboard(data, output_dir)
+    create_comprehensive_dashboard(data, config.config_data.compare_pairs, output_dir)
     create_performance_summary_table(data, output_dir)
     
     # Example: Compare specific results
