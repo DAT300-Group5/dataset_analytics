@@ -51,7 +51,7 @@ def compare_specific_results(data, comparisons, output_dir):
     labels = []
     for comparison in comparisons:
         group_id, engine = comparison
-        labels.append(f"{group_id}_{engine}")
+        labels.append(f"{group_id}_{engine.value}")
     
     # Extract metrics for comparison
     exec_times = []
