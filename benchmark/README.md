@@ -295,6 +295,8 @@ Edit `config.yaml`:
 python run_experiments.py
 ```
 
+> **⚠️ Important Note**: When running benchmarks, the program automatically modifies SQL files to insert profiling statements (e.g., `.timer on`, `.stats on` for SQLite). These modifications are temporary and necessary for performance measurement. **DO NOT commit these modified SQL files to GitHub**.
+
 **Expected output:**
 
 ```bash
