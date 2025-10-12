@@ -75,6 +75,11 @@ benchmark/
     └── visual/          # Generated charts
 ```
 
+## Runtime Environment
+
+- **SQLite:** 3.43.2
+- **DuckDB:** v1.4.1
+
 ## Quick Start
 
 ### ⚠️ Important: Compile SQLite with Profiling Support
