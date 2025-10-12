@@ -2,6 +2,8 @@
 
 A comprehensive benchmarking framework for comparing database performance across multiple engines (DuckDB, SQLite, chDB) with automated monitoring, profiling, and visualization.
 
+> **📌 Note**: To use SQLite benchmarking features, you must compile SQLite with profiling support. See [COMPILE_SQLITE.md](./COMPILE_SQLITE.md) for instructions.
+
 ## Overview
 
 This benchmark system provides:
@@ -74,6 +76,16 @@ benchmark/
 ```
 
 ## Quick Start
+
+### ⚠️ Important: Compile SQLite with Profiling Support
+
+Before running benchmarks with SQLite, you **must** compile SQLite with the `SQLITE_ENABLE_STMT_SCANSTATUS` flag enabled to support query profiling and performance metrics.
+
+📖 **See [COMPILE_SQLITE.md](./COMPILE_SQLITE.md) for detailed compilation instructions.**
+
+Without this flag, SQLite profiling features will not work, and benchmark results will be incomplete.
+
+---
 
 ### 1. Install Dependencies
 
