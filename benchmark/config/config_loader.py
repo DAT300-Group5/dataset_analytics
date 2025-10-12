@@ -9,11 +9,11 @@ from typing import List
 
 import yaml
 
-from benchmark.config.benchmark_config import BenchmarkConfig
-from benchmark.config.dataset import Dataset
-from benchmark.config.query_group import QueryGroup
-from benchmark.consts.EngineType import EngineType
-from benchmark.models.experiment_params import ExperimentParams
+from config.benchmark_config import BenchmarkConfig
+from config.dataset import Dataset
+from config.query_group import QueryGroup
+from consts.EngineType import EngineType
+from models.experiment_params import ExperimentParams
 
 
 class ConfigLoader:

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Dict
 
-from benchmark.service.monitor.process_snapshot import ProcessSnapshot
+from service.monitor.process_snapshot import ProcessSnapshot
 
 
 @dataclass

@@ -11,9 +11,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from benchmark.config.config_loader import ConfigLoader
-from benchmark.models.plot_params import PlotParams
-from benchmark.util.file_utils import clean_path
+from config.config_loader import ConfigLoader
+from models.plot_params import PlotParams
+from util.file_utils import clean_path
 
 # Define colors for different engines
 ENGINE_COLORS = {

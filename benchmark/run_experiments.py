@@ -8,15 +8,15 @@ datasets, and query configurations.
 import json
 from pathlib import Path
 
-from benchmark.config.config_loader import ConfigLoader
-from benchmark.consts.EngineType import EngineType
-from benchmark.models.experiment_params import ExperimentParams
-from benchmark.service.proflie_parser.duckdb_log_parser import DuckdbLogParser
-from benchmark.service.proflie_parser.sqlite_log_parser import SqliteLogParser
-from benchmark.service.runner.duckdb_runner import DuckdbRunner
-from benchmark.service.runner.sqlite_runner import SQLiteRunner
-from benchmark.service.task_executor.task_executor import TaskExecutor
-from benchmark.util.log_config import setup_logger
+from config.config_loader import ConfigLoader
+from consts.EngineType import EngineType
+from models.experiment_params import ExperimentParams
+from service.proflie_parser.duckdb_log_parser import DuckdbLogParser
+from service.proflie_parser.sqlite_log_parser import SqliteLogParser
+from service.runner.duckdb_runner import DuckdbRunner
+from service.runner.sqlite_runner import SQLiteRunner
+from service.task_executor.task_executor import TaskExecutor
+from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
 

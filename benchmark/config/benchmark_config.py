@@ -1,8 +1,8 @@
 from typing import Dict, List, Tuple
 
-from benchmark.config.dataset import Dataset
-from benchmark.config.query_group import QueryGroup
-from benchmark.consts.EngineType import EngineType
+from config.dataset import Dataset
+from config.query_group import QueryGroup
+from consts.EngineType import EngineType
 
 
 class BenchmarkConfig:

@@ -1,6 +1,6 @@
-from benchmark.service.monitor.process_monitor_result import ProcessMonitorResult
-from benchmark.service.proflie_parser.query_metric import QueryMetrics
-from benchmark.service.task_executor.task_execute_result import StatSummary, SingleTaskExecuteResult
+from service.monitor.process_monitor_result import ProcessMonitorResult
+from service.proflie_parser.query_metric import QueryMetrics
+from service.task_executor.task_execute_result import StatSummary, SingleTaskExecuteResult
 
 
 def calculate_stat_summary(values: list[float]) -> StatSummary:

@@ -2,8 +2,8 @@
 import subprocess
 from pathlib import Path
 
-from benchmark.util.file_utils import prepare_sqlite_sql_file
-from benchmark.util.log_config import setup_logger
+from util.file_utils import prepare_sqlite_sql_file
+from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
 

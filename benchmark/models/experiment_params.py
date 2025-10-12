@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from benchmark.consts.EngineType import EngineType
+from consts.EngineType import EngineType
 
 
 @dataclass

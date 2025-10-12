@@ -1,10 +1,10 @@
-from benchmark.service.monitor.process_monitor import monitor_subprocess
-from benchmark.service.proflie_parser.sqlite_log_parser import SqliteLogParser
-from benchmark.service.runner.sqlite_runner import SQLiteRunner
-from benchmark.service.task_executor.task_execute_result import TaskExecuteResult
-from benchmark.util.cal_utils import calculate_stat_summary, combine_results
-from benchmark.util.file_utils import clean_path
-from benchmark.util.log_config import setup_logger
+from service.monitor.process_monitor import monitor_subprocess
+from service.proflie_parser.sqlite_log_parser import SqliteLogParser
+from service.runner.sqlite_runner import SQLiteRunner
+from service.task_executor.task_execute_result import TaskExecuteResult
+from util.cal_utils import calculate_stat_summary, combine_results
+from util.file_utils import clean_path
+from util.log_config import setup_logger
 
 DEFAULT_PIVOT_INTERVAL = 10  # seconds
 

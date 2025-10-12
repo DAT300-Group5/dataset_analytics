@@ -1,8 +1,8 @@
 from pathlib import Path
 import re
 
-from benchmark.service.proflie_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
-from benchmark.util.log_config import setup_logger
+from service.proflie_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
+from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
 

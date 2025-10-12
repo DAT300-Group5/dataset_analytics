@@ -11,10 +11,10 @@ from typing import Optional, List
 
 import psutil
 
-from benchmark.service.monitor.process_monitor_result import ProcessMonitorResult
-from benchmark.service.monitor.process_snapshot import ProcessSnapshot
-from benchmark.service.runner.sqlite_runner import SQLiteRunner
-from benchmark.util.log_config import setup_logger
+from service.monitor.process_monitor_result import ProcessMonitorResult
+from service.monitor.process_snapshot import ProcessSnapshot
+from service.runner.sqlite_runner import SQLiteRunner
+from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
 
