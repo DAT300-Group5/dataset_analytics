@@ -2,18 +2,6 @@
 
 A comprehensive benchmarking framework for comparing database performance across multiple engines (DuckDB, SQLite, chDB) with automated monitoring, profiling, and visualization.
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Workflow](#workflow)
-- [Output and Results](#output-and-results)
-- [Advanced Topics](#advanced-topics)
-
----
-
 ## Overview
 
 This benchmark system provides:
@@ -42,11 +30,9 @@ This benchmark system provides:
 
 ✅ **Easy visualization**: Automated chart generation for performance comparison
 
----
-
 ## Architecture
 
-```
+```ASCII
 benchmark/
 ├── config.yaml              # Main configuration file (EDIT THIS)
 ├── run_experiments.py       # Execute benchmarks
@@ -86,8 +72,6 @@ benchmark/
     ├── summary.json      # Aggregated results
     └── visual/          # Generated charts
 ```
-
----
 
 ## Quick Start
 
@@ -166,8 +150,6 @@ python run_experiments.py
 python analyze_results.py
 ```
 
----
-
 ## Configuration
 
 All experiments are configured through `config.yaml`. **No command-line arguments needed for normal use.**
@@ -184,13 +166,13 @@ All experiments are configured through `config.yaml`. **No command-line argument
 
 ### Execution Model
 
-**Stage 1/2: Calculate Sampling Interval**
+Stage 1/2: Calculate Sampling Interval
 
 - Runs `repeat_pilot` times (default: 3)
 - Uses fixed interval (10 seconds)
 - Calculates optimal monitoring interval: `interval = avg_time / sample_count`
 
-**Stage 2/2: Run Benchmark**
+Stage 2/2: Run Benchmark
 
 - Runs `std_repeat` times (default: 5)
 - Uses calculated interval from Stage 1
@@ -235,8 +217,6 @@ compare_pairs:
 ```
 
 See detailed comments in `config.yaml` for more information.
-
----
 
 ## Workflow
 
@@ -285,7 +265,7 @@ python run_experiments.py
 
 **Expected output:**
 
-```
+```bash
 [INFO] ============================================================
 [INFO] Starting Benchmark Experiments
 [INFO] ============================================================
@@ -333,11 +313,9 @@ Charts will be saved to `results/visual/`:
 - `throughput_comparison.png`
 - Individual comparison charts for each pair
 
----
-
 ## Output and Results
 
-### summary.json Structure
+### `summary.json` Structure
 
 ```json
 {
@@ -391,8 +369,6 @@ All charts include:
 - Color-coded bars (blue=DuckDB, orange=SQLite, green=chDB)
 - Clear axis labels and titles
 - Professional styling
-
----
 
 ## Advanced Topics
 
