@@ -3,6 +3,8 @@
 A comprehensive benchmarking framework for comparing database performance across multiple engines (DuckDB, SQLite, chDB) with automated monitoring, profiling, and visualization.
 
 > **📌 Note**: To use SQLite benchmarking features, you must compile SQLite with profiling support. See [COMPILE_SQLITE.md](./COMPILE_SQLITE.md) for instructions.
+>
+> **🚧 TODO**: chDB benchmark support is not yet fully implemented. Currently only DuckDB and SQLite are supported for benchmarking.
 
 ## Overview
 
@@ -131,6 +133,8 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb --post-sql y
 Edit `config.yaml` to define your experiments:
 
 ```yaml
+# 🚧 Note: Only 'duckdb' and 'sqlite' are currently supported
+# chDB support is TODO
 engines: [duckdb, sqlite]
 repeat_pilot: 3
 std_repeat: 5
@@ -170,7 +174,7 @@ All experiments are configured through `config.yaml`. **No command-line argument
 
 | Parameter      | Description                                     | Default            |
 | -------------- | ----------------------------------------------- | ------------------ |
-| `engines`      | Database engines to benchmark                   | `[duckdb, sqlite]` |
+| `engines`      | Database engines to benchmark (🚧 Note: chDB TODO) | `[duckdb, sqlite]` |
 | `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                |
 | `sample_count` | Target monitoring samples per query             | `10`               |
 | `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                |
@@ -194,6 +198,7 @@ Stage 2/2: Run Benchmark
 
 ```yaml
 # Execution parameters
+# 🚧 Note: Only duckdb and sqlite are supported. chDB support is TODO
 engines: [duckdb, sqlite]
 repeat_pilot: 3        # 3 pilot runs for interval calculation
 sample_count: 20       # Aim for 20 monitoring samples
