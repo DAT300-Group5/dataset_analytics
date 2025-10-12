@@ -7,3 +7,4 @@
 *.png
 __pycache__/
 db*/
+sqlite*/

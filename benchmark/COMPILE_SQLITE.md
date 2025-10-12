@@ -149,6 +149,21 @@ Page Cache Misses:    5
     make install
     ```
 
+```bash
+# install gcc
+sudo apt install gcc -y
+sudo apt install make -y
+
+# in root of the repo
+wget https://www.sqlite.org/src/tarball/sqlite.tar.gz
+tar -xzf sqlite.tar.gz && rm sqlite.tar.gz
+
+cd sqlite
+./configure CFLAGS="-O2 -DSQLITE_ENABLE_STMT_SCANSTATUS" --prefix=.
+make
+make install
+```
+
 After running these commands, SQLite will be compiled and installed in the specified installation path. You should see dirctory tree like below:
 
 ```shell

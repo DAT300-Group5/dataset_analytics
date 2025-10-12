@@ -63,9 +63,7 @@ benchmark/
 │       └── sqlite_log_parser.py
 │
 ├── queries/               # SQL query files
-│   ├── Q1/
-│   ├── Q2/
-│   └── anomaly/
+│   └── ...
 │
 ├── db_vs14/              # Database files
 │   ├── vs14_data.duckdb
@@ -87,12 +85,14 @@ Before running benchmarks with SQLite, you **must** compile SQLite with the `SQL
 
 Without this flag, SQLite profiling features will not work, and benchmark results will be incomplete.
 
----
-
 ### 1. Install Dependencies
 
 ```bash
 pip install psutil pandas duckdb matplotlib pyyaml
+```
+
+```bash
+sudo snap install duckdb
 ```
 
 ### 2. Create Databases
@@ -141,7 +141,7 @@ std_repeat: 5
 
 engine_paths:
   duckdb: duckdb
-  sqlite: /usr/local/bin/sqlite3
+  sqlite: ../sqlite/bin/sqlite3
 
 datasets:
   - name: vs14
@@ -252,7 +252,7 @@ ls raw_data/acc/acc_vs14.csv
 ls raw_data/hrm/hrm_vs14.csv
 # ... etc
 
-# Create benchmark directory
+# Create in benchmark/ directory
 mkdir -p db_vs14
 ```
 
