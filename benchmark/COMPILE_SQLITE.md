@@ -138,6 +138,16 @@ Page Cache Misses:    5
 | `.eqp full`      | Display query execution plan  | No                                      |
 | `.stat on`       | Show memory and cache stats   | No                                      |
 
+### Quick Download for Ubuntu x86_64
+
+> **💡 Tip**: If you are using **Ubuntu with x86_64 architecture**, you can download a pre-compiled SQLite binary with profiling support directly from GitHub Actions:
+> 
+> 🔗 **[Download pre-compiled SQLite for Ubuntu x86_64](https://github.com/DAT300-Group5/dataset_analytics/actions/runs/18309545088)**
+>
+> This saves you from compiling from source. Simply download, extract, and use the binary.
+
+### Compile from Source
+
 1. Download the SQLite source code from the official website: <https://www.sqlite.org/download.html>
 2. Extract the downloaded file to a directory of your choice.
 3. Open a terminal and navigate to the directory where you extracted the SQLite source code.
