@@ -66,21 +66,21 @@ datasets:
 # Each query group can have engine-specific SQL files
 query_groups:
   - id: Q2  # Query identifier (used in results and compare_pairs)
-    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q2_duckdb.sql
-    sqlite_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q2_sqlite.sql
+    duckdb_sql: queries/anomaly/Q2_duckdb.sql
+    sqlite_sql: queries/anomaly/Q2_sqlite.sql
 
   - id: Q3
-    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_duckdb.sql
-    sqlite_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_sqlite.sql
+    duckdb_sql: queries/anomaly/Q3_duckdb.sql
+    sqlite_sql: queries/anomaly/Q3_sqlite.sql
 
   - id: trend_Q1
-    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/trend/Q1_duckdb.sql
+    duckdb_sql: queries/trend/Q1_duckdb.sql
 
   - id: trend_Q2
-    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/trend/Q2_duckdb.sql
+    duckdb_sql: queries/trend/Q2_duckdb.sql
 
   - id: trend_Q3
-    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/trend/Q3_duckdb.sql
+    duckdb_sql: queries/trend/Q3_duckdb.sql
 
 # ------------------------------------------------------------
 # Visualization Comparison Pairs
