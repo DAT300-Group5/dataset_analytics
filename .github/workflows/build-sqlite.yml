@@ -1,0 +1,111 @@
+name: Build SQLite snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/build-sqlite.yml
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    env:
+      # Point this to a ZIP snapshot (e.g. https://sqlite.org/2025/sqlite-src-3500400.zip)
+      SNAP_URL: https://sqlite.org/2025/sqlite-src-3500400.zip
+      PREFIX: /usr/local
+      CFLAGS: -O2 -DSQLITE_ENABLE_STMT_SCANSTATUS
+
+    steps:
+      - name: Checkout (optional)
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config unzip
+
+      - name: Download and extract ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L "$SNAP_URL" -o sqlite.zip
+          unzip -q sqlite.zip
+          # The first path component in the ZIP is the snapshot root directory
+          ROOT_DIR=$(unzip -Z1 sqlite.zip | head -1 | cut -d/ -f1)
+          echo "ROOT_DIR=$ROOT_DIR" >> "$GITHUB_ENV"
+          echo "Snapshot root: $ROOT_DIR"
+          test -d "$ROOT_DIR"
+
+      - name: Configure
+        working-directory: ${{ env.ROOT_DIR }}
+        run: |
+          set -euxo pipefail
+          ./configure --prefix="${PREFIX}" --enable-shared CFLAGS="${CFLAGS}"
+
+      - name: Build
+        working-directory: ${{ env.ROOT_DIR }}
+        run: make
+
+      - name: Verify SQLITE_ENABLE_STMT_SCANSTATUS
+        working-directory: ${{ env.ROOT_DIR }}
+        run: |
+          echo "Verifying SQLITE_ENABLE_STMT_SCANSTATUS is enabled..."
+          
+          # Find the library file
+          echo "Looking for library files..."
+          find . -name "*.so*" -o -name "libsqlite3.*" | head -10
+          
+          # Try to find and check the library
+          LIB_FILE=$(find . -name "libsqlite3.so*" -o -name ".libs/libsqlite3.so*" | head -1)
+          if [ -n "$LIB_FILE" ] && [ -f "$LIB_FILE" ]; then
+            echo "Found library: $LIB_FILE"
+            if nm -D "$LIB_FILE" 2>/dev/null | grep -q sqlite3_stmt_scanstatus; then
+              echo "✓ SQLITE_ENABLE_STMT_SCANSTATUS is enabled (sqlite3_stmt_scanstatus found in library)"
+            else
+              echo "⚠ Warning: sqlite3_stmt_scanstatus symbol not found in library"
+            fi
+          else
+            echo "⚠ Warning: Could not find libsqlite3.so"
+          fi
+          
+          # Check with sqlite3 command line (most reliable)
+          if [ -f "./sqlite3" ]; then
+            echo ""
+            echo "Checking compile options via sqlite3 command:"
+            if ./sqlite3 :memory: "PRAGMA compile_options;" | grep -i stmt_scanstatus; then
+              echo "✓ SQLITE_ENABLE_STMT_SCANSTATUS is ENABLED"
+            else
+              echo "✗ SQLITE_ENABLE_STMT_SCANSTATUS is NOT enabled"
+              echo ""
+              echo "Available compile options:"
+              ./sqlite3 :memory: "PRAGMA compile_options;"
+              exit 1
+            fi
+          else
+            echo "⚠ Warning: sqlite3 executable not found"
+            exit 1
+          fi
+
+      - name: Install to staging directory
+        working-directory: ${{ env.ROOT_DIR }}
+        run: |
+          mkdir -p staging/sqlite3
+          make install DESTDIR=$(pwd)/staging/sqlite3 prefix=""
+
+      - name: Prepare artifacts
+        working-directory: ${{ env.ROOT_DIR }}
+        run: |
+          echo "Contents of staging/sqlite3:"
+          ls -lR staging/sqlite3 | head -30
+          
+      - name: Get short SHA
+        id: short-sha
+        run: echo "sha=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-snapshot-${{ steps.short-sha.outputs.sha }}
+          path: ${{ env.ROOT_DIR }}/staging/sqlite3/
+          retention-days: 30"

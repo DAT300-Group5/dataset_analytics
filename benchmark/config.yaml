@@ -1,28 +1,96 @@
-# === Edit me ===
-engines: [duckdb, chdb, sqlite]
+# ============================================================
+# Benchmark Configuration
+# ============================================================
+# This file configures the database benchmark experiments.
+# Edit the parameters below to customize your benchmark runs.
 
-mode: child
-threads_duckdb: 4
-threads_chdb: 4
-threads_sqlite: 0
-repeat_full: 20
-warmups_full: 2
+# ------------------------------------------------------------
+# Execution Parameters
+# ------------------------------------------------------------
+
+# engines: List of database engines to benchmark
+# Supported values: duckdb, sqlite, chdb
+engines: [duckdb, sqlite]
+
+# repeat_pilot: Number of pilot runs to calculate sampling interval
+# Purpose: Stage 1/2 runs this many times with DEFAULT_PIVOT_INTERVAL (10s)
+# to estimate query execution time and determine optimal monitoring interval
+# Formula: sampling_interval = avg_execution_time / sample_count
+# Default: 3 runs
 repeat_pilot: 3
-warmups_pilot: 1
 
-target_samples: 50
-min_interval: 0.05
-max_interval: 0.50
+# sample_count: Target number of monitoring samples during query execution
+# Purpose: Used to calculate monitoring interval = avg_time / sample_count
+# Higher values = more granular CPU/memory monitoring but more overhead
+# Default: 10 samples per query
+sample_count: 10
 
+# std_repeat: Number of actual benchmark iterations (Stage 2/2)
+# Purpose: Main benchmark runs for statistical analysis (avg, p50, p95, p99)
+# Higher values = more accurate statistics but longer execution time
+# Default: 5 runs
+std_repeat: 5
 
+# output_cwd: Output directory for results
+# Structure: output_cwd/
+#   ├── summary.json (aggregated results for all experiments)
+#   └── <experiment_name>/results/ (individual run logs and profiling data)
+output_cwd: ./results
+
+# ------------------------------------------------------------
+# Engine Paths
+# ------------------------------------------------------------
+
+# Absolute or relative paths to database engine executables
+engine_paths:
+  duckdb: duckdb  # Use system duckdb (assumes in PATH)
+  sqlite: ../sqlite/bin/sqlite3  # Custom SQLite build path
+
+# ------------------------------------------------------------
+# Datasets
+# ------------------------------------------------------------
+
+# datasets: List of database files to benchmark
+# Each dataset can have different database files for each engine
 datasets:
-  - name: vs14
-    duckdb_db: ./db_vs14/vs14_data.duckdb
-    sqlite_db: ./db_vs14/vs14_data.sqlite
-    chdb_db_dir: ./db_vs14/vs14_data_chdb
+  - name: vs14  # Dataset identifier
+    duckdb_db: ./db_vs14/vs14_data.duckdb  # DuckDB database file
+    sqlite_db: ./db_vs14/vs14_data.sqlite  # SQLite database file
+    chdb_db_dir: ./db_vs14/vs14_data_chdb  # chDB database directory
 
+# ------------------------------------------------------------
+# Query Groups
+# ------------------------------------------------------------
+
+# query_groups: SQL queries to execute on each database
+# Each query group can have engine-specific SQL files
 query_groups:
-  - id: Q1
-    duckdb_sql: queries/Q1/Q1_duckdb.sql
-    sqlite_sql: queries/Q1/Q1_sqlite.sql
-    chdb_sql:   queries/Q1/Q1_clickhouse.sql
+  - id: Q2  # Query identifier (used in results and compare_pairs)
+    duckdb_sql: queries/anomaly/Q2_duckdb.sql
+    sqlite_sql: queries/anomaly/Q2_sqlite.sql
+
+  - id: Q3
+    duckdb_sql: queries/anomaly/Q3_duckdb.sql
+    sqlite_sql: queries/anomaly/Q3_sqlite.sql
+
+  - id: trend_Q1
+    duckdb_sql: queries/trend/Q1_duckdb.sql
+
+  - id: trend_Q2
+    duckdb_sql: queries/trend/Q2_duckdb.sql
+
+  - id: trend_Q3
+    duckdb_sql: queries/trend/Q3_duckdb.sql
+
+# ------------------------------------------------------------
+# Visualization Comparison Pairs
+# ------------------------------------------------------------
+
+# compare_pairs: Define which experiments to compare in visualizations
+# Format: [ query_group_id, engine ]
+# Purpose: Used by analyze_results.py to generate comparison charts
+# These pairs will be plotted together for easy performance comparison
+compare_pairs:
+  - [ trend_Q1, duckdb ]
+  - [ trend_Q2, duckdb ]
+  - [ trend_Q3, duckdb ]
