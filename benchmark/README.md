@@ -139,6 +139,10 @@ engines: [duckdb, sqlite]
 repeat_pilot: 3
 std_repeat: 5
 
+engine_paths:
+  duckdb: duckdb
+  sqlite: /usr/local/bin/sqlite3
+
 datasets:
   - name: vs14
     duckdb_db: ./db_vs14/vs14_data.duckdb
@@ -203,6 +207,7 @@ engines: [duckdb, sqlite]
 repeat_pilot: 3        # 3 pilot runs for interval calculation
 sample_count: 20       # Aim for 20 monitoring samples
 std_repeat: 5          # 5 benchmark iterations
+output_cwd: ./results # Output directory for results
 
 # Engine paths
 engine_paths:
