@@ -92,7 +92,12 @@ pip install psutil pandas duckdb matplotlib pyyaml
 ```
 
 ```bash
-sudo snap install duckdb
+# <https://duckdb.org/install/?platform=linux&environment=cli&architecture=x86_64>
+curl https://install.duckdb.org | sh
+
+# CLI will tell you how to append the following line to your shell profile
+# then
+source ~/.profile
 ```
 
 ### 2. Create Databases
