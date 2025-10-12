@@ -103,7 +103,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Install common packages needed for benchmarks
-          pip install sqlite3 duckdb matplotlib numpy pyyaml
+          pip install duckdb matplotlib numpy pyyaml
 
       # ============================================================
       # Step 3: Run benchmark experiments
