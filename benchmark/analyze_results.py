@@ -13,6 +13,7 @@ import numpy as np
 
 from benchmark.config.config_loader import ConfigLoader
 from benchmark.models.plot_params import PlotParams
+from benchmark.util.file_utils import clean_path
 
 # Define colors for different engines
 ENGINE_COLORS = {
@@ -151,7 +152,7 @@ def compare_specific_results(data, comparisons, output_dir):
     plt.tight_layout()
     
     # Generate filename from comparisons
-    comparison_name = "_vs_".join([f"{g}_{e}" for g, e in comparisons[:3]])
+    comparison_name = "_vs_".join([f"{g}_{e.value}" for g, e in comparisons[:3]])
     if len(comparisons) > 3:
         comparison_name += "_and_more"
     
@@ -531,7 +532,8 @@ def main():
     
     print("Generating visualizations...")
     print("-" * 50)
-    
+
+    clean_path(str(output_dir.resolve()))
     create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
     create_memory_usage_comparison(data, config.config_data.compare_pairs, output_dir)
     create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)

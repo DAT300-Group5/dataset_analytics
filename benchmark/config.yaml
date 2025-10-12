@@ -73,6 +73,15 @@ query_groups:
     duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_duckdb.sql
     sqlite_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/anomaly/Q3_sqlite.sql
 
+  - id: trend_Q1
+    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/trend/Q1_duckdb.sql
+
+  - id: trend_Q2
+    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/trend/Q2_duckdb.sql
+
+  - id: trend_Q3
+    duckdb_sql: /Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/trend/Q3_duckdb.sql
+
 # ------------------------------------------------------------
 # Visualization Comparison Pairs
 # ------------------------------------------------------------
@@ -82,5 +91,6 @@ query_groups:
 # Purpose: Used by analyze_results.py to generate comparison charts
 # These pairs will be plotted together for easy performance comparison
 compare_pairs:
-  - [ Q2, duckdb ]
-  - [ Q2, sqlite ]
+  - [ trend_Q1, duckdb ]
+  - [ trend_Q2, duckdb ]
+  - [ trend_Q3, duckdb ]
