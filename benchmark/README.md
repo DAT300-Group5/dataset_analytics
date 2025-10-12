@@ -427,7 +427,7 @@ The system uses a unified logging framework (`util/log_config.py`).
 To enable debug logging for troubleshooting:
 
 ```python
-from benchmark.util.log_config import setup_logger
+from util.log_config import setup_logger
 import logging
 
 logger = setup_logger(__name__, level=logging.DEBUG)
