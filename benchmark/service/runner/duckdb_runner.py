@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 from consts.RunMode import RunMode
-from util.file_utils import prepare_profiling_duckdb_sql_file
+from util.file_utils import prepare_profiling_duckdb_sql_file, prepare_validate_duckdb_sql_file
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -27,7 +27,7 @@ class DuckdbRunner:
         if run_mode == RunMode.PROFILE:
             prepare_profiling_duckdb_sql_file(sql_file)
         elif run_mode == RunMode.VALIDATE:
-            prepare_profiling_duckdb_sql_file(sql_file)
+            prepare_validate_duckdb_sql_file(sql_file)
 
     def run_subprocess(self):
         results_dir = Path(self.cwd) / "results"
