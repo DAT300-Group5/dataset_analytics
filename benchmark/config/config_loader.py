@@ -45,9 +45,13 @@ class ConfigLoader:
         config.std_repeat = data["std_repeat"]
         config.cwd = data["output_cwd"]
         config.compare_pairs = []
+        config.validate_pairs = []
         for query_group, engine in data["compare_pairs"]:
             config.compare_pairs.append((query_group, EngineType(engine)))
-        
+
+        for query_group, engine in data["validate_pairs"]:
+            config.validate_pairs.append((query_group, EngineType(engine)))
+
         # Parse engine paths
         config.engine_paths = data.get("engine_paths", {})
         

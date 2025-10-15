@@ -15,3 +15,4 @@ class BenchmarkConfig:
     datasets: List[Dataset]
     query_groups: List[QueryGroup]
     compare_pairs: List[Tuple[str, EngineType]]
+    validate_pairs: List[Tuple[str, EngineType]]
