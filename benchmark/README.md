@@ -199,7 +199,8 @@ validate_pairs:
 
 The validation script will:
 1. Execute each query specified in `validate_pairs`
-2. Compare results
+2. Compare results pairwise: If you have n queries in `validate_pairs`, it performs C(n,2) = n×(n-1)/2 comparisons
+   - Example: 2 queries → 1 comparison, 3 queries → 3 comparisons, 4 queries → 6 comparisons
 3. Report any differences found
 
 > **⚠️ Important**: You must first configure queries in `query_groups` before adding them to `validate_pairs`.
