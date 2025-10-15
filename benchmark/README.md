@@ -179,6 +179,34 @@ validate_pairs:
 Before running benchmarks, verify that queries produce identical results across different database queries.
 
 ```bash
+
+**Configuration:**
+
+First, configure validation pairs in `config.yaml`:
+
+```yaml
+# Step 1: Define your queries in query_groups
+query_groups:
+  - id: Q2
+    duckdb_sql: queries/anomaly/Q2_duckdb.sql
+    sqlite_sql: queries/anomaly/Q2_sqlite.sql
+
+# Step 2: Specify which query results to validate
+validate_pairs:
+  - [ Q2, duckdb ]  # Execute Q2 with DuckDB
+  - [ Q2, sqlite ]  # Execute Q2 with SQLite
+```
+
+The validation script will:
+1. Execute each query specified in `validate_pairs`
+2. Compare results
+3. Report any differences found
+
+> **⚠️ Important**: You must first configure queries in `query_groups` before adding them to `validate_pairs`.
+
+**Run validation:**
+
+```bash
 python validate_sql_correctness.py
 ```
 
@@ -230,6 +258,34 @@ python validate_sql_correctness.py
 - **Column-by-column comparison**: Precisely identifies which rows and columns differ
 - **Intelligent type conversion**: Automatically compares numeric values even when stored as strings
 - **Configurable tolerance**: Adjust `NUMERIC_RTOL` and `NUMERIC_ATOL` in `validate_sql_correctness.py` if needed (default: `rtol=1e-5`, `atol=1e-8`)
+
+**💡 Tip - SQL Syntax Checking:**
+
+You can also use this tool to quickly check if your SQL queries run without errors:
+- Run the validation script
+- If there are syntax errors, the script will abort and show the error details
+- Ignore comparison warnings if you're only checking syntax
+
+Example error output when SQL has syntax errors:
+
+```bash
+🔧 Running validations...
+   [1] Q2_duckdb... ❌
+
+============================================================
+  ERROR: Validation failed for Q2_duckdb
+============================================================
+   Return code: 1
+
+   Error output:
+   Error: near line 5: syntax error
+
+============================================================
+   Validation aborted due to execution failure.
+============================================================
+```
+
+This is useful for rapid SQL debugging before running full benchmarks.
 
 ### 5. Run Benchmarks
 
