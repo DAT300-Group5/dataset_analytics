@@ -1,5 +1,6 @@
 import difflib
 import itertools
+import sys
 from pathlib import Path
 from typing import List, Tuple
 
@@ -110,6 +111,20 @@ def main():
             runner = build_experiment(experiment)
             process = runner.run_subprocess()
             process.wait()
+            stderr = (runner.results_dir / "stderr.log").read_text()
+            if process.returncode != 0 or stderr:
+                print("❌")
+                print(f"\n{'=' * 60}")
+                print(f"  ERROR: Validation failed for {experiment.exp_name}")
+                print("=" * 60)
+                print(f"   Return code: {process.returncode}")
+                if stderr:
+                    print(f"\n   Error output:")
+                    print(f"   {stderr.strip()}")
+                print("\n" + "=" * 60)
+                print("   Validation aborted due to execution failure.")
+                print("=" * 60 + "\n")
+                sys.exit(1)
             result_file = experiment.cwd / experiment.exp_name / "result.csv"
             result_info.append((result_file, experiment.group_id, experiment.engine))
             print("✓")
