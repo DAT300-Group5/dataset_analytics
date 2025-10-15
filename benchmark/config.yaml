@@ -105,5 +105,5 @@ compare_pairs:
 # The script will execute these queries and verify that results are identical
 # across different engines (e.g., duckdb vs sqlite) for the same query_group_id
 validate_pairs:
-  - [ trend_Q2, duckdb ]
-  - [ trend_Q3, duckdb ]
+  - [ Q2, duckdb ]
+  - [ Q2, sqlite ]
