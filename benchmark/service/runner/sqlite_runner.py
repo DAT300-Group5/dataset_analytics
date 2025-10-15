@@ -2,7 +2,8 @@
 import subprocess
 from pathlib import Path
 
-from util.file_utils import prepare_sqlite_sql_file
+from consts.RunMode import RunMode
+from util.file_utils import prepare_profiling_sqlite_sql_file, prepare_validate_sqlite_sql_file
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -10,7 +11,7 @@ logger = setup_logger(__name__)
 
 class SQLiteRunner:
 
-    def __init__(self, sql_file: str, db_file: str, cmd: str = "sqlite3", cwd: str = None):
+    def __init__(self, sql_file: str, db_file: str, cmd: str = "sqlite3", cwd: str = None, run_mode : RunMode = RunMode.PROFILE):
 
         self.sql_file = Path(sql_file)
         self.db_file = Path(db_file)
@@ -23,7 +24,10 @@ class SQLiteRunner:
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
-        prepare_sqlite_sql_file(sql_file)
+        if run_mode == RunMode.PROFILE:
+            prepare_profiling_sqlite_sql_file(sql_file)
+        elif run_mode == RunMode.VALIDATE:
+            prepare_validate_sqlite_sql_file(sql_file)
 
     def run_subprocess(self) -> subprocess.Popen:
         stdout_path = self.results_dir / "stdout.log"
@@ -38,7 +42,8 @@ class SQLiteRunner:
                     stdin=sql_input,
                     stdout=stdout_file,
                     stderr=stderr_file,
-                    text=True
+                    text=True,
+                    cwd=self.cwd
                 )
                 return process
         except Exception as e:

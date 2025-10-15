@@ -30,7 +30,7 @@ def clean_path(path: str):
         elif item.is_dir():
             shutil.rmtree(item)
 
-def prepare_duckdb_sql_file(sql_file : str):
+def prepare_profiling_duckdb_sql_file(sql_file : str):
     """
     Prepare the SQL file by adding profiling configuration:
     1. Add PRAGMA enable_profiling='json' at the beginning if not present
@@ -99,7 +99,67 @@ def prepare_duckdb_sql_file(sql_file : str):
 
     print(f"✓ Prepared SQL file: {sql_file}")
 
-def prepare_sqlite_sql_file(sql_file : str):
+def prepare_validate_sqlite_sql_file(sql_file : str):
+    """
+    Ensure the SQLite validation SQL file starts with the following dot-commands:
+      .headers on
+      .mode csv
+      .output result.csv
+
+    If the file does not already contain this block (case-insensitive, contiguous),
+    prepend the three lines with a short comment.
+    """
+    # Read the SQL file
+    with open(sql_file, 'r') as f:
+        content = f.read()
+
+    # The exact block we want at the beginning (use lowercase for comparison)
+    desired_block = ".headers on\n.mode csv\n.output result.csv"
+
+    # Check case-insensitively whether the contiguous block exists anywhere
+    if desired_block.lower() in content.lower():
+        print(f"✓ SQL file already prepared: {sql_file}")
+        return
+
+    # Prepend the desired block
+    new_content = '-- Enable csv output for validation\n' + desired_block + '\n\n' + content
+
+    with open(sql_file, 'w') as f:
+        f.write(new_content)
+
+    print(f"✓ Prepared SQL file: {sql_file}")
+
+def prepare_validate_duckdb_sql_file(sql_file : str):
+    """
+    Ensure the Duckdb validation SQL file starts with the following dot-commands:
+      .mode csv
+      .output result.csv
+
+    If the file does not already contain this block (case-insensitive, contiguous),
+    prepend the three lines with a short comment.
+    """
+    # Read the SQL file
+    with open(sql_file, 'r') as f:
+        content = f.read()
+
+    # The exact block we want at the beginning (use lowercase for comparison)
+    desired_block = ".mode csv\n.output result.csv"
+
+    # Check case-insensitively whether the contiguous block exists anywhere
+    if desired_block.lower() in content.lower():
+        print(f"✓ SQL file already prepared: {sql_file}")
+        return
+
+    # Prepend the desired block
+    new_content = '-- Enable csv output for validation\n' + desired_block + '\n\n' + content
+
+    with open(sql_file, 'w') as f:
+        f.write(new_content)
+
+    print(f"✓ Prepared SQL file: {sql_file}")
+
+
+def prepare_profiling_sqlite_sql_file(sql_file : str):
     """
     Prepare the SQL file for SQLite by adding .timer ON at the beginning if not present.
     """
@@ -119,5 +179,5 @@ def prepare_sqlite_sql_file(sql_file : str):
         print(f"✓ SQL file already prepared: {sql_file}")
 
 if __name__ == "__main__":
-    prepare_sqlite_sql_file("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_sqlite.sql")
+    prepare_validate_duckdb_sql_file("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql")
     # clean_path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/results")
