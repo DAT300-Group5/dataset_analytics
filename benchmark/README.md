@@ -34,6 +34,8 @@ This benchmark system provides:
 
 ✅ **Easy visualization**: Automated chart generation for performance comparison
 
+✅ **SQL correctness validation**: Verify query equivalence across different database queries
+
 ## Architecture
 
 ```ASCII
@@ -42,7 +44,7 @@ benchmark/
 ├── run_experiments.py       # Execute benchmarks
 ├── analyze_results.py       # Generate visualizations
 ├── create_db.py            # Create databases from CSV data
-├── validate_sql_correctness.py  # Validate query equivalence
+├── validate_sql_correctness.py  # Validate SQL correctness across queries
 │
 ├── config/                 # Configuration loading
 │   ├── config_loader.py
@@ -166,15 +168,67 @@ query_groups:
 compare_pairs:
   - [ Q1, duckdb ]
   - [ Q1, sqlite ]
+
+validate_pairs:
+  - [ Q1, duckdb ]
+  - [ Q1, sqlite ]
 ```
 
-### 4. Run Benchmarks
+### 4. Validate SQL Correctness (Recommended)
+
+Before running benchmarks, verify that queries produce identical results across different database queries.
+
+```bash
+python validate_sql_correctness.py
+```
+
+**Output example:**
+
+```bash
+============================================================
+  SQL CORRECTNESS VALIDATION
+============================================================
+
+📋 Configuration:
+   • Total experiments: 4
+   • Validation pairs: 3
+
+🔧 Running validations...
+   [1] trend_Q1_duckdb... ✓
+   [2] trend_Q1_sqlite... ✓
+   [3] trend_Q2_duckdb... ✓
+
+============================================================
+  RESULTS COMPARISON
+============================================================
+
+🔍 trend_Q1_duckdb ↔ trend_Q1_sqlite
+  ✅ Results are identical
+
+🔍 trend_Q2_duckdb ↔ trend_Q2_sqlite
+  ❌ Line 5:
+     trend_Q2_duckdb: 2024-01-15,42.5
+     trend_Q2_sqlite: 2024-01-15,42.6
+  ⚠️  Found 1 difference(s)
+
+============================================================
+  SUMMARY
+============================================================
+   • Total comparisons: 2
+   • Identical: 1
+   • Different: 1
+
+   ⚠️  1 comparison(s) failed!
+============================================================
+```
+
+### 5. Run Benchmarks
 
 ```bash
 python run_experiments.py
 ```
 
-### 5. Generate Visualizations
+### 6. Generate Visualizations
 
 ```bash
 python analyze_results.py
@@ -246,9 +300,25 @@ compare_pairs:
   - [ Q1_aggregation, sqlite ]
   - [ Q2_anomaly, duckdb ]
   - [ Q2_anomaly, sqlite ]
+
+# SQL correctness validation pairs
+validate_pairs:
+  - [ Q1_aggregation, duckdb ]
+  - [ Q1_aggregation, sqlite ]
+  - [ Q2_anomaly, duckdb ]
+  - [ Q2_anomaly, sqlite ]
 ```
 
 See detailed comments in `config.yaml` for more information.
+
+### Validation Configuration
+
+The `validate_pairs` parameter defines which experiments to run for SQL correctness validation:
+
+- **Purpose**: Verify that queries produce identical results across different database queries
+- **Format**: `[ query_group_id, engine ]` pairs
+- **Used by**: `validate_sql_correctness.py`
+- **Behavior**: The script executes specified queries and compares outputs line-by-line to ensure query equivalence.
 
 ## Workflow
 
@@ -281,15 +351,30 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb \
   --post-sql ./queries/create_indexes.sql
 ```
 
-#### #### Step 3: Configure Experiments
+#### Step 3: Configure Experiments
 
 Edit `config.yaml`:
 
 1. Add your datasets under `datasets:`
 2. Add your queries under `query_groups:`
 3. Define comparison pairs under `compare_pairs:`
+4. Define validation pairs under `validate_pairs:`
 
-#### Step 4: Run Benchmarks
+#### Step 4: Validate SQL Correctness
+
+Verify that queries produce identical results across different queries.
+
+```bash
+python validate_sql_correctness.py
+```
+
+This step is useful to:
+- Ensure queries are logically equivalent across different SQL dialects
+- Detect subtle differences in query results between engines
+
+Configure which experiments to validate in `config.yaml` under `validate_pairs:`.
+
+#### Step 5: Run Benchmarks
 
 ```bash
 python run_experiments.py
@@ -333,7 +418,7 @@ python run_experiments.py
 [INFO] All experiments completed successfully!
 ```
 
-#### Step 5: Generate Visualizations
+#### Step 6: Generate Visualizations
 
 ```bash
 python analyze_results.py
