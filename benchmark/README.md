@@ -34,6 +34,8 @@ This benchmark system provides:
 
 ✅ **Easy visualization**: Automated chart generation for performance comparison
 
+✅ **SQL correctness validation**: Verify query equivalence across different database queries
+
 ## Architecture
 
 ```ASCII
@@ -42,7 +44,7 @@ benchmark/
 ├── run_experiments.py       # Execute benchmarks
 ├── analyze_results.py       # Generate visualizations
 ├── create_db.py            # Create databases from CSV data
-├── validate_sql_correctness.py  # Validate query equivalence
+├── validate_sql_correctness.py  # Validate SQL correctness across queries
 │
 ├── config/                 # Configuration loading
 │   ├── config_loader.py
@@ -166,15 +168,133 @@ query_groups:
 compare_pairs:
   - [ Q1, duckdb ]
   - [ Q1, sqlite ]
+
+validate_pairs:
+  - [ Q1, duckdb ]
+  - [ Q1, sqlite ]
 ```
 
-### 4. Run Benchmarks
+### 4. Validate SQL Correctness (Recommended)
+
+Before running benchmarks, verify that queries produce identical results across different database queries.
+
+```bash
+
+**Configuration:**
+
+First, configure validation pairs in `config.yaml`:
+
+```yaml
+# Step 1: Define your queries in query_groups
+query_groups:
+  - id: Q2
+    duckdb_sql: queries/anomaly/Q2_duckdb.sql
+    sqlite_sql: queries/anomaly/Q2_sqlite.sql
+
+# Step 2: Specify which query results to validate
+validate_pairs:
+  - [ Q2, duckdb ]  # Execute Q2 with DuckDB
+  - [ Q2, sqlite ]  # Execute Q2 with SQLite
+```
+
+The validation script will:
+1. Execute each query specified in `validate_pairs`
+2. Compare results pairwise: If you have n queries in `validate_pairs`, it performs C(n,2) = n×(n-1)/2 comparisons
+   - Example: 2 queries → 1 comparison, 3 queries → 3 comparisons, 4 queries → 6 comparisons
+3. Report any differences found
+
+> **⚠️ Important**: You must first configure queries in `query_groups` before adding them to `validate_pairs`.
+
+**Run validation:**
+
+```bash
+python validate_sql_correctness.py
+```
+
+**Output example:**
+
+```bash
+============================================================
+  SQL CORRECTNESS VALIDATION
+============================================================
+
+📋 Configuration:
+   • Total experiments: 4
+   • Validation pairs: 3
+   • Numeric tolerance: rtol=1e-05, atol=1e-08
+   • Timestamp auto-conversion: enabled
+
+🔧 Running validations...
+   [1] trend_Q1_duckdb... ✓
+   [2] trend_Q1_sqlite... ✓
+   [3] trend_Q2_duckdb... ✓
+
+============================================================
+  RESULTS COMPARISON
+============================================================
+
+🔍 trend_Q1_duckdb ↔ trend_Q1_sqlite
+  ✅ Results are identical (1000 rows)
+
+🔍 trend_Q2_duckdb ↔ trend_Q2_sqlite
+  ❌ Row 5: 1 column(s) differ
+     Column 1: '42.5' ≠ '43.2'
+  ⚠️  Found 1 row(s) with differences
+
+============================================================
+  SUMMARY
+============================================================
+   • Total comparisons: 2
+   • Identical: 1
+   • Different: 1
+
+   ⚠️  1 comparison(s) failed!
+============================================================
+```
+
+**Features:**
+- **Numeric precision handling**: Small floating-point differences (within tolerance) are automatically ignored to avoid false positives from precision issues
+- **Timestamp auto-conversion**: Automatically handles different time formats (Unix timestamps in seconds/milliseconds, ISO 8601, common datetime formats)
+  - Example: `'2021-03-04 07:42:00'` and `'1614843720000'` are recognized as the same time
+- **Column-by-column comparison**: Precisely identifies which rows and columns differ
+- **Intelligent type conversion**: Automatically compares numeric values even when stored as strings
+- **Configurable tolerance**: Adjust `NUMERIC_RTOL` and `NUMERIC_ATOL` in `validate_sql_correctness.py` if needed (default: `rtol=1e-5`, `atol=1e-8`)
+
+**💡 Tip - SQL Syntax Checking:**
+
+You can also use this tool to quickly check if your SQL queries run without errors:
+- Run the validation script
+- If there are syntax errors, the script will abort and show the error details
+- Ignore comparison warnings if you're only checking syntax
+
+Example error output when SQL has syntax errors:
+
+```bash
+🔧 Running validations...
+   [1] Q2_duckdb... ❌
+
+============================================================
+  ERROR: Validation failed for Q2_duckdb
+============================================================
+   Return code: 1
+
+   Error output:
+   Error: near line 5: syntax error
+
+============================================================
+   Validation aborted due to execution failure.
+============================================================
+```
+
+This is useful for rapid SQL debugging before running full benchmarks.
+
+### 5. Run Benchmarks
 
 ```bash
 python run_experiments.py
 ```
 
-### 5. Generate Visualizations
+### 6. Generate Visualizations
 
 ```bash
 python analyze_results.py
@@ -246,9 +366,25 @@ compare_pairs:
   - [ Q1_aggregation, sqlite ]
   - [ Q2_anomaly, duckdb ]
   - [ Q2_anomaly, sqlite ]
+
+# SQL correctness validation pairs
+validate_pairs:
+  - [ Q1_aggregation, duckdb ]
+  - [ Q1_aggregation, sqlite ]
+  - [ Q2_anomaly, duckdb ]
+  - [ Q2_anomaly, sqlite ]
 ```
 
 See detailed comments in `config.yaml` for more information.
+
+### Validation Configuration
+
+The `validate_pairs` parameter defines which experiments to run for SQL correctness validation:
+
+- **Purpose**: Verify that queries produce identical results across different database queries
+- **Format**: `[ query_group_id, engine ]` pairs
+- **Used by**: `validate_sql_correctness.py`
+- **Behavior**: The script executes specified queries and compares outputs line-by-line to ensure query equivalence.
 
 ## Workflow
 
@@ -281,21 +417,36 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb \
   --post-sql ./queries/create_indexes.sql
 ```
 
-#### #### Step 3: Configure Experiments
+#### Step 3: Configure Experiments
 
 Edit `config.yaml`:
 
 1. Add your datasets under `datasets:`
 2. Add your queries under `query_groups:`
 3. Define comparison pairs under `compare_pairs:`
+4. Define validation pairs under `validate_pairs:`
 
-#### Step 4: Run Benchmarks
+#### Step 4: Validate SQL Correctness
+
+Verify that queries produce identical results across different queries.
+
+```bash
+python validate_sql_correctness.py
+```
+
+This step is useful to:
+- Ensure queries are logically equivalent across different SQL dialects
+- Detect subtle differences in query results between engines
+
+Configure which experiments to validate in `config.yaml` under `validate_pairs:`.
+
+#### Step 5: Run Benchmarks
 
 ```bash
 python run_experiments.py
 ```
 
-> **⚠️ Important Note**: When running benchmarks, the program automatically modifies SQL files to insert profiling statements (e.g., `.timer on`, `.stats on` for SQLite). These modifications are temporary and necessary for performance measurement. **DO NOT commit these modified SQL files to GitHub**.
+> **ℹ️ Note**: When running benchmarks or validations, the program automatically creates temporary SQL files (with `_profiling_tmp.sql` or `_validate_tmp.sql` suffix) that include necessary configurations. Your original SQL files remain unchanged. These temporary files are already configured in `.gitignore`.
 
 **Expected output:**
 
@@ -333,7 +484,7 @@ python run_experiments.py
 [INFO] All experiments completed successfully!
 ```
 
-#### Step 5: Generate Visualizations
+#### Step 6: Generate Visualizations
 
 ```bash
 python analyze_results.py

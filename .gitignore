@@ -8,3 +8,7 @@
 __pycache__/
 db*/
 sqlite*/
+
+# Temporary SQL files generated during benchmarking
+*_profiling_tmp.sql
+*_validate_tmp.sql

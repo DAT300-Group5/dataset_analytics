@@ -94,3 +94,16 @@ compare_pairs:
   - [ trend_Q1, duckdb ]
   - [ trend_Q2, duckdb ]
   - [ trend_Q3, duckdb ]
+
+# ------------------------------------------------------------
+# SQL Correctness Validation Pairs
+# ------------------------------------------------------------
+
+# validate_pairs: Define which experiments to validate for SQL correctness
+# Format: [ query_group_id, engine ]
+# Purpose: Used by validate_sql_correctness.py to run queries and compare outputs
+# The script will execute these queries and verify that results are identical
+# across different engines (e.g., duckdb vs sqlite) for the same query_group_id
+validate_pairs:
+  - [ Q2, duckdb ]
+  - [ Q2, sqlite ]
