@@ -380,7 +380,7 @@ Configure which experiments to validate in `config.yaml` under `validate_pairs:`
 python run_experiments.py
 ```
 
-> **⚠️ Important Note**: When running benchmarks, the program automatically modifies SQL files to insert profiling statements (e.g., `.timer on`, `.stats on` for SQLite). These modifications are temporary and necessary for performance measurement. **DO NOT commit these modified SQL files to GitHub**.
+> **ℹ️ Note**: When running benchmarks or validations, the program automatically creates temporary SQL files (with `_profiling_tmp.sql` or `_validate_tmp.sql` suffix) that include necessary configurations. Your original SQL files remain unchanged. These temporary files are already configured in `.gitignore`.
 
 **Expected output:**
 
