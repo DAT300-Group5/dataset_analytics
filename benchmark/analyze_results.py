@@ -607,7 +607,7 @@ def plot_bar_chart(params : PlotParams):
 
     plt.tight_layout()
 
-    # 保存或显示
+    # save or show
     if params.output_path:
         output_path = Path(params.output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
