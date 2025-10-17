@@ -584,7 +584,7 @@ def plot_bar_chart(params : PlotParams):
 
     ax.bar(x, params.values, color=params.colors, linewidth=1)
 
-    # Y轴和标题
+    # y axis label and title
     ax.set_ylabel(params.ylabel)
     ax.set_title(params.title)
     ax.set_xticks(x)
