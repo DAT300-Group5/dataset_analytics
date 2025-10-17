@@ -598,7 +598,7 @@ def plot_bar_chart(params : PlotParams):
         for i, v in enumerate(params.values):
             ax.text(
                 i,
-                v + (max(params.values) * 0.01),  # 稍微上移一点
+                v + (max(params.values) * 0.01),  # slightly move above the bar
                 f"{v:.2f}",
                 ha="center",
                 va="bottom",
