@@ -590,10 +590,10 @@ def plot_bar_chart(params : PlotParams):
     ax.set_xticks(x)
     ax.set_xticklabels(params.labels, rotation=params.rotation, ha="right")
 
-    # 加网格线
+    # add grid
     ax.grid(True, alpha=0.3, axis="y")
 
-    # 在柱子上标注数值
+    # add annotation
     if params.annotate:
         for i, v in enumerate(params.values):
             ax.text(
