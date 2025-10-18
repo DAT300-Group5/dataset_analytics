@@ -2,6 +2,19 @@ import shutil
 from pathlib import Path
 
 
+def resolve_cmd(cmd: str) -> str:
+    p = Path(cmd)
+    if p.is_file() or ("/" in cmd or "\\" in cmd):
+        return str(p.resolve())
+    found = shutil.which(cmd)
+    if found:
+        return found
+    raise FileNotFoundError(
+        f"Executable '{cmd}' not found. "
+        f"Either provide a path (e.g. './duckdb') or ensure it's in PATH."
+    )
+
+
 def clean_path(path: str):
     """
     Delete all files and subdirectories in the given path, but keep the path itself.

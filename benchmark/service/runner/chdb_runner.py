@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 from consts.RunMode import RunMode
+from util.file_utils import resolve_cmd
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -49,12 +50,13 @@ class ChdbRunner:
                  open(stdout_path, 'w') as stdout_file, \
                     open(stderr_path, 'w') as stderr_file, \
                         open(output_path, 'w') as output_file:
-                cmd_args = [Path(self.cmd).resolve(), str(self.db_file)]
-
+                cmd_args = [resolve_cmd(self.cmd), str(self.db_file)]
+                
                 if self.enable_profiling:
                     cmd_args.append('-v')
                     cmd_args.append('-m')
-                    process = subprocess.Popen(
+                
+                process = subprocess.Popen(
                         cmd_args,
                         stdin=sql_input,
                         stdout=stdout_file,
@@ -63,18 +65,7 @@ class ChdbRunner:
                         text=True,
                         env=env
                     )
-                    return process
-                else:
-                    process = subprocess.Popen(
-                        cmd_args,
-                        stdin=sql_input,
-                        stdout=output_file,
-                        stderr=stderr_file,
-                        cwd=self.cwd,
-                        text=True,
-                        env=env
-                    )
-                    return process
+                return process
         except Exception as e:
             logger.error(f"Execution failed: {e}")
             raise
@@ -96,4 +87,3 @@ if __name__ == "__main__":
         logger.error("Execution failed")
         if stderr:
             logger.error(stderr)
-

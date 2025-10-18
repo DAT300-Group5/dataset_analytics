@@ -190,7 +190,7 @@ After running these commands, SQLite will be compiled and installed in the speci
 To **temporarily** use this SQLite rather than affecting your own system SQLite, you can:
 
 ```bash
-export PATH="/home/me/sqlite/bin:$PATH"
+export PATH="/home/<username>/dataset_analytics/sqlite/bin:$PATH"
 
 which sqlite3
 ```

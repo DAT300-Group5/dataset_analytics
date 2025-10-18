@@ -41,12 +41,19 @@ output_cwd: ./results
 # Engine Paths
 # ------------------------------------------------------------
 
-# Absolute or relative paths to database engine executables
+# Database engine executables: could be system-installed or custom builds
+# 3 options: system path, relative path, absolute path
+# Examples:
+#   sqlite: sqlite3  # system-installed sqlite (in PATH)
+#   sqlite: /home/<username>/dataset_analytics/sqlite/bin/sqlite3
+#   sqlite: ../sqlite/bin/sqlite3
 engine_paths:
-  duckdb: duckdb  # Use system duckdb (assumes in PATH)
-  sqlite: sqlite3  # Custom SQLite build path, need absolute path or change sqlite PATH temporarily
-  chdb: ./chdb_cli/chdb_cli  # Custom chDB client path
+  duckdb: duckdb
+  sqlite: sqlite3
+  chdb: ./chdb_cli/chdb_cli
 
+# chdb_library_path: Path to chDB shared library (libchdb.so)
+# Provide for macOS / Linux if don't set default system path
 chdb_library_path: /usr/local/lib
 
 # ------------------------------------------------------------
@@ -94,6 +101,7 @@ query_groups:
 # Purpose: Used by analyze_results.py to generate comparison charts
 # These pairs will be plotted together for easy performance comparison
 compare_pairs:
+
   - [ trend_Q1, duckdb ]
   - [ trend_Q2, duckdb ]
   - [ trend_Q3, duckdb ]

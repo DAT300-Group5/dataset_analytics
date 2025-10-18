@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 from consts.RunMode import RunMode
-from util.file_utils import prepare_profiling_sqlite_sql_file, prepare_validate_sqlite_sql_file
+from util.file_utils import prepare_profiling_sqlite_sql_file, prepare_validate_sqlite_sql_file, resolve_cmd
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -38,8 +38,9 @@ class SQLiteRunner:
             with open(self.sql_file, 'r') as sql_input, \
                  open(stdout_path, 'w') as stdout_file, \
                     open(stderr_path, 'w') as stderr_file:
+                cmd_args = [resolve_cmd(self.cmd), str(self.db_file)]
                 process = subprocess.Popen(
-                    [self.cmd, str(self.db_file)],
+                    cmd_args,
                     stdin=sql_input,
                     stdout=stdout_file,
                     stderr=stderr_file,
