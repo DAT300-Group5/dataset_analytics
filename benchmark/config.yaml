@@ -10,7 +10,7 @@
 
 # engines: List of database engines to benchmark
 # Supported values: duckdb, sqlite, chdb
-engines: [duckdb, sqlite]
+engines: [duckdb, sqlite, chdb]
 
 # repeat_pilot: Number of pilot runs to calculate sampling interval
 # Purpose: Stage 1/2 runs this many times with DEFAULT_PIVOT_INTERVAL (10s)
@@ -45,6 +45,9 @@ output_cwd: ./results
 engine_paths:
   duckdb: duckdb  # Use system duckdb (assumes in PATH)
   sqlite: sqlite3  # Custom SQLite build path, need absolute path or change sqlite PATH temporarily
+  chdb: ./chdb_cli/chdb_cli  # Custom chDB client path
+
+chdb_library_path: /usr/local/lib
 
 # ------------------------------------------------------------
 # Datasets
