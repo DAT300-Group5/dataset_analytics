@@ -2,10 +2,28 @@
 
 A ChDB command line tool that reads SQL from stdin and outputs CSV with headers.
 
-## Build
+## Prerequisites
+
+Before building, you need to install the libchdb library.
+
+### Install libchdb
+
+Run the following command to install the chDB C/C++ library:
 
 ```bash
-g++ -o chdb_cli chdb_cli.cpp  -lchdb -L/usr/local/lib
+curl -sL https://lib.chdb.io | bash
+```
+
+This will automatically download and install libchdb to your system path (typically `/usr/local/lib`).
+
+For more details, refer to the official documentation: [chDB C/C++ Installation Guide](https://clickhouse.com/docs/chdb/install/c)
+
+## Build
+
+After installing libchdb, compile the command line tool:
+
+```bash
+g++ -o chdb_cli chdb_cli.cpp -lchdb -L/usr/local/lib
 ```
 
 ## Usage
