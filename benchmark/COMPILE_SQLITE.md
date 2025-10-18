@@ -187,6 +187,16 @@ After running these commands, SQLite will be compiled and installed in the speci
 └── share
 ```
 
+To **temporarily** use this SQLite rather than affecting your own system SQLite, you can:
+
+```bash
+export PATH="/home/me/sqlite/bin:$PATH"
+
+which sqlite3
+```
+
+It works in the current shell.
+
 ### How to Use
 
 Execute the following command to launch the compiled SQLite:
