@@ -19,16 +19,16 @@ class ChdbLogParser:
             raise FileNotFoundError(f"Log file {stdout_file} does not exist.")
         
         # Parse stdout file - it contains query statistics
-        timing_info, memory_info, output_rows, query_count = self._parse_stdout(stdout_file)
+        timing_info, memory_info, output_rows = self._parse_stdout(stdout_file)
         
         return QueryMetrics(
-            query_count=query_count,
+            query_count=1,
             timing=timing_info,
             memory=memory_info,
             output_rows=output_rows
         )
     
-    def _parse_stdout(self, stdout_file: Path) -> tuple[TimingInfo, MemoryInfo, int, int]:
+    def _parse_stdout(self, stdout_file: Path) -> tuple[TimingInfo, MemoryInfo, int]:
         """Parse stdout.log which contains query statistics.
         
         Expected format:
@@ -42,8 +42,7 @@ class ChdbLogParser:
         timing_info = TimingInfo()
         memory_info = MemoryInfo()
         output_rows = 0
-        query_count = 1  # Default to 1 if not found
-        
+
         try:
             with open(stdout_file, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -75,19 +74,12 @@ class ChdbLogParser:
                 memory_info.memory_used = memory_bytes
             else:
                 logger.warning("Could not find 'Peak memory' in stdout")
-            
-            # Parse query count
-            # Format: "Query count: 3"
-            query_count_match = re.search(r'Query count:\s+([\d]+)', content)
-            if query_count_match:
-                query_count = int(query_count_match.group(1))
-            else:
-                logger.debug("Could not find 'Query count' in stdout, using default value 1")
+
             
         except Exception as e:
             logger.warning(f"Could not parse {stdout_file.name}: {e}")
         
-        return timing_info, memory_info, output_rows, query_count
+        return timing_info, memory_info, output_rows
 
 
 if __name__ == "__main__":
