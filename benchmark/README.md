@@ -88,7 +88,7 @@ benchmark/
 
 Before running benchmarks with SQLite, you **must** compile SQLite with the `SQLITE_ENABLE_STMT_SCANSTATUS` flag enabled to support query profiling and performance metrics.
 
-📖 **See [COMPILE_SQLITE.md](./COMPILE_SQLITE.md) for detailed compilation instructions.**
+📖 **See [COMPILE_SQLITE](COMPILE_SQLITE.md) for detailed compilation instructions.**
 
 Without this flag, SQLite profiling features will not work, and benchmark results will be incomplete.
 
@@ -178,8 +178,6 @@ validate_pairs:
 
 Before running benchmarks, verify that queries produce identical results across different database queries.
 
-```bash
-
 **Configuration:**
 
 First, configure validation pairs in `config.yaml`:
@@ -198,6 +196,7 @@ validate_pairs:
 ```
 
 The validation script will:
+
 1. Execute each query specified in `validate_pairs`
 2. Compare results pairwise: If you have n queries in `validate_pairs`, it performs C(n,2) = n×(n-1)/2 comparisons
    - Example: 2 queries → 1 comparison, 3 queries → 3 comparisons, 4 queries → 6 comparisons
@@ -253,6 +252,7 @@ python validate_sql_correctness.py
 ```
 
 **Features:**
+
 - **Numeric precision handling**: Small floating-point differences (within tolerance) are automatically ignored to avoid false positives from precision issues
 - **Timestamp auto-conversion**: Automatically handles different time formats (Unix timestamps in seconds/milliseconds, ISO 8601, common datetime formats)
   - Example: `'2021-03-04 07:42:00'` and `'1614843720000'` are recognized as the same time
@@ -263,6 +263,7 @@ python validate_sql_correctness.py
 **💡 Tip - SQL Syntax Checking:**
 
 You can also use this tool to quickly check if your SQL queries run without errors:
+
 - Run the validation script
 - If there are syntax errors, the script will abort and show the error details
 - Ignore comparison warnings if you're only checking syntax
@@ -306,13 +307,13 @@ All experiments are configured through `config.yaml`. **No command-line argument
 
 ### Core Parameters
 
-| Parameter      | Description                                     | Default            |
-| -------------- | ----------------------------------------------- | ------------------ |
+| Parameter      | Description                                       | Default            |
+| -------------- | ------------------------------------------------- | ------------------ |
 | `engines`      | Database engines to benchmark (🚧 Note: chDB TODO) | `[duckdb, sqlite]` |
-| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                |
-| `sample_count` | Target monitoring samples per query             | `10`               |
-| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                |
-| `output_cwd`   | Results output directory                        | `./results`        |
+| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2)   | `3`                |
+| `sample_count` | Target monitoring samples per query               | `10`               |
+| `std_repeat`   | Benchmark iterations (Stage 2/2)                  | `5`                |
+| `output_cwd`   | Results output directory                          | `./results`        |
 
 ### Execution Model
 
@@ -386,11 +387,9 @@ The `validate_pairs` parameter defines which experiments to run for SQL correctn
 - **Used by**: `validate_sql_correctness.py`
 - **Behavior**: The script executes specified queries and compares outputs line-by-line to ensure query equivalence.
 
-## Workflow
+## Complete Workflow Example
 
-### Complete Workflow Example
-
-#### Step 1: Prepare Data
+### Step 1: Prepare Data
 
 ```bash
 # Ensure raw CSV files are in place
@@ -402,7 +401,7 @@ ls raw_data/hrm/hrm_vs14.csv
 mkdir -p db_vs14
 ```
 
-#### Step 2: Create Databases
+### Step 2: Create Databases
 
 ```bash
 # DuckDB
@@ -417,7 +416,7 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb \
   --post-sql ./queries/create_indexes.sql
 ```
 
-#### Step 3: Configure Experiments
+### Step 3: Configure Experiments
 
 Edit `config.yaml`:
 
@@ -426,7 +425,7 @@ Edit `config.yaml`:
 3. Define comparison pairs under `compare_pairs:`
 4. Define validation pairs under `validate_pairs:`
 
-#### Step 4: Validate SQL Correctness
+### Step 4: Validate SQL Correctness
 
 Verify that queries produce identical results across different queries.
 
@@ -435,12 +434,13 @@ python validate_sql_correctness.py
 ```
 
 This step is useful to:
+
 - Ensure queries are logically equivalent across different SQL dialects
 - Detect subtle differences in query results between engines
 
 Configure which experiments to validate in `config.yaml` under `validate_pairs:`.
 
-#### Step 5: Run Benchmarks
+### Step 5: Run Benchmarks
 
 ```bash
 python run_experiments.py
@@ -484,7 +484,7 @@ python run_experiments.py
 [INFO] All experiments completed successfully!
 ```
 
-#### Step 6: Generate Visualizations
+### Step 6: Generate Visualizations
 
 ```bash
 python analyze_results.py
@@ -566,6 +566,8 @@ engine_paths:
   duckdb: /usr/local/bin/duckdb
   sqlite: /Users/me/custom-sqlite/sqlite3
 ```
+
+Or edit the `PATH` permamently in `~/.profile` / temporarily in the current shell.
 
 ### Adjusting Monitoring Granularity
 

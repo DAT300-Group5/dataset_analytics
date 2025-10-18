@@ -44,7 +44,7 @@ output_cwd: ./results
 # Absolute or relative paths to database engine executables
 engine_paths:
   duckdb: duckdb  # Use system duckdb (assumes in PATH)
-  sqlite: ../sqlite/bin/sqlite3  # Custom SQLite build path
+  sqlite: sqlite3  # Custom SQLite build path, need absolute path or change sqlite PATH temporarily
   chdb: ./chdb_cli/chdb_cli  # Custom chDB client path
 
 chdb_library_path: /usr/local/lib
