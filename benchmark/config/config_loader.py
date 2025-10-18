@@ -38,7 +38,12 @@ class ConfigLoader:
         
         # Parse engines
         config.engines = [EngineType(engine) for engine in data["engines"]]
-        
+
+        if "chdb_library_path" in data:
+            config.chdb_library_path = data["chdb_library_path"]
+        else:
+            config.chdb_library_path = None
+
         # Parse simple fields
         config.repeat_pilot = data["repeat_pilot"]
         config.sample_count = data["sample_count"]
@@ -80,7 +85,7 @@ class ConfigLoader:
             for query_group in self.config_data.query_groups:
                 for engine in self.config_data.engines:
                     sql_file = getattr(query_group, f"{engine.value}_sql")
-                    db_file = getattr(dataset, f"{engine.value}_db") or getattr(dataset, f"{engine.value}_db_dir")
+                    db_file = getattr(dataset, f"{engine.value}_db", None) or getattr(dataset, f"{engine.value}_db_dir")
 
                     if sql_file and db_file:
                         # Generate experiment name as query_id + engine
@@ -96,6 +101,7 @@ class ConfigLoader:
                             exp_name=exp_name,
                             group_id=query_group.id,
                             engine_cmd=engine_cmd,
+                            chdb_library_path=self.config_data.chdb_library_path,
                             cwd=Path(self.config_data.cwd),
                             sample_count=self.config_data.sample_count,
                             std_repeat=self.config_data.std_repeat

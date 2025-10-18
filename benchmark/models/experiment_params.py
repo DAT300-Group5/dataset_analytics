@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 from consts.EngineType import EngineType
 
@@ -12,6 +13,7 @@ class ExperimentParams:
     exp_name : str
     group_id : str
     engine_cmd : str
+    chdb_library_path : Optional[str]
     cwd : Path
     sample_count : int
     std_repeat : int

@@ -19,16 +19,16 @@ class ChdbLogParser:
             raise FileNotFoundError(f"Log file {stdout_file} does not exist.")
         
         # Parse stdout file - it contains query statistics
-        timing_info, memory_info, output_rows = self._parse_stdout(stdout_file)
+        timing_info, memory_info, output_rows, query_count = self._parse_stdout(stdout_file)
         
         return QueryMetrics(
-            query_count=1,  # chdb typically runs one query at a time
+            query_count=query_count,
             timing=timing_info,
             memory=memory_info,
             output_rows=output_rows
         )
     
-    def _parse_stdout(self, stdout_file: Path) -> tuple[TimingInfo, MemoryInfo, int]:
+    def _parse_stdout(self, stdout_file: Path) -> tuple[TimingInfo, MemoryInfo, int, int]:
         """Parse stdout.log which contains query statistics.
         
         Expected format:
@@ -36,11 +36,13 @@ class ChdbLogParser:
           Elapsed: 0.768 seconds
           Output rows: 25031
         Peak memory: 387.172 MB
+        Query count: 3
         [CSV data follows...]
         """
         timing_info = TimingInfo()
         memory_info = MemoryInfo()
         output_rows = 0
+        query_count = 1  # Default to 1 if not found
         
         try:
             with open(stdout_file, 'r', encoding='utf-8') as f:
@@ -74,10 +76,18 @@ class ChdbLogParser:
             else:
                 logger.warning("Could not find 'Peak memory' in stdout")
             
+            # Parse query count
+            # Format: "Query count: 3"
+            query_count_match = re.search(r'Query count:\s+([\d]+)', content)
+            if query_count_match:
+                query_count = int(query_count_match.group(1))
+            else:
+                logger.debug("Could not find 'Query count' in stdout, using default value 1")
+            
         except Exception as e:
             logger.warning(f"Could not parse {stdout_file.name}: {e}")
         
-        return timing_info, memory_info, output_rows
+        return timing_info, memory_info, output_rows, query_count
 
 
 if __name__ == "__main__":

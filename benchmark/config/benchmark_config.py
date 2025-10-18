@@ -12,6 +12,7 @@ class BenchmarkConfig:
     std_repeat: int
     cwd: str
     engine_paths: Dict[str, str]  # Map engine name to executable path
+    chdb_library_path: str
     datasets: List[Dataset]
     query_groups: List[QueryGroup]
     compare_pairs: List[Tuple[str, EngineType]]

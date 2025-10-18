@@ -11,8 +11,10 @@ from pathlib import Path
 from config.config_loader import ConfigLoader
 from consts.EngineType import EngineType
 from models.experiment_params import ExperimentParams
+from service.proflie_parser.chdb_log_parser import ChdbLogParser
 from service.proflie_parser.duckdb_log_parser import DuckdbLogParser
 from service.proflie_parser.sqlite_log_parser import SqliteLogParser
+from service.runner.chdb_runner import ChdbRunner
 from service.runner.duckdb_runner import DuckdbRunner
 from service.runner.sqlite_runner import SQLiteRunner
 from service.task_executor.task_executor import TaskExecutor
@@ -35,6 +37,12 @@ def build_experiment(params : ExperimentParams) :
         runner = DuckdbRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd)
         duckdb_parser = DuckdbLogParser(log_path=runner.results_dir)
         task_executor = TaskExecutor(runner=runner, log_parser=duckdb_parser, sample_count=params.sample_count, std_repeat=params.std_repeat)
+        return task_executor
+    elif params.engine == EngineType.CHDB:
+        runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd)
+        runner.set_library_path(params.chdb_library_path)
+        chdb_parser = ChdbLogParser(log_path=runner.results_dir)
+        task_executor = TaskExecutor(runner=runner, log_parser=chdb_parser, sample_count=params.sample_count, std_repeat=params.std_repeat)
         return task_executor
 
 def add_result_to_summary(summary: dict, group_id: str, engine: EngineType, result: dict) -> None:
