@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 from consts.RunMode import RunMode
-from util.file_utils import prepare_profiling_sqlite_sql_file, resolve_cmd
+from util.file_utils import resolve_cmd
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -23,9 +23,8 @@ class SQLiteRunner:
         self.results_dir.mkdir(parents=True, exist_ok=True)
         
         self.sql_file = Path(sql_file)
-        # Prepare SQL file and use the temporary file
-        if run_mode == RunMode.PROFILE:
-            self.sql_file = prepare_profiling_sqlite_sql_file(sql_file)
+        
+        self.enable_profiling = (run_mode == RunMode.PROFILE)
 
     def run_subprocess(self) -> subprocess.Popen:
         stdout_path = self.results_dir / "stdout.log"
@@ -41,6 +40,11 @@ class SQLiteRunner:
                     str(self.db_file),
                     '-csv', '-header'
                 ]
+                
+                if self.enable_profiling:
+                    # assume no dot commands in sql file
+                    cmd_args += ['-init', str(Path(__file__).parent / '.sqliterc')]
+                
                 process = subprocess.Popen(
                     cmd_args,
                     stdin=sql_input,

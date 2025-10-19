@@ -1,0 +1,3 @@
+-- Enable timer and statistics
+.timer on
+.stats on

@@ -39,8 +39,8 @@ class DuckdbRunner:
                     resolve_cmd(self.cmd), # duckdb executable
                     str(self.db_file),
                     '-no-stdin',
+                    '-csv', '-header', # need to add before -f
                     '-f', str(self.sql_file),
-                    '-csv', '-header'
                 ]
                 process = subprocess.Popen(
                     cmd_args,
@@ -57,9 +57,9 @@ class DuckdbRunner:
 
 
 if __name__ == "__main__":
-    sql_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql"
-    db_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/db_vs14/vs14_data.duckdb"
-    cwd = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test"
+    sql_file = "/home/xuan/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql"
+    db_file = "/home/xuan/dataset_analytics/benchmark/db_vs14/vs14_data.duckdb"
+    cwd = "/home/xuan/dataset_analytics/benchmark/test"
     runner = DuckdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd)
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()

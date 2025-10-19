@@ -128,43 +128,6 @@ def prepare_profiling_duckdb_sql_file(sql_file: str) -> Path:
     return tmp_file
 
 
-def prepare_profiling_sqlite_sql_file(sql_file: str) -> Path:
-    """
-    Prepare the SQL file for SQLite by adding .timer ON at the beginning if not present.
-    
-    Creates a temporary file instead of modifying the original.
-    
-    Args:
-        sql_file: Path to the original SQL file
-        
-    Returns:
-        Path to the temporary profiling SQL file (original_name_profiling_tmp.sql)
-    """
-    sql_path = Path(sql_file)
-    
-    # Create temporary file name
-    tmp_file = sql_path.parent / f"{sql_path.stem}_profiling_tmp{sql_path.suffix}"
-    
-    # Read the original SQL file
-    with open(sql_file, 'r') as f:
-        content = f.read()
-
-    # Check if .timer ON is present
-    if '.timer on \n.stats on' not in content:
-        # Add .timer ON at the beginning
-        new_content = '-- Enable timer and statistics\n.timer on\n.stats on\n\n' + content
-    else:
-        # Already has the profiling commands, just copy the content
-        new_content = content
-    
-    # Write to temporary file
-    with open(tmp_file, 'w') as f:
-        f.write(new_content)
-    
-    print(f"✓ Created temporary SQL file: {tmp_file}")
-    return tmp_file
-
-
 if __name__ == "__main__":
     prepare_profiling_duckdb_sql_file("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql")
     # clean_path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/")
