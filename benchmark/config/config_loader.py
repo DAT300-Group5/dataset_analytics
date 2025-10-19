@@ -11,6 +11,7 @@ import yaml
 
 from config.benchmark_config import BenchmarkConfig
 from config.dataset import Dataset
+from config.execution_unit import ExecutionUnit
 from config.query_group import QueryGroup
 from consts.EngineType import EngineType
 from models.experiment_params import ExperimentParams
@@ -18,20 +19,33 @@ from models.experiment_params import ExperimentParams
 
 class ConfigLoader:
 
-    def __init__(self, config_path: Path):
+    def __init__(self, config_path: Path, env: str = None):
         self.config_path = config_path
+        self.env = env
         self.config_data = self._load_config()
+        self.experiments = None
 
     def _load_config(self) -> BenchmarkConfig:
         """
         Load and parse benchmark configuration from YAML file.
+        Supports environment-specific overrides via config_<env>.yaml
         
         Returns:
             BenchmarkConfig: Configured benchmark configuration instance
         """
-        # Load YAML file
-        with open(self.config_path, "r", encoding="utf-8") as f:
+        # Load base YAML file
+        base_config_file = self.config_path / "config.yaml"
+        with open(base_config_file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
+        
+        # Load environment-specific override if specified
+        if self.env:
+            env_config_file = self.config_path / f"config_{self.env}.yaml"
+            with open(env_config_file, "r", encoding="utf-8") as f:
+                env_data = yaml.safe_load(f)
+                # Merge environment config into base config
+                # dict.update() will overwrite existing keys
+                data.update(env_data)
         
         # Create BenchmarkConfig instance
         config = BenchmarkConfig()
@@ -52,13 +66,13 @@ class ConfigLoader:
         config.compare_pairs = []
         config.validate_pairs = []
 
+        config.execute_pairs = [ExecutionUnit(group_id, EngineType(engine)) for group_id, engine in data["execute_pairs"]]
+
         if "compare_pairs" in data:
-            for query_group, engine in data["compare_pairs"]:
-                config.compare_pairs.append((query_group, EngineType(engine)))
+            config.compare_pairs = [ExecutionUnit(group_id, EngineType(engine)) for group_id, engine in data["compare_pairs"]]
 
         if "validate_pairs" in data:
-            for query_group, engine in data["validate_pairs"]:
-                config.validate_pairs.append((query_group, EngineType(engine)))
+            config.validate_pairs = [ExecutionUnit(group_id, EngineType(engine)) for group_id, engine in data["validate_pairs"]]
 
         # Parse engine paths
         config.engine_paths = data.get("engine_paths", {})
@@ -71,6 +85,25 @@ class ConfigLoader:
         
         return config
 
+    def filter_experiments(self, execution_units: List[ExecutionUnit]) -> List[ExperimentParams]:
+        """
+        Filter experiments based on provided execution units.
+
+        Args:
+            execution_units (List[ExecutionUnit]): List of execution units to filter by
+
+        Returns:
+            List[ExperimentParams]: Filtered list of experiment parameters
+        """
+        all_experiments = self.get_experiments()
+        filtered_experiments = []
+        for exp in all_experiments:
+            for item in execution_units:
+                if exp.group_id == item.group_id and exp.engine == item.engine:
+                    filtered_experiments.append(exp)
+                    break
+        return filtered_experiments
+
     def get_experiments(self) -> List[ExperimentParams]:
         """
         Generate a list of ExperimentParams for all combinations of datasets,
@@ -79,6 +112,9 @@ class ConfigLoader:
         Returns:
             List[ExperimentParams]: List of experiment parameters
         """
+        if self.experiments is not None:
+            return self.experiments
+
         experiments = []
 
         for dataset in self.config_data.datasets:
@@ -108,6 +144,7 @@ class ConfigLoader:
                         )
                         experiments.append(exp_params)
                         print(f"Created experiment", exp_params)
+        self.experiments = experiments
         return experiments
     
 if __name__ == "__main__":

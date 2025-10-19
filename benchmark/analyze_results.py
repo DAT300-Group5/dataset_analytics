@@ -13,6 +13,7 @@ import numpy as np
 
 from config.config_loader import ConfigLoader
 from models.plot_params import PlotParams
+from cli.cli import parse_env_args
 from util.file_utils import clean_path
 
 # Define colors for different engines
@@ -518,8 +519,9 @@ def create_performance_summary_table(data, output_dir):
 
 def main():
     """Main function: load data and generate all visualizations."""
-    config_path = Path(__file__).parent / "config.yaml"
-    config = ConfigLoader(config_path)
+    args = parse_env_args("Analyze benchmark experiment results")
+    config_path = Path(__file__).parent / "config_yaml"
+    config = ConfigLoader(config_path, env=args.env)
     summary_file = Path(config.config_data.cwd) / "summary.json"
     output_dir = Path(config.config_data.cwd)  / "visual"
     

@@ -1,0 +1,47 @@
+# output_cwd: Output directory for results
+# Structure: output_cwd/
+#   ├── summary.json (aggregated results for all experiments)
+#   └── <experiment_name>/ (individual run logs and profiling data)
+output_cwd: ./results/anomaly-Q4
+
+# ------------------------------------------------------------
+# SQL Correctness Validation Pairs
+# ------------------------------------------------------------
+
+# validate_pairs: Define which experiments to validate for SQL correctness
+# Format: [ query_group_id, engine ]
+# Purpose: Used by validate_sql_correctness.py to run queries and compare outputs
+# The script will execute these queries and verify that results are identical
+# across different engines (e.g., duckdb vs sqlite) for the same query_group_id
+validate_pairs:
+  - [ anomaly-Q4, duckdb ]
+  - [ anomaly-Q4, sqlite ]
+#  - [ anomaly-Q4, chdb ]
+
+
+# ------------------------------------------------------------
+# Experiment Execution Pairs
+# ------------------------------------------------------------
+
+# execute_pairs: Define which experiments to execute during benchmark runs
+# Format: [ query_group_id, engine ]
+# Purpose: Used by run_experiments.py to decide which (query, engine) combos run
+# Only the pairs listed here will be scheduled and executed in the benchmark
+execute_pairs:
+  - [ anomaly-Q4, duckdb ]
+  - [ anomaly-Q4, sqlite ]
+#  - [ anomaly-Q4, chdb ]
+
+
+# ------------------------------------------------------------
+# Visualization Comparison Pairs
+# ------------------------------------------------------------
+
+# compare_pairs: Define which experiments to compare in visualizations
+# Format: [ query_group_id, engine ]
+# Purpose: Used by analyze_results.py to generate comparison charts
+# These pairs will be plotted together for easy performance comparison
+compare_pairs:
+  - [ anomaly-Q4, duckdb ]
+  - [ anomaly-Q4, sqlite ]
+#  - [ anomaly-Q4, chdb ]

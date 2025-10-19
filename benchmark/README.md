@@ -10,7 +10,7 @@ This benchmark system provides:
 - **Resource monitoring**: Track CPU usage, memory consumption, and execution time
 - **Statistical analysis**: Aggregate results with percentiles (P50, P95, P99)
 - **Visualization**: Generate comparison charts automatically
-- **Configuration-driven**: Simple YAML configuration, no complex command-line arguments
+- **Configuration-driven**: Simple YAML configuration
 
 ### Key Features
 
@@ -30,17 +30,25 @@ This benchmark system provides:
 
 ```ASCII
 benchmark/
-├── config.yaml                  # Main configuration file (EDIT THIS)
 ├── run_experiments.py           # Execute benchmarks
 ├── analyze_results.py           # Generate visualizations
 ├── create_db.py                 # Create databases from CSV data
 ├── validate_sql_correctness.py  # Validate SQL correctness across queries
 │
+├── config_yaml/           # Configuration yaml
+│   ├── config.yaml        # Main configuration file (EDIT THIS)
+│   ├── config_dev.yaml    # single experiment
+│   └── ...
+│
 ├── config/                # Configuration loading
 │   ├── config_loader.py
 │   ├── benchmark_config.py
 │   ├── dataset.py
+│   ├── execution_unit.py
 │   └── query_group.py
+│
+├── cli/
+│   └── cli.py
 │
 └── service/
     ├── runner/            # Database execution
@@ -141,7 +149,9 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb --post-sql y
 
 ### 3. Configure Experiments
 
-Edit `config.yaml` to define your experiments:
+Edit `config.yaml` to define the base query settings, then edit `config_<exp>.yaml` for single experiment:
+
+Example `config.yaml`:
 
 ```yaml
 engines: [duckdb, sqlite, chdb]
@@ -164,13 +174,22 @@ query_groups:
     duckdb_sql: ./queries/Q1/Q1_duckdb.sql
     sqlite_sql: ./queries/Q1/Q1_sqlite.sql
     chdb_sql: ./queries/Q1/Q1_clickhouse.sql
+```
 
-compare_pairs:
+Example `config_dev.yaml`:
+
+```yaml
+validate_pairs:
   - [ sample-Q1, duckdb ]
   - [ sample-Q1, sqlite ]
   - [ sample-Q1, chdb ]
 
-validate_pairs:
+execute_pairs:
+  - [ sample-Q1, duckdb ]
+  - [ sample-Q1, sqlite ]
+  - [ sample-Q1, chdb ]
+
+compare_pairs:
   - [ sample-Q1, duckdb ]
   - [ sample-Q1, sqlite ]
   - [ sample-Q1, chdb ]
@@ -182,17 +201,19 @@ Before running benchmarks, verify that queries produce identical results across 
 
 **Configuration:**
 
-First, configure validation pairs in `config.yaml`:
+First, configure validation pairs in `config.yaml` and `config_<exp>.yaml`:
 
 ```yaml
-# Step 1: Define your queries in query_groups
 query_groups:
   - id: sample-Q1
     duckdb_sql: ./queries/Q1/Q1_duckdb.sql
     sqlite_sql: ./queries/Q1/Q1_sqlite.sql
     chdb_sql: ./queries/Q1/Q1_clickhouse.sql
+```
 
-# Step 2: Specify which query results to validate
+```yaml
+output_cwd: ./results/dev
+
 validate_pairs:
   - [ sample-Q1, duckdb ]
   - [ sample-Q1, sqlite ]
@@ -211,7 +232,8 @@ The validation script will:
 **Run validation:**
 
 ```bash
-python validate_sql_correctness.py
+# Use environment override to load config_<exp>.yaml alongside config.yaml
+python validate_sql_correctness.py --env dev
 ```
 
 **Output example:**
@@ -296,28 +318,37 @@ This is useful for rapid SQL debugging before running full benchmarks.
 ### 5. Run Benchmarks
 
 ```bash
-python run_experiments.py
+# Use environment-specific overrides (loads config_dev.yaml in addition to config.yaml)
+python run_experiments.py --env dev
 ```
 
 ### 6. Generate Visualizations
 
 ```bash
-python analyze_results.py
+# With environment override (e.g., reads config_dev.yaml on top of config.yaml)
+python analyze_results.py --env dev
 ```
 
 ## Configuration
 
-All experiments are configured through `config.yaml`. **No command-line arguments needed for normal use.**
+All experiments are configured through `config.yaml`, with optional environment-specific overrides loaded via the `--env` flag.
+
+### Environment Overrides
+
+- Base settings live in `config.yaml`; treat this as your global defaults.
+- Add partial overrides in files named `config_<exp>.yaml` (e.g., `config_dev.yaml`).
+- Run `run_experiments.py`, `analyze_results.py`, or `validate_sql_correctness.py` with `--env <name>` to merge the override file onto the base config.
+- The loader always falls back to `config.yaml`, so missing keys in the override keep their default values.
 
 ### Core Parameters
 
-| Parameter      | Description                                     | Default                 |
-|----------------|-------------------------------------------------|-------------------------|
+| Parameter      | Description                                     | Default                  |
+| -------------- | ----------------------------------------------- | ------------------------ |
 | `engines`      | Database engines to benchmark                   | `[duckdb, sqlite，chdb]` |
-| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                     |
-| `sample_count` | Target monitoring samples per query             | `10`                    |
-| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                     |
-| `output_cwd`   | Results output directory                        | `./results`             |
+| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                      |
+| `sample_count` | Target monitoring samples per query             | `10`                     |
+| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                      |
+| `output_cwd`   | Results output directory                        | `./results`              |
 
 ### Execution Model
 
@@ -335,7 +366,7 @@ Stage 2/2: Run Benchmark
 
 ### Example Configuration
 
-See detailed comments in [`config.yaml`](config.yaml) for more information.
+See detailed comments in [`config.yaml`](config.yaml) and [`config_dev.yaml`](config_dev.yaml) for more information.
 
 ### Validation Configuration
 
@@ -380,7 +411,7 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb \
 
 ### Step 3: Configure Experiments
 
-Edit `config.yaml`:
+Edit `config.yaml` and `config_<exp>.yaml`:
 
 1. Add your datasets under `datasets:`
 2. Add your queries under `query_groups:`
@@ -391,8 +422,10 @@ Edit `config.yaml`:
 
 Verify that queries produce identical results across different queries.
 
+Configure which experiments to validate in `config_<exp>.yaml` under `validate_pairs:`.
+
 ```bash
-python validate_sql_correctness.py
+python validate_sql_correctness.py --env dev
 ```
 
 This step is useful to:
@@ -400,12 +433,10 @@ This step is useful to:
 - Ensure queries are logically equivalent across different SQL dialects
 - Detect subtle differences in query results between engines
 
-Configure which experiments to validate in `config.yaml` under `validate_pairs:`.
-
 ### Step 5: Run Benchmarks
 
 ```bash
-python run_experiments.py
+python run_experiments.py --env dev
 ```
 
 > **ℹ️ Note**: When running benchmarks or validations, the program automatically creates temporary SQL files (with `_profiling_tmp.sql` or `_validate_tmp.sql` suffix) that include necessary configurations. Your original SQL files remain unchanged. These temporary files are already configured in `.gitignore`.
@@ -449,10 +480,10 @@ python run_experiments.py
 ### Step 6: Generate Visualizations
 
 ```bash
-python analyze_results.py
+python analyze_results.py --env dev
 ```
 
-Charts will be saved to `results/visual/`:
+Charts will be saved to `visual/`:
 
 - `execution_time_comparison.png`
 - `memory_usage_comparison.png`
@@ -503,7 +534,7 @@ Charts will be saved to `results/visual/`:
 
 ### Visualization Output
 
-Generated charts in `results/visual/`:
+Generated charts in `visual/`:
 
 1. **Execution Time Comparison**: Bar chart comparing query execution times
 2. **Memory Usage Comparison**: Peak memory consumption across engines

@@ -18,6 +18,7 @@ from service.runner.chdb_runner import ChdbRunner
 from service.runner.duckdb_runner import DuckdbRunner
 from service.runner.sqlite_runner import SQLiteRunner
 from service.task_executor.task_executor import TaskExecutor
+from cli.cli import parse_env_args
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -63,15 +64,24 @@ def main() -> None:
     4. Execute full benchmark runs with unified intervals
     5. Collect and export results to CSV manifest
     """
+    # Parse command line arguments
+    args = parse_env_args("Run benchmark experiments for database performance testing")
+    
     # Initialize components
     logger.info("=" * 60)
     logger.info("Starting Benchmark Experiments")
     logger.info("=" * 60)
     
     # Get config path relative to this file
-    config_path = Path(__file__).parent / "config.yaml"
-    config = ConfigLoader(config_path)
-    experiments = config.get_experiments()
+    config_path = Path(__file__).parent / "config_yaml"
+    
+    # Load configuration with optional environment override
+    config = ConfigLoader(config_path, env=args.env)
+    
+    if args.env:
+        logger.info(f"Loaded configuration with environment override: {args.env}")
+    
+    experiments = config.filter_experiments(config.config_data.execute_pairs)
     logger.info(f"Loaded {len(experiments)} experiments from config")
     logger.info("")
 

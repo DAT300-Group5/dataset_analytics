@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple
 
 from config.dataset import Dataset
+from config.execution_unit import ExecutionUnit
 from config.query_group import QueryGroup
 from consts.EngineType import EngineType
 
@@ -15,5 +16,6 @@ class BenchmarkConfig:
     chdb_library_path: str
     datasets: List[Dataset]
     query_groups: List[QueryGroup]
-    compare_pairs: List[Tuple[str, EngineType]]
-    validate_pairs: List[Tuple[str, EngineType]]
+    execute_pairs: List[ExecutionUnit]
+    compare_pairs: List[ExecutionUnit]
+    validate_pairs: List[ExecutionUnit]

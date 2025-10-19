@@ -39,45 +39,38 @@ class SqliteLogParser:
             with open(stdout_file, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
             
-            # Find all statistics section boundaries
-            # Statistics section starts with lines like "Memory Used:" or "Run Time:"
-            stats_indices = []
-            for i, line in enumerate(lines):
-                if re.match(r'^(Memory Used:|Run Time:|Number of|Largest|Lookaside|Pager|Page cache|Schema|Statement|Fullscan|Sort|Autoindex|Bloom|Virtual|Reprepare)', line):
-                    stats_indices.append(i)
+            # Find statistics section boundaries
+            # Statistics section starts with "Memory Used:" and ends with "Run Time:"
+            memory_used_idx = None
+            run_time_idx = None
             
-            # If there are statistics, find the start of the last statistics section
-            if stats_indices:
-                # Find the last contiguous block of statistics (last query's stats)
-                last_stats_start = stats_indices[-1]
-                # Look backwards to find where this stats block starts
-                for i in range(len(stats_indices) - 1, -1, -1):
-                    if i == 0 or stats_indices[i] - stats_indices[i-1] > 5:
-                        # Found the beginning of the last stats block
-                        last_stats_start = stats_indices[i]
-                        break
-                
-                # Count output rows from the last query (between previous stats end and last stats start)
-                # Find the end of the previous stats block (if exists)
-                if len(stats_indices) > 1:
-                    # Find where previous stats block ends by looking for the last stats line before a gap
-                    prev_stats_end = 0
-                    for i in range(len(stats_indices) - 1):
-                        if stats_indices[i+1] - stats_indices[i] > 5:
-                            # Found a gap, previous stats ends here
-                            prev_stats_end = stats_indices[i] + 20  # Approximate end of stats block
-                            break
-                    
-                    # Count rows between previous stats end and last stats start
-                    output_rows = sum(1 for line in lines[prev_stats_end:last_stats_start] if line.strip())
-                else:
-                    # Only one query, count all rows before stats
-                    output_rows = sum(1 for line in lines[:last_stats_start] if line.strip())
-                
-                stats_start_idx = stats_indices[0]
+            for i, line in enumerate(lines):
+                if line.startswith('Memory Used:'):
+                    memory_used_idx = i
+                elif line.startswith('Run Time:'):
+                    run_time_idx = i
+                    break
+            
+            # If we found both boundaries, everything between them is statistics
+            if memory_used_idx is not None and run_time_idx is not None:
+                # Count output rows: all non-empty lines before "Memory Used:", excluding CSV header
+                data_lines = [line for line in lines[:memory_used_idx] if line.strip()]
+                output_rows = len(data_lines) - 1 if data_lines else 0  # Subtract CSV header
+                stats_start_idx = memory_used_idx
+            elif memory_used_idx is not None:
+                # Only found "Memory Used:", count rows before it, excluding CSV header
+                data_lines = [line for line in lines[:memory_used_idx] if line.strip()]
+                output_rows = len(data_lines) - 1 if data_lines else 0  # Subtract CSV header
+                stats_start_idx = memory_used_idx
+            elif run_time_idx is not None:
+                # Only found "Run Time:", count rows before it, excluding CSV header
+                data_lines = [line for line in lines[:run_time_idx] if line.strip()]
+                output_rows = len(data_lines) - 1 if data_lines else 0  # Subtract CSV header
+                stats_start_idx = run_time_idx
             else:
-                # No statistics found, count all lines
-                output_rows = sum(1 for line in lines if line.strip())
+                # No statistics found, count all lines, excluding CSV header
+                data_lines = [line for line in lines if line.strip()]
+                output_rows = len(data_lines) - 1 if data_lines else 0  # Subtract CSV header
                 stats_start_idx = len(lines)
             
             # Parse statistics section
@@ -147,7 +140,7 @@ if __name__ == "__main__":
     root = project_root()
     
     # need sqlite log files in test directory
-    log_path = root / "benchmark/test/"
+    log_path = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/service/profile_parser"
     
     parser = SqliteLogParser(log_path=log_path)
     metrics = parser.parse_log()
