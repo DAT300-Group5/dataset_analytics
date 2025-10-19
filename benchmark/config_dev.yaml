@@ -1,17 +1,4 @@
 # ------------------------------------------------------------
-# Experiment Execution Pairs
-# ------------------------------------------------------------
-
-# execute_pairs: Define which experiments to execute during benchmark runs
-# Format: [ query_group_id, engine ]
-# Purpose: Used by run_experiments.py to decide which (query, engine) combos run
-# Only the pairs listed here will be scheduled and executed in the benchmark
-execute_pairs:
-  - [ sample-Q1, duckdb ]
-  - [ sample-Q1, sqlite ]
-  - [ sample-Q1, chdb ]
-
-# ------------------------------------------------------------
 # SQL Correctness Validation Pairs
 # ------------------------------------------------------------
 
@@ -24,6 +11,21 @@ validate_pairs:
   - [ sample-Q1, duckdb ]
   - [ sample-Q1, sqlite ]
   - [ sample-Q1, chdb ]
+
+
+# ------------------------------------------------------------
+# Experiment Execution Pairs
+# ------------------------------------------------------------
+
+# execute_pairs: Define which experiments to execute during benchmark runs
+# Format: [ query_group_id, engine ]
+# Purpose: Used by run_experiments.py to decide which (query, engine) combos run
+# Only the pairs listed here will be scheduled and executed in the benchmark
+execute_pairs:
+  - [ sample-Q1, duckdb ]
+  - [ sample-Q1, sqlite ]
+  - [ sample-Q1, chdb ]
+
 
 # ------------------------------------------------------------
 # Visualization Comparison Pairs
