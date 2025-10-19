@@ -5,6 +5,7 @@ Benchmark experiment runner for database performance testing.
 This module orchestrates benchmark experiments across multiple database engines,
 datasets, and query configurations.
 """
+import argparse
 import json
 from pathlib import Path
 
@@ -63,14 +64,32 @@ def main() -> None:
     4. Execute full benchmark runs with unified intervals
     5. Collect and export results to CSV manifest
     """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Run benchmark experiments for database performance testing"
+    )
+    parser.add_argument(
+        "--env",
+        type=str,
+        help="Environment name for configuration override (e.g., 'dev', 'prod'). "
+             "Will load config_<env>.yaml to override base config.yaml"
+    )
+    args = parser.parse_args()
+    
     # Initialize components
     logger.info("=" * 60)
     logger.info("Starting Benchmark Experiments")
     logger.info("=" * 60)
     
     # Get config path relative to this file
-    config_path = Path(__file__).parent / "config.yaml"
-    config = ConfigLoader(config_path)
+    config_path = Path(__file__).parent
+    
+    # Load configuration with optional environment override
+    config = ConfigLoader(config_path, env=args.env)
+    
+    if args.env:
+        logger.info(f"Loaded configuration with environment override: {args.env}")
+    
     experiments = config.get_experiments()
     logger.info(f"Loaded {len(experiments)} experiments from config")
     logger.info("")
