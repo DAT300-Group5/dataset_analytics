@@ -22,18 +22,28 @@ class DuckdbRunner:
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
-        self.sql_file = Path(sql_file)
         # Prepare SQL file and use the temporary file
+        self.sql_file = Path(sql_file)
         if run_mode == RunMode.PROFILE:
             self.sql_file = prepare_profiling_duckdb_sql_file(sql_file)
+        
+        self.run_mode = run_mode
 
     def run_subprocess(self) -> subprocess.Popen:
-        stdout_path = self.results_dir / "stdout.log"
+        
+        output_path = self.results_dir / "stdout.log"
+        if self.run_mode == RunMode.VALIDATE:
+            output_path = self.results_dir / "result.csv"
+        
         stderr_path = self.results_dir / "stderr.log"
+        
         logger.debug(f"Running DuckDB: {self.sql_file.name} on {self.db_file.name}")
+        
         try:
-            with open(stdout_path, 'w') as stdout_file, \
+            # duckdb allows reading from file directly with -f, no need to redirect stdin
+            with open(output_path, 'w') as output_file, \
                     open(stderr_path, 'w') as stderr_file:
+                
                 # always output in CSV format with header
                 cmd_args = [
                     resolve_cmd(self.cmd), # duckdb executable
@@ -42,10 +52,11 @@ class DuckdbRunner:
                     '-csv', '-header', # need to add before -f
                     '-f', str(self.sql_file),
                 ]
+                
                 process = subprocess.Popen(
                     cmd_args,
                     stdin=None,
-                    stdout=stdout_file,
+                    stdout=output_file,
                     stderr=stderr_file,
                     cwd=self.cwd,
                     text=True

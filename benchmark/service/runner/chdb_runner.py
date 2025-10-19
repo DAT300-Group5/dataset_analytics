@@ -26,7 +26,7 @@ class ChdbRunner:
 
         self.sql_file = Path(sql_file)
         
-        self.enable_profiling = (run_mode == RunMode.PROFILE)
+        self.run_mode = run_mode
 
         self.library_path = None
 
@@ -34,30 +34,35 @@ class ChdbRunner:
         self.library_path = library_path
 
     def run_subprocess(self) -> subprocess.Popen:
-        stdout_path = self.results_dir / "stdout.log"
+        
+        output_path = self.results_dir / "stdout.log"
+        if self.run_mode == RunMode.VALIDATE:
+            output_path = self.results_dir / "result.csv"
+        
         stderr_path = self.results_dir / "stderr.log"
+        
         logger.debug(f"Running chDB: {self.sql_file.name} on {self.db_file.name}")
+        
         env = os.environ.copy()
-
         # Add or modify library path if needed
         if self.library_path:
             env['DYLD_LIBRARY_PATH'] = '/usr/local/lib'
 
         try:
             with open(self.sql_file, 'r') as sql_input, \
-                 open(stdout_path, 'w') as stdout_file, \
-                    open(stderr_path, 'w') as stderr_file:
+                    open(output_path, 'w') as output_file, \
+                        open(stderr_path, 'w') as stderr_file:
+                
                 # chDB outputs in CSV format by default
                 cmd_args = [resolve_cmd(self.cmd), str(self.db_file)]
-                
-                if self.enable_profiling:
+                if self.run_mode == RunMode.PROFILE:
                     cmd_args.append('-v')
                     cmd_args.append('-m')
                 
                 process = subprocess.Popen(
                         cmd_args,
                         stdin=sql_input,
-                        stdout=stdout_file,
+                        stdout=output_file,
                         stderr=stderr_file,
                         cwd=self.cwd,
                         text=True,

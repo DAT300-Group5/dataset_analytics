@@ -253,7 +253,7 @@ def main():
                 print("   Validation aborted due to execution failure.")
                 print("=" * 60 + "\n")
                 sys.exit(1)
-            result_file = experiment.cwd / experiment.exp_name / "stdout.log"
+            result_file = experiment.cwd / experiment.exp_name / "result.csv"
             result_info.append((result_file, experiment.group_id, experiment.engine))
             print("✓")
 

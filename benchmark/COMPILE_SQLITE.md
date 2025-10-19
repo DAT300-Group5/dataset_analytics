@@ -141,7 +141,7 @@ Page Cache Misses:    5
 ### Quick Download for Ubuntu x86_64
 
 > **💡 Tip**: If you are using **Ubuntu with x86_64 architecture**, you can download a pre-compiled SQLite binary with profiling support directly from GitHub Actions:
-> 
+>
 > 🔗 **[Download pre-compiled SQLite for Ubuntu x86_64](https://github.com/DAT300-Group5/dataset_analytics/actions/runs/18309545088)**
 >
 > This saves you from compiling from source. Simply download, extract, and use the binary.

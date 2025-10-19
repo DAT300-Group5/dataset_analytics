@@ -23,32 +23,38 @@ class SQLiteRunner:
         self.results_dir.mkdir(parents=True, exist_ok=True)
         
         self.sql_file = Path(sql_file)
-        
-        self.enable_profiling = (run_mode == RunMode.PROFILE)
+
+        self.run_mode = run_mode
 
     def run_subprocess(self) -> subprocess.Popen:
-        stdout_path = self.results_dir / "stdout.log"
+        
+        output_path = self.results_dir / "stdout.log"
+        if self.run_mode == RunMode.VALIDATE:
+            output_path = self.results_dir / "result.csv"
+        
         stderr_path = self.results_dir / "stderr.log"
+        
         logger.debug(f"Running SQLite: {self.sql_file.name} on {self.db_file.name}")
+        
         try:
             with open(self.sql_file, 'r') as sql_input, \
-                 open(stdout_path, 'w') as stdout_file, \
-                    open(stderr_path, 'w') as stderr_file:
+                    open(output_path, 'w') as output_file, \
+                        open(stderr_path, 'w') as stderr_file:
+                
                 # always output in CSV format with header
                 cmd_args = [
                     resolve_cmd(self.cmd),
                     str(self.db_file),
                     '-csv', '-header'
                 ]
-                
-                if self.enable_profiling:
+                if self.run_mode == RunMode.PROFILE:
                     # assume no dot commands in sql file
                     cmd_args += ['-init', str(Path(__file__).parent / '.sqliterc')]
                 
                 process = subprocess.Popen(
                     cmd_args,
                     stdin=sql_input,
-                    stdout=stdout_file,
+                    stdout=output_file,
                     stderr=stderr_file,
                     text=True,
                     cwd=self.cwd
