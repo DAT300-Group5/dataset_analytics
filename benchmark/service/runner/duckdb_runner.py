@@ -12,30 +12,29 @@ logger = setup_logger(__name__)
 class DuckdbRunner:
 
     def __init__(self, sql_file: str, db_file: str, cmd: str = "duckdb", cwd: str = None, run_mode : RunMode = RunMode.PROFILE):
+        
+        self.sql_file = Path(sql_file)
+        if run_mode == RunMode.PROFILE:  # Prepare SQL file and use the temporary file
+            self.sql_file = prepare_profiling_duckdb_sql_file(self.sql_file)
 
         self.db_file = Path(db_file)
         self.cmd = cmd
-        self.execution_result = None
-        self.cpu_result = None
         self.cwd = Path.cwd() if cwd is None else Path(cwd)
-        self.results_dir = self.cwd
+        self.execution_result = None
+        self.run_mode = run_mode
+        
+        self.cpu_result = None
+        
+        self.results_dir = self.cwd / str(run_mode.name)
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
-        # Prepare SQL file and use the temporary file
-        self.sql_file = Path(sql_file)
-        if run_mode == RunMode.PROFILE:
-            self.sql_file = prepare_profiling_duckdb_sql_file(sql_file)
-        
-        self.run_mode = run_mode
-
     def run_subprocess(self) -> subprocess.Popen:
-        
+
         output_path = self.results_dir / "stdout.log"
+        stderr_path = self.results_dir / "stderr.log"
         if self.run_mode == RunMode.VALIDATE:
             output_path = self.results_dir / "result.csv"
-        
-        stderr_path = self.results_dir / "stderr.log"
         
         logger.debug(f"Running DuckDB: {self.sql_file.name} on {self.db_file.name}")
         
@@ -58,7 +57,7 @@ class DuckdbRunner:
                     stdin=None,
                     stdout=output_file,
                     stderr=stderr_file,
-                    cwd=self.cwd,
+                    cwd=self.results_dir,
                     text=True
                 )
                 return process
