@@ -520,7 +520,7 @@ def create_performance_summary_table(data, output_dir):
 def main():
     """Main function: load data and generate all visualizations."""
     args = parse_env_args("Analyze benchmark experiment results")
-    config_path = Path(__file__).parent
+    config_path = Path(__file__).parent / "config_yaml"
     config = ConfigLoader(config_path, env=args.env)
     summary_file = Path(config.config_data.cwd) / "summary.json"
     output_dir = Path(config.config_data.cwd)  / "visual"

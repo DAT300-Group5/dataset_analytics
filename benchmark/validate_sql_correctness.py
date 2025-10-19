@@ -223,7 +223,7 @@ def main():
     print("  SQL CORRECTNESS VALIDATION")
     print("=" * 60)
 
-    config_path = Path(__file__).parent
+    config_path = Path(__file__).parent / "config_yaml"
     config = ConfigLoader(config_path, env=args.env)
     experiments = config.filter_experiments(config.config_data.validate_pairs)
     validate_pairs = [(experiment.group_id, experiment.engine) for experiment in config.config_data.validate_pairs]

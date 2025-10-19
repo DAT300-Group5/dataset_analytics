@@ -73,7 +73,7 @@ def main() -> None:
     logger.info("=" * 60)
     
     # Get config path relative to this file
-    config_path = Path(__file__).parent
+    config_path = Path(__file__).parent / "config_yaml"
     
     # Load configuration with optional environment override
     config = ConfigLoader(config_path, env=args.env)

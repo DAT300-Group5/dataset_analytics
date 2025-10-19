@@ -123,4 +123,3 @@ query_groups:
   - id: tremor_detection-Q2
     duckdb_sql: queries/tremor_detection/Q2_duckdb.sql
     sqlite_sql: queries/tremor_detection/Q2_sqlite.sql
-

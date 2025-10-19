@@ -30,12 +30,15 @@ This benchmark system provides:
 
 ```ASCII
 benchmark/
-├── config.yaml                  # Main configuration file (EDIT THIS)
-├── config_dev.yaml              # single experiment
 ├── run_experiments.py           # Execute benchmarks
 ├── analyze_results.py           # Generate visualizations
 ├── create_db.py                 # Create databases from CSV data
 ├── validate_sql_correctness.py  # Validate SQL correctness across queries
+│
+├── config_yaml/           # Configuration yaml
+│   ├── config.yaml        # Main configuration file (EDIT THIS)
+│   ├── config_dev.yaml    # single experiment
+│   └── ...
 │
 ├── config/                # Configuration loading
 │   ├── config_loader.py
@@ -43,7 +46,8 @@ benchmark/
 │   ├── dataset.py
 │   ├── execution_unit.py
 │   └── query_group.py
-│   cli/
+│
+├── cli/
 │   └── cli.py
 │
 └── service/
