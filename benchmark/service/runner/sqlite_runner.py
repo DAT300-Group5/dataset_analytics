@@ -13,22 +13,19 @@ class SQLiteRunner:
 
     def __init__(self, sql_file: str, db_file: str, cmd: str = "sqlite3", cwd: str = None, run_mode : RunMode = RunMode.PROFILE):
 
-        self.original_sql_file = Path(sql_file)
         self.db_file = Path(db_file)
         self.cmd = cmd
         self.execution_result = None
         self.cpu_result = None
         self.cwd = Path.cwd() if cwd is None else Path(cwd)
-        self.results_dir = self.cwd / "results"
-
+        self.results_dir = self.cwd
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
-
+        
+        self.sql_file = Path(sql_file)
         # Prepare SQL file and use the temporary file
         if run_mode == RunMode.PROFILE:
             self.sql_file = prepare_profiling_sqlite_sql_file(sql_file)
-        elif run_mode == RunMode.VALIDATE:
-            self.sql_file = prepare_validate_sqlite_sql_file(sql_file)
 
     def run_subprocess(self) -> subprocess.Popen:
         stdout_path = self.results_dir / "stdout.log"
@@ -38,7 +35,8 @@ class SQLiteRunner:
             with open(self.sql_file, 'r') as sql_input, \
                  open(stdout_path, 'w') as stdout_file, \
                     open(stderr_path, 'w') as stderr_file:
-                cmd_args = [resolve_cmd(self.cmd), str(self.db_file)]
+                # always output in CSV format with header
+                cmd_args = [resolve_cmd(self.cmd), str(self.db_file), '-csv', '-header']
                 process = subprocess.Popen(
                     cmd_args,
                     stdin=sql_input,

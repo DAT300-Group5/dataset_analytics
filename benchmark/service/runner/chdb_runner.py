@@ -14,18 +14,18 @@ class ChdbRunner:
 
     def __init__(self, sql_file: str, db_file: str, cmd: str = "chdb", cwd: str = None, run_mode : RunMode = RunMode.PROFILE):
 
-        self.original_sql_file = Path(sql_file)
         self.db_file = Path(db_file)
         self.cmd = cmd
         self.execution_result = None
         self.cpu_result = None
         self.cwd = Path.cwd() if cwd is None else Path(cwd)
-        self.results_dir = self.cwd / "results"
+        self.results_dir = self.cwd
         self.sql_file = Path(sql_file)
-        
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
+        self.sql_file = Path(sql_file)
+        
         self.enable_profiling = (run_mode == RunMode.PROFILE)
 
         self.library_path = None
@@ -33,10 +33,9 @@ class ChdbRunner:
     def set_library_path(self, library_path: str):
         self.library_path = library_path
 
-    def run_subprocess(self):
-        results_dir = Path(self.cwd) / "results"
-        stdout_path = results_dir / "stdout.log"
-        stderr_path = results_dir / "stderr.log"
+    def run_subprocess(self) -> subprocess.Popen:
+        stdout_path = self.results_dir / "stdout.log"
+        stderr_path = self.results_dir / "stderr.log"
         logger.debug(f"Running chDB: {self.sql_file.name} on {self.db_file.name}")
         env = os.environ.copy()
 
@@ -48,6 +47,7 @@ class ChdbRunner:
             with open(self.sql_file, 'r') as sql_input, \
                  open(stdout_path, 'w') as stdout_file, \
                     open(stderr_path, 'w') as stderr_file:
+                # chDB outputs in CSV format by default
                 cmd_args = [resolve_cmd(self.cmd), str(self.db_file)]
                 
                 if self.enable_profiling:
