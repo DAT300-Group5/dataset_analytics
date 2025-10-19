@@ -110,7 +110,7 @@ def prepare_profiling_duckdb_sql_file(sql_file: str) -> Path:
             new_content_parts.append(statement)
         else:
             # Add SET profiling_output before the query
-            new_content_parts.append(f"SET profiling_output='results/profiling_query_{query_number}.json'")
+            new_content_parts.append(f"SET profiling_output='profiling_query_{query_number}.json'")
             new_content_parts.append(statement)
 
         query_number += 1
@@ -167,4 +167,4 @@ def prepare_profiling_sqlite_sql_file(sql_file: str) -> Path:
 
 if __name__ == "__main__":
     prepare_profiling_duckdb_sql_file("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql")
-    # clean_path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/results")
+    # clean_path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/")

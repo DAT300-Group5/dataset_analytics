@@ -37,7 +37,7 @@ class TaskExecutor:
         return result
 
     def _execute(self, repeat, interval, is_pivot=False) -> TaskExecuteResult:
-        clean_path(self.runner.cwd / "results")
+        clean_path(self.runner.cwd)
         results = []
         for i in range(repeat):
             logger.info(f"  Run {i + 1}/{repeat}: Executing query...")
