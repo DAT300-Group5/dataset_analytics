@@ -138,7 +138,16 @@ class SqliteLogParser:
         return output_rows, timing_info, memory_info, query_count
 
 if __name__ == "__main__":
-    log_path = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/results"
+    
+    # python3 -m service.proflie_parser.sqlite_log_parser
+
+    from util.file_utils import project_root
+    
+    root = project_root()
+    
+    # need sqlite log files in test directory
+    log_path = root / "benchmark/test/"
+    
     parser = SqliteLogParser(log_path=log_path)
     metrics = parser.parse_log()
     logger.info(f"Parsed metrics: {metrics}")

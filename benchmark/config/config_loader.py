@@ -111,7 +111,12 @@ class ConfigLoader:
         return experiments
     
 if __name__ == "__main__":
-
-    config = ConfigLoader(Path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/config.yaml"))
+    # python3 -m config.config_loader
+    
+    from util.file_utils import project_root
+    
+    root = project_root()
+    config = ConfigLoader(root / "benchmark/config.yaml")
+    
     config.get_experiments()
     print(config.config_data)

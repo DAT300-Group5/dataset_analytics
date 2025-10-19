@@ -44,6 +44,40 @@ def clean_path(path: str):
             shutil.rmtree(item)
 
 
+def project_root(start: Path | None = None) -> Path:
+    """
+    Find the nearest ancestor directory (including the start directory) that
+    contains a '.git' folder. This strictly identifies the Git repository root.
+
+    Args:
+        start: Optional starting path to search from. If a file path is provided,
+               its parent directory is used. Defaults to this file's directory.
+
+    Returns:
+        Path to the detected Git repository root.
+
+    Raises:
+        FileNotFoundError: If no directory containing a '.git' folder is found
+                           from the start path up to the filesystem root.
+    """
+    start_path = (start or Path(__file__)).resolve()
+    start_dir = start_path if start_path.is_dir() else start_path.parent
+
+    # Walk upwards from start_dir to filesystem root
+    for candidate in [start_dir] + list(start_dir.parents):
+        try:
+            if (candidate / ".git").is_dir():
+                return candidate
+        except Exception:
+            # Ignore permission or transient errors and continue searching
+            continue
+
+    raise FileNotFoundError(
+        f"No Git repository root found starting from '{start_dir}'. Ensure you're "
+        f"running inside a cloned repository with a '.git' directory."
+    )
+
+
 def prepare_profiling_duckdb_sql_file(sql_file: str) -> Path:
     """
     Prepare the SQL file by adding profiling configuration:
@@ -126,8 +160,3 @@ def prepare_profiling_duckdb_sql_file(sql_file: str) -> Path:
 
     print(f"✓ Created temporary SQL file: {tmp_file}")
     return tmp_file
-
-
-if __name__ == "__main__":
-    prepare_profiling_duckdb_sql_file("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql")
-    # clean_path("/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/")

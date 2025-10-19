@@ -57,10 +57,19 @@ class DuckdbRunner:
 
 
 if __name__ == "__main__":
-    sql_file = "/home/xuan/dataset_analytics/benchmark/queries/Q1/Q1_duckdb.sql"
-    db_file = "/home/xuan/dataset_analytics/benchmark/db_vs14/vs14_data.duckdb"
-    cwd = "/home/xuan/dataset_analytics/benchmark/test"
-    runner = DuckdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd)
+    
+    # python3 -m service.runner.duckdb_runner
+
+    from util.file_utils import project_root
+    
+    root = project_root()
+
+    sql_file = root / "benchmark/queries/Q1/Q1_duckdb.sql"
+    db_file = root / "benchmark/db_vs14/vs14_data.duckdb"
+    cwd = root / "benchmark/test"
+    
+    runner = DuckdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd, run_mode=RunMode.PROFILE)
+    
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()
     if process.returncode == 0:

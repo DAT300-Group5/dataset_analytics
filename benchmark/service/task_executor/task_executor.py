@@ -69,10 +69,18 @@ class TaskExecutor:
         return summary_result
 
 if __name__ == "__main__":
-    sql_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_sqlite.sql"
-    db_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/db_vs14/vs14_data.sqlite"
-    sqlite_cmd = "/Users/xiejiangzhao/sqlite3/bin/sqlite3"
-    cwd = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test"
+    
+    # python3 -m service.task_executor.task_executor
+
+    from util.file_utils import project_root
+    
+    root = project_root()
+
+    sql_file = root / "benchmark/queries/Q1/Q1_sqlite.sql"
+    db_file = root / "benchmark/db_vs14/vs14_data.sqlite"
+    sqlite_cmd = "sqlite3"
+    cwd = root / "benchmark/test"
+    
     runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd)
     sqlite_parser = SqliteLogParser(log_path=runner.results_dir)
     task_executor = TaskExecutor(runner=runner, log_parser=sqlite_parser, sample_count=10, std_repeat=3)

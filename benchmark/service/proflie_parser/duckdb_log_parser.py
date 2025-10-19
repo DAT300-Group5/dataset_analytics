@@ -88,7 +88,16 @@ class DuckdbLogParser:
         return timing_info, memory_info, query_count, output_rows
 
 if __name__ == "__main__":
-    log_path = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/results"
+    
+    # python3 -m service.proflie_parser.duckdb_log_parser
+
+    from util.file_utils import project_root
+    
+    root = project_root()
+
+    # need duckdb log files in test directory
+    log_path = root / "benchmark/test/"
+
     parser = DuckdbLogParser(log_path=log_path)
     metrics = parser.parse_log()
     logger.info(f"Parsed metrics: {metrics}")

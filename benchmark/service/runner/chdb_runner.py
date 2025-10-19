@@ -70,10 +70,19 @@ class ChdbRunner:
 
 
 if __name__ == "__main__":
-    sql_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_clickhouse.sql"
-    db_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/db_vs14/vs14_data_chdb"
-    cwd = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test"
-    runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd, cmd="/Users/xiejiangzhao/tmp/chdb_cli", run_mode=RunMode.PROFILE)
+    
+    # python3 -m service.runner.chdb_runner
+
+    from util.file_utils import project_root
+    
+    root = project_root()
+
+    chdb_cmd = root / "benchmark/chdb_cli/chdb_cli"
+    sql_file = root / "benchmark/queries/Q1/Q1_clickhouse.sql"
+    db_file = root / "benchmark/db_vs14/vs14_data_chdb"
+    cwd = root / "benchmark/test"
+
+    runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd, cmd=chdb_cmd, run_mode=RunMode.PROFILE)
 
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()

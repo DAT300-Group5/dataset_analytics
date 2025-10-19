@@ -60,11 +60,20 @@ class SQLiteRunner:
 
 
 if __name__ == "__main__":
-    sql_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/queries/Q1/Q1_sqlite.sql"
-    db_file = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/db_vs14/vs14_data.sqlite"
-    sqlite_cmd = "/Users/xiejiangzhao/sqlite3/bin/sqlite3"
-    cwd = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test"
-    runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd)
+
+    # python3 -m service.proflie_parser.sqlite_log_parser
+
+    from util.file_utils import project_root
+    
+    root = project_root()
+
+    sqlite_cmd = "sqlite3"
+    sql_file = root / "benchmark/queries/Q1/Q1_sqlite.sql"
+    db_file = root / "benchmark/db_vs14/vs14_data.sqlite"
+    cwd = root / "benchmark/test"
+
+    runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd, run_mode=RunMode.PROFILE)
+    
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()
     if process.returncode == 0:

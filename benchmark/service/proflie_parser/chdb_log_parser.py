@@ -83,7 +83,16 @@ class ChdbLogParser:
 
 
 if __name__ == "__main__":
-    log_path = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/test/results"
+
+    # python3 -m service.proflie_parser.chdb_log_parser
+
+    from util.file_utils import project_root
+    
+    root = project_root()
+    
+    # need chdb log files in test directory
+    log_path = root / "benchmark/test/"
+    
     parser = ChdbLogParser(log_path=log_path)
     metrics = parser.parse_log()
     logger.info(f"Parsed metrics: {metrics}")
