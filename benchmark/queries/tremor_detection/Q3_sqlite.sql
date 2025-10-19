@@ -1,27 +1,23 @@
 
-
+EXPLAIN QUERY PLAN
 WITH
-magnitude_per_window AS (
-  SELECT
-    (CAST(a.ts AS INTEGER)/1000)*1000 AS time_window,
-    sqrt(avg(a.x*a.x + a.y*a.y + a.z*a.z)) AS acc_mean_magnitude,
-    sqrt(avg(g.x*g.x + g.y*g.y + g.z*g.z)) AS gyr_mean_magnitude
-  FROM acc a
-  JOIN gyr g ON (CAST(a.ts AS INTEGER)/1000)*1000 = (CAST(g.ts AS INTEGER)/1000)*1000
-  GROUP BY time_window
-  ORDER BY time_window
+magnitude_windows_acc AS (
+    SELECT 
+    (CAST(ts AS INTEGER)/1000)*1000 AS time_window,
+    sqrt(avg(x*x + y*y + z*z)) AS acc_mean_magnitude
+    FROM acc
+    GROUP BY time_window
+    ORDER BY time_window
 ),
 
 -- Calculate if mean shows a change in direction
-direction_change AS (
+direction_change_acc AS (
   SELECT
     time_window,
     acc_mean_magnitude,
-    gyr_mean_magnitude,
 
     -- Difference between current and previous value (row)
     abs(acc_mean_magnitude - lag(acc_mean_magnitude) OVER (ORDER BY time_window)) AS acc_change,
-    abs(gyr_mean_magnitude - lag(gyr_mean_magnitude) OVER (ORDER BY time_window)) AS gyr_change,
 
     -- check if there is a change in direction
     CASE
@@ -30,8 +26,40 @@ direction_change AS (
            (lag(acc_mean_magnitude) OVER (ORDER BY time_window) -
             lag(acc_mean_magnitude, 2) OVER (ORDER BY time_window)) < 0 THEN 1
       ELSE 0
-    END AS acc_direction_change,
+    END AS acc_direction_change
 
+  FROM magnitude_windows_acc
+),
+
+-- get average acc and gyr change over neighboring rows
+-- sum the amount of times a change in direction has occured
+aggregate_data_acc AS (
+  SELECT
+    time_window,
+    acc_mean_magnitude,
+    avg(acc_change) OVER (ORDER BY time_window ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS avg_acc_change,
+    sum(acc_direction_change) OVER (ORDER BY time_window ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS acc_direction_change_rate
+  FROM direction_change_acc
+),
+
+magnitude_windows_gyr AS (
+    SELECT 
+    (CAST(ts AS INTEGER)/1000)*1000 AS time_window,
+    sqrt(avg(x*x + y*y + z*z)) AS gyr_mean_magnitude
+    FROM gyr
+    GROUP BY time_window
+    ORDER BY time_window
+),
+
+direction_change_gyr AS (
+  SELECT
+    time_window,
+    gyr_mean_magnitude,
+
+    -- Difference between current and previous value (row)
+    abs(gyr_mean_magnitude - lag(gyr_mean_magnitude) OVER (ORDER BY time_window)) AS gyr_change,
+
+    -- check if there is a change in direction
     CASE
       WHEN lag(gyr_mean_magnitude) OVER (ORDER BY time_window) IS NULL THEN 0
       WHEN (gyr_mean_magnitude - lag(gyr_mean_magnitude) OVER (ORDER BY time_window)) *
@@ -40,23 +68,35 @@ direction_change AS (
       ELSE 0
     END AS gyr_direction_change
 
-  FROM magnitude_per_window
+  FROM magnitude_windows_gyr
 ),
 
--- get average acc and gyr change over neighboring rows
--- sum the amount of times a change in direction has occured
-aggregate_data AS (
+aggregate_data_gyr AS (
   SELECT
     time_window,
-    acc_mean_magnitude,
     gyr_mean_magnitude,
-    avg(acc_change) OVER (ORDER BY time_window ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS avg_acc_change,
     avg(gyr_change) OVER (ORDER BY time_window ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS avg_gyr_change,
-    sum(acc_direction_change) OVER (ORDER BY time_window ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS acc_direction_change_rate,
     sum(gyr_direction_change) OVER (ORDER BY time_window ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS gyr_direction_change_rate
-  FROM direction_change
+  FROM direction_change_gyr
 ),
 
+join_data AS (
+    SELECT
+    a.time_window,
+    acc_mean_magnitude,
+    gyr_mean_magnitude,
+    avg_acc_change,
+    avg_gyr_change,
+    acc_direction_change_rate,
+    gyr_direction_change_rate
+
+  FROM aggregate_data_acc a
+  JOIN aggregate_data_gyr g  ON a.time_window = g.time_window
+  ORDER BY a.time_window
+),
+
+-- check if the avverage acc change and average gyr change are over threshold
+-- and average direction change within threshold
 detect_tremor AS (
   SELECT
     time_window,
@@ -72,7 +112,7 @@ detect_tremor AS (
       THEN 1
       ELSE 0
     END AS tremor_detected
-  FROM aggregate_data
+  FROM join_data
 )
 
 --display number of tremors per day
@@ -82,4 +122,3 @@ SELECT
 FROM detect_tremor
 GROUP BY time_window_day
 ORDER BY time_window_day;
-
