@@ -36,7 +36,11 @@ class SQLiteRunner:
                  open(stdout_path, 'w') as stdout_file, \
                     open(stderr_path, 'w') as stderr_file:
                 # always output in CSV format with header
-                cmd_args = [resolve_cmd(self.cmd), str(self.db_file), '-csv', '-header']
+                cmd_args = [
+                    resolve_cmd(self.cmd),
+                    str(self.db_file),
+                    '-csv', '-header'
+                ]
                 process = subprocess.Popen(
                     cmd_args,
                     stdin=sql_input,

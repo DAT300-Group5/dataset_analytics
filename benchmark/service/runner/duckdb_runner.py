@@ -32,14 +32,19 @@ class DuckdbRunner:
         stderr_path = self.results_dir / "stderr.log"
         logger.debug(f"Running DuckDB: {self.sql_file.name} on {self.db_file.name}")
         try:
-            with open(self.sql_file, 'r') as sql_input, \
-                 open(stdout_path, 'w') as stdout_file, \
+            with open(stdout_path, 'w') as stdout_file, \
                     open(stderr_path, 'w') as stderr_file:
                 # always output in CSV format with header
-                cmd_args = [resolve_cmd(self.cmd), str(self.db_file), '-csv', '-header']
+                cmd_args = [
+                    resolve_cmd(self.cmd), # duckdb executable
+                    str(self.db_file),
+                    '-no-stdin',
+                    '-f', str(self.sql_file),
+                    '-csv', '-header'
+                ]
                 process = subprocess.Popen(
                     cmd_args,
-                    stdin=sql_input,
+                    stdin=None,
                     stdout=stdout_file,
                     stderr=stderr_file,
                     cwd=self.cwd,
