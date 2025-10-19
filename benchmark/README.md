@@ -212,6 +212,8 @@ The validation script will:
 
 ```bash
 python validate_sql_correctness.py
+# Use environment override to load config_<env>.yaml alongside config.yaml
+python validate_sql_correctness.py --env dev
 ```
 
 **Output example:**
@@ -297,17 +299,28 @@ This is useful for rapid SQL debugging before running full benchmarks.
 
 ```bash
 python run_experiments.py
+# Use environment-specific overrides (loads config_dev.yaml in addition to config.yaml)
+python run_experiments.py --env dev
 ```
 
 ### 6. Generate Visualizations
 
 ```bash
 python analyze_results.py
+# With environment override (e.g., reads config_dev.yaml on top of config.yaml)
+python analyze_results.py --env dev
 ```
 
 ## Configuration
 
-All experiments are configured through `config.yaml`. **No command-line arguments needed for normal use.**
+All experiments are configured through `config.yaml`, with optional environment-specific overrides loaded via the `--env` flag.
+
+### Environment Overrides
+
+- Base settings live in `config.yaml`; treat this as your global defaults.
+- Add partial overrides in files named `config_<env>.yaml` (e.g., `config_dev.yaml`).
+- Run `run_experiments.py`, `analyze_results.py`, or `validate_sql_correctness.py` with `--env <name>` to merge the override file onto the base config.
+- The loader always falls back to `config.yaml`, so missing keys in the override keep their default values.
 
 ### Core Parameters
 
