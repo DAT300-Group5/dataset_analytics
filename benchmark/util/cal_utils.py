@@ -1,5 +1,5 @@
 from service.monitor.process_monitor_result import ProcessMonitorResult
-from service.proflie_parser.query_metric import QueryMetrics
+from service.profile_parser.query_metric import QueryMetrics
 from service.task_executor.task_execute_result import StatSummary, SingleTaskExecuteResult
 
 

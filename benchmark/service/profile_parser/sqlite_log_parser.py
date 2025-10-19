@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 
-from service.proflie_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
+from service.profile_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -139,7 +139,8 @@ class SqliteLogParser:
 
 if __name__ == "__main__":
     
-    # python3 -m service.proflie_parser.sqlite_log_parser
+    # python3 -m service.runner.sqlite_runner
+    # python3 -m service.profile_parser.sqlite_log_parser
 
     from util.file_utils import project_root
     

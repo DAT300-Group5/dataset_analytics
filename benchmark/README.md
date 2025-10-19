@@ -54,7 +54,7 @@ benchmark/
     ├── task_executor/     # Experiment orchestration
     │   ├── task_executor.py
     │   └── task_execute_result.py
-    └── proflie_parser/    # Log parsing
+    └── profile_parser/    # Log parsing
         ├── query_metric.py
         ├── chdb_log_parser.py
         ├── duckdb_log_parser.py

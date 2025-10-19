@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 
-from service.proflie_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
+from service.profile_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -84,13 +84,13 @@ class ChdbLogParser:
 
 if __name__ == "__main__":
 
-    # python3 -m service.proflie_parser.chdb_log_parser
+    # python3 -m service.profile_parser.chdb_log_parser
 
     from util.file_utils import project_root
     
     root = project_root()
     
-    # need chdb log files in test directory
+    # need chDB log files in test directory
     log_path = root / "benchmark/test/"
     
     parser = ChdbLogParser(log_path=log_path)

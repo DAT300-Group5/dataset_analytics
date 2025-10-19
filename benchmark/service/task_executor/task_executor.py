@@ -1,5 +1,5 @@
 from service.monitor.process_monitor import monitor_subprocess
-from service.proflie_parser.sqlite_log_parser import SqliteLogParser
+from service.profile_parser.sqlite_log_parser import SqliteLogParser
 from service.runner.sqlite_runner import SQLiteRunner
 from service.task_executor.task_execute_result import TaskExecuteResult
 from util.cal_utils import calculate_stat_summary, combine_results

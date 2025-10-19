@@ -11,9 +11,9 @@ from pathlib import Path
 from config.config_loader import ConfigLoader
 from consts.EngineType import EngineType
 from models.experiment_params import ExperimentParams
-from service.proflie_parser.chdb_log_parser import ChdbLogParser
-from service.proflie_parser.duckdb_log_parser import DuckdbLogParser
-from service.proflie_parser.sqlite_log_parser import SqliteLogParser
+from service.profile_parser.chdb_log_parser import ChdbLogParser
+from service.profile_parser.duckdb_log_parser import DuckdbLogParser
+from service.profile_parser.sqlite_log_parser import SqliteLogParser
 from service.runner.chdb_runner import ChdbRunner
 from service.runner.duckdb_runner import DuckdbRunner
 from service.runner.sqlite_runner import SQLiteRunner
