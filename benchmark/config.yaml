@@ -124,29 +124,3 @@ query_groups:
     duckdb_sql: queries/tremor_detection/Q2_duckdb.sql
     sqlite_sql: queries/tremor_detection/Q2_sqlite.sql
 
-# ------------------------------------------------------------
-# SQL Correctness Validation Pairs
-# ------------------------------------------------------------
-
-# validate_pairs: Define which experiments to validate for SQL correctness
-# Format: [ query_group_id, engine ]
-# Purpose: Used by validate_sql_correctness.py to run queries and compare outputs
-# The script will execute these queries and verify that results are identical
-# across different engines (e.g., duckdb vs sqlite) for the same query_group_id
-validate_pairs:
-  - [ sample-Q1, duckdb ]
-  - [ sample-Q1, sqlite ]
-  - [ sample-Q1, chdb ]
-
-# ------------------------------------------------------------
-# Visualization Comparison Pairs
-# ------------------------------------------------------------
-
-# compare_pairs: Define which experiments to compare in visualizations
-# Format: [ query_group_id, engine ]
-# Purpose: Used by analyze_results.py to generate comparison charts
-# These pairs will be plotted together for easy performance comparison
-compare_pairs:
-  - [ sample-Q1, duckdb ]
-  - [ sample-Q1, sqlite ]
-  - [ sample-Q1, chdb ]
