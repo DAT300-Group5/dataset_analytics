@@ -13,6 +13,7 @@ from models.experiment_params import ExperimentParams
 from service.runner.duckdb_runner import DuckdbRunner
 from service.runner.sqlite_runner import SQLiteRunner
 from service.runner.chdb_runner import ChdbRunner
+from cli.cli import parse_env_args
 from util.log_config import setup_logger
 
 
@@ -216,13 +217,15 @@ def compare_files(result_info: List[Tuple[Path, str, str]]) -> Tuple[int, int]:
 
 
 def main():
+    # Parse command line arguments
+    args = parse_env_args("Validate SQL correctness across database engines")
     print("\n" + "=" * 60)
     print("  SQL CORRECTNESS VALIDATION")
     print("=" * 60)
 
-    config_path = Path(__file__).parent / "config.yaml"
-    config = ConfigLoader(config_path)
-    experiments = config.get_experiments()
+    config_path = Path(__file__).parent
+    config = ConfigLoader(config_path, env=args.env)
+    experiments = config.filter_experiments(config.config_data.validate_pairs)
     validate_pairs = config.config_data.validate_pairs
     
     print(f"\n📋 Configuration:")

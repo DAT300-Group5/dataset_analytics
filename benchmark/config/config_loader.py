@@ -66,7 +66,7 @@ class ConfigLoader:
         config.compare_pairs = []
         config.validate_pairs = []
 
-        config.execute_pairs = [ExecutionUnit(group_id, engine) for group_id, engine in data["execute_pairs"]]
+        config.execute_pairs = [ExecutionUnit(group_id, EngineType(engine)) for group_id, engine in data["execute_pairs"]]
 
         if "compare_pairs" in data:
             config.compare_pairs = [ExecutionUnit(group_id, EngineType(engine)) for group_id, engine in data["compare_pairs"]]

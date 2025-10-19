@@ -5,7 +5,6 @@ Benchmark experiment runner for database performance testing.
 This module orchestrates benchmark experiments across multiple database engines,
 datasets, and query configurations.
 """
-import argparse
 import json
 from pathlib import Path
 
@@ -19,6 +18,7 @@ from service.runner.chdb_runner import ChdbRunner
 from service.runner.duckdb_runner import DuckdbRunner
 from service.runner.sqlite_runner import SQLiteRunner
 from service.task_executor.task_executor import TaskExecutor
+from cli.cli import parse_env_args
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -65,16 +65,7 @@ def main() -> None:
     5. Collect and export results to CSV manifest
     """
     # Parse command line arguments
-    parser = argparse.ArgumentParser(
-        description="Run benchmark experiments for database performance testing"
-    )
-    parser.add_argument(
-        "--env",
-        type=str,
-        help="Environment name for configuration override (e.g., 'dev', 'prod'). "
-             "Will load config_<env>.yaml to override base config.yaml"
-    )
-    args = parser.parse_args()
+    args = parse_env_args("Run benchmark experiments for database performance testing")
     
     # Initialize components
     logger.info("=" * 60)
@@ -90,7 +81,7 @@ def main() -> None:
     if args.env:
         logger.info(f"Loaded configuration with environment override: {args.env}")
     
-    experiments = config.get_experiments()
+    experiments = config.filter_experiments(config.config_data.execute_pairs)
     logger.info(f"Loaded {len(experiments)} experiments from config")
     logger.info("")
 
