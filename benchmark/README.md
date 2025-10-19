@@ -2,10 +2,6 @@
 
 A comprehensive benchmarking framework for comparing database performance across multiple engines (DuckDB, SQLite, chDB) with automated monitoring, profiling, and visualization.
 
-> **📌 Note**: To use SQLite benchmarking features, you must compile SQLite with profiling support. See [COMPILE_SQLITE.md](./COMPILE_SQLITE.md) for instructions.
->
-> **🚧 TODO**: chDB benchmark support is not yet fully implemented. Currently only DuckDB and SQLite are supported for benchmarking.
-
 ## Overview
 
 This benchmark system provides:
@@ -18,73 +14,68 @@ This benchmark system provides:
 
 ### Key Features
 
-✅ **Two-stage execution model**:
-
-- Stage 1: Automatic sampling interval calculation (pilot runs)
-- Stage 2: Full benchmark with optimized monitoring
-
-✅ **Comprehensive metrics**:
-
-- Execution time statistics
-- CPU utilization
-- Memory usage
-- Query output validation (row counts)
-
-✅ **Clear logging**: Structured logs with stage markers and progress indicators
-
-✅ **Easy visualization**: Automated chart generation for performance comparison
-
-✅ **SQL correctness validation**: Verify query equivalence across different database queries
+1. **Two-stage execution model**:
+   - Stage 1: Automatic sampling interval calculation (pilot runs)
+   - Stage 2: Full benchmark with optimized monitoring
+2. **Comprehensive metrics**:
+   - Execution time statistics
+   - CPU utilization
+   - Memory usage
+   - Query output validation (row counts)
+3. **Clear logging**: Structured logs with stage markers and progress indicators
+4. **Easy visualization**: Automated chart generation for performance comparison
+5. **SQL correctness validation**: Verify query equivalence across different database queries
 
 ## Architecture
 
 ```ASCII
 benchmark/
-├── config.yaml              # Main configuration file (EDIT THIS)
-├── run_experiments.py       # Execute benchmarks
-├── analyze_results.py       # Generate visualizations
-├── create_db.py            # Create databases from CSV data
+├── config.yaml                  # Main configuration file (EDIT THIS)
+├── run_experiments.py           # Execute benchmarks
+├── analyze_results.py           # Generate visualizations
+├── create_db.py                 # Create databases from CSV data
 ├── validate_sql_correctness.py  # Validate SQL correctness across queries
 │
-├── config/                 # Configuration loading
+├── config/                # Configuration loading
 │   ├── config_loader.py
 │   ├── benchmark_config.py
 │   ├── dataset.py
 │   └── query_group.py
 │
-├── service/
-│   ├── runner/            # Database execution
-│   │   ├── duckdb_runner.py
-│   │   └── sqlite_runner.py
-│   ├── monitor/           # Resource monitoring
-│   │   └── process_monitor.py
-│   ├── task_executor/     # Experiment orchestration
-│   │   └── task_executor.py
-│   └── proflie_parser/    # Log parsing
-│       ├── duckdb_log_parser.py
-│       └── sqlite_log_parser.py
-│
-├── queries/               # SQL query files
-│   └── ...
-│
-├── db_vs14/              # Database files
-│   ├── vs14_data.duckdb
-│   ├── vs14_data.sqlite
-│   └── vs14_data_chdb/
-│
-└── results/              # Output directory
-    ├── summary.json      # Aggregated results
-    └── visual/          # Generated charts
+└── service/
+    ├── runner/            # Database execution
+    │   ├── duckdb_runner.py
+    │   ├── chdb_runner.py
+    │   └── sqlite_runner.py
+    ├── monitor/           # Resource monitoring
+    │   ├── process_monitor.py
+    │   ├── process_monitor_result.py
+    │   └── process_snapshot.py
+    ├── task_executor/     # Experiment orchestration
+    │   ├── task_executor.py
+    │   └── task_execute_result.py
+    └── proflie_parser/    # Log parsing
+        ├── query_metric.py
+        ├── chdb_log_parser.py
+        ├── duckdb_log_parser.py
+        └── sqlite_log_parser.py
 ```
 
 ## Runtime Environment
 
-- **SQLite:** 3.43.2
-- **DuckDB:** v1.4.1
+Platform: `linux-x86_64`
+
+- **SQLite:** >=3.43.2
+- **DuckDB:** >=1.4.1
+- **chDB**: >=3.6.0
 
 ## Quick Start
 
-### ⚠️ Important: Compile SQLite with Profiling Support
+### Install Database engine
+
+SQLite:
+
+⚠️ Important: Compile SQLite with Profiling Support
 
 Before running benchmarks with SQLite, you **must** compile SQLite with the `SQLITE_ENABLE_STMT_SCANSTATUS` flag enabled to support query profiling and performance metrics.
 
@@ -92,11 +83,13 @@ Before running benchmarks with SQLite, you **must** compile SQLite with the `SQL
 
 Without this flag, SQLite profiling features will not work, and benchmark results will be incomplete.
 
-### 1. Install Dependencies
+chDB:
 
-```bash
-pip install psutil pandas duckdb matplotlib pyyaml
-```
+chDB even doesn't have CLI. So we need to develop a simple one ourselves.
+
+📖 **See [chdb_cli - ChDB Command Line Tool](chdb_cli/README.md) for detailed compilation instructions.**
+
+DuckDB:
 
 ```bash
 # <https://duckdb.org/install/?platform=linux&environment=cli&architecture=x86_64>
@@ -105,6 +98,12 @@ curl https://install.duckdb.org | sh
 # CLI will tell you how to append the following line to your shell profile
 # then
 source ~/.profile
+```
+
+### 1. Install Dependencies
+
+```bash
+pip install psutil pandas duckdb matplotlib pyyaml
 ```
 
 ### 2. Create Databases
@@ -145,33 +144,36 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb --post-sql y
 Edit `config.yaml` to define your experiments:
 
 ```yaml
-# 🚧 Note: Only 'duckdb' and 'sqlite' are currently supported
-# chDB support is TODO
-engines: [duckdb, sqlite]
+engines: [duckdb, sqlite, chdb]
 repeat_pilot: 3
 std_repeat: 5
 
 engine_paths:
   duckdb: duckdb
-  sqlite: ../sqlite/bin/sqlite3
+  sqlite: sqlite3
+  chdb: ./chdb_cli/chdb_cli
 
 datasets:
   - name: vs14
     duckdb_db: ./db_vs14/vs14_data.duckdb
     sqlite_db: ./db_vs14/vs14_data.sqlite
+    chdb_db_dir: ./db_vs14/vs14_data_chdb
 
 query_groups:
-  - id: Q1
+  - id: sample-Q1
     duckdb_sql: ./queries/Q1/Q1_duckdb.sql
     sqlite_sql: ./queries/Q1/Q1_sqlite.sql
+    chdb_sql: ./queries/Q1/Q1_clickhouse.sql
 
 compare_pairs:
-  - [ Q1, duckdb ]
-  - [ Q1, sqlite ]
+  - [ sample-Q1, duckdb ]
+  - [ sample-Q1, sqlite ]
+  - [ sample-Q1, chdb ]
 
 validate_pairs:
-  - [ Q1, duckdb ]
-  - [ Q1, sqlite ]
+  - [ sample-Q1, duckdb ]
+  - [ sample-Q1, sqlite ]
+  - [ sample-Q1, chdb ]
 ```
 
 ### 4. Validate SQL Correctness (Recommended)
@@ -185,20 +187,22 @@ First, configure validation pairs in `config.yaml`:
 ```yaml
 # Step 1: Define your queries in query_groups
 query_groups:
-  - id: Q2
-    duckdb_sql: queries/anomaly/Q2_duckdb.sql
-    sqlite_sql: queries/anomaly/Q2_sqlite.sql
+  - id: sample-Q1
+    duckdb_sql: ./queries/Q1/Q1_duckdb.sql
+    sqlite_sql: ./queries/Q1/Q1_sqlite.sql
+    chdb_sql: ./queries/Q1/Q1_clickhouse.sql
 
 # Step 2: Specify which query results to validate
 validate_pairs:
-  - [ Q2, duckdb ]  # Execute Q2 with DuckDB
-  - [ Q2, sqlite ]  # Execute Q2 with SQLite
+  - [ sample-Q1, duckdb ]
+  - [ sample-Q1, sqlite ]
+  - [ sample-Q1, chdb ]
 ```
 
 The validation script will:
 
 1. Execute each query specified in `validate_pairs`
-2. Compare results pairwise: If you have n queries in `validate_pairs`, it performs C(n,2) = n×(n-1)/2 comparisons
+2. Compare results pairwise: If you have $n$ queries in `validate_pairs`, it performs $C_n^2 = n \times (n-1)/2$ comparisons
    - Example: 2 queries → 1 comparison, 3 queries → 3 comparisons, 4 queries → 6 comparisons
 3. Report any differences found
 
@@ -307,13 +311,13 @@ All experiments are configured through `config.yaml`. **No command-line argument
 
 ### Core Parameters
 
-| Parameter      | Description                                       | Default            |
-| -------------- | ------------------------------------------------- | ------------------ |
-| `engines`      | Database engines to benchmark (🚧 Note: chDB TODO) | `[duckdb, sqlite]` |
-| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2)   | `3`                |
-| `sample_count` | Target monitoring samples per query               | `10`               |
-| `std_repeat`   | Benchmark iterations (Stage 2/2)                  | `5`                |
-| `output_cwd`   | Results output directory                          | `./results`        |
+| Parameter      | Description                                     | Default                  |
+| -------------- | ----------------------------------------------- | ------------------------ |
+| `engines`      | Database engines to benchmark                   | `[duckdb, sqlite，chdb]` |
+| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                      |
+| `sample_count` | Target monitoring samples per query             | `10`                     |
+| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                      |
+| `output_cwd`   | Results output directory                        | `./results`              |
 
 ### Execution Model
 
@@ -331,52 +335,7 @@ Stage 2/2: Run Benchmark
 
 ### Example Configuration
 
-```yaml
-# Execution parameters
-# 🚧 Note: Only duckdb and sqlite are supported. chDB support is TODO
-engines: [duckdb, sqlite]
-repeat_pilot: 3        # 3 pilot runs for interval calculation
-sample_count: 20       # Aim for 20 monitoring samples
-std_repeat: 5          # 5 benchmark iterations
-output_cwd: ./results # Output directory for results
-
-# Engine paths
-engine_paths:
-  duckdb: duckdb
-  sqlite: /usr/local/bin/sqlite3
-
-# Datasets
-datasets:
-  - name: vs14
-    duckdb_db: ./db_vs14/vs14_data.duckdb
-    sqlite_db: ./db_vs14/vs14_data.sqlite
-
-# Query groups
-query_groups:
-  - id: Q1_aggregation
-    duckdb_sql: ./queries/Q1/Q1_duckdb.sql
-    sqlite_sql: ./queries/Q1/Q1_sqlite.sql
-
-  - id: Q2_anomaly
-    duckdb_sql: ./queries/anomaly/Q2_duckdb.sql
-    sqlite_sql: ./queries/anomaly/Q2_sqlite.sql
-
-# Visualization pairs
-compare_pairs:
-  - [ Q1_aggregation, duckdb ]
-  - [ Q1_aggregation, sqlite ]
-  - [ Q2_anomaly, duckdb ]
-  - [ Q2_anomaly, sqlite ]
-
-# SQL correctness validation pairs
-validate_pairs:
-  - [ Q1_aggregation, duckdb ]
-  - [ Q1_aggregation, sqlite ]
-  - [ Q2_anomaly, duckdb ]
-  - [ Q2_anomaly, sqlite ]
-```
-
-See detailed comments in `config.yaml` for more information.
+See detailed comments in [`config.yaml`](config.yaml) for more information.
 
 ### Validation Configuration
 
@@ -409,6 +368,9 @@ python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
 
 # SQLite
 python create_db.py vs14 ./db_vs14/vs14_data.sqlite --engine sqlite
+
+# chDB
+python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
 
 # Optional: Create with post-SQL (indexes, etc.)
 python create_db.py vs14 ./db_vs14/vs14_data.duckdb \

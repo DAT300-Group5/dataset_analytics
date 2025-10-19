@@ -12,10 +12,31 @@ from consts.RunMode import RunMode
 from models.experiment_params import ExperimentParams
 from service.runner.duckdb_runner import DuckdbRunner
 from service.runner.sqlite_runner import SQLiteRunner
+from service.runner.chdb_runner import ChdbRunner
 from util.log_config import setup_logger
 
 
 logger = setup_logger(__name__)
+
+
+def build_experiment(params: ExperimentParams):
+    sql_file = str(params.sql_file.resolve())
+    db_file = str(params.db_file.resolve())
+    engine_cmd = params.engine_cmd
+    cwd = str((params.cwd / params.exp_name).resolve())
+    if params.engine == EngineType.SQLITE:
+        runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd, run_mode=RunMode.VALIDATE)
+        return runner
+    elif params.engine == EngineType.DUCKDB:
+        runner = DuckdbRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd, run_mode=RunMode.VALIDATE)
+        return runner
+    elif params.engine == EngineType.CHDB:
+        runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd, run_mode=RunMode.VALIDATE)
+        runner.set_library_path(params.chdb_library_path)
+        return runner
+    else:
+        raise ValueError(f"Unsupported engine for validation: {params.engine}")   
+
 
 # Numeric comparison tolerance
 # rtol: relative tolerance (1e-5 means 0.001% difference is acceptable)
@@ -53,20 +74,7 @@ def try_parse_timestamp(value) -> pd.Timestamp:
         # Try parsing as datetime string
         return pd.to_datetime(str_val)
     except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime):
-        return None
-
-
-def build_experiment(params: ExperimentParams):
-    sql_file = str(params.sql_file.resolve())
-    db_file = str(params.db_file.resolve())
-    engine_cmd = params.engine_cmd
-    cwd = str((params.cwd / params.exp_name).resolve())
-    if params.engine == EngineType.SQLITE:
-        runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd, run_mode=RunMode.VALIDATE)
-        return runner
-    elif params.engine == EngineType.DUCKDB:
-        runner = DuckdbRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd, run_mode=RunMode.VALIDATE)
-        return runner
+        return None 
 
 
 def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, atol=1e-8) -> Tuple[bool, int]:

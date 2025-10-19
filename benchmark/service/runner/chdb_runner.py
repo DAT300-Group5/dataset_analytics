@@ -37,8 +37,7 @@ class ChdbRunner:
         results_dir = Path(self.cwd) / "results"
         stdout_path = results_dir / "stdout.log"
         stderr_path = results_dir / "stderr.log"
-        output_path = Path(self.cwd) / "result.csv"
-        logger.debug(f"Running chdb: {self.sql_file.name} on {self.db_file.name}")
+        logger.debug(f"Running chDB: {self.sql_file.name} on {self.db_file.name}")
         env = os.environ.copy()
 
         # Add or modify library path if needed
@@ -48,8 +47,7 @@ class ChdbRunner:
         try:
             with open(self.sql_file, 'r') as sql_input, \
                  open(stdout_path, 'w') as stdout_file, \
-                    open(stderr_path, 'w') as stderr_file, \
-                        open(output_path, 'w') as output_file:
+                    open(stderr_path, 'w') as stderr_file:
                 cmd_args = [resolve_cmd(self.cmd), str(self.db_file)]
                 
                 if self.enable_profiling:

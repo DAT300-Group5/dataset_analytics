@@ -1,8 +1,3 @@
--- Enable timer and statistics
-.timer on
-.stats on
-
-SELECT * FROM hrm LIMIT 5;
 WITH
 hrm_minute AS (
   SELECT
