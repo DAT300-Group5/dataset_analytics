@@ -311,13 +311,13 @@ All experiments are configured through `config.yaml`. **No command-line argument
 
 ### Core Parameters
 
-| Parameter      | Description                                     | Default                  |
-| -------------- | ----------------------------------------------- | ------------------------ |
+| Parameter      | Description                                     | Default                 |
+|----------------|-------------------------------------------------|-------------------------|
 | `engines`      | Database engines to benchmark                   | `[duckdb, sqlite，chdb]` |
-| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                      |
-| `sample_count` | Target monitoring samples per query             | `10`                     |
-| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                      |
-| `output_cwd`   | Results output directory                        | `./results`              |
+| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                     |
+| `sample_count` | Target monitoring samples per query             | `10`                    |
+| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                     |
+| `output_cwd`   | Results output directory                        | `./results`             |
 
 ### Execution Model
 
@@ -521,7 +521,7 @@ All charts include:
 
 ### Custom Engine Paths
 
-If using custom builds or specific versions:
+If using custom-builds or specific versions:
 
 ```yaml
 engine_paths:
@@ -529,7 +529,7 @@ engine_paths:
   sqlite: /Users/me/custom-sqlite/sqlite3
 ```
 
-Or edit the `PATH` permamently in `~/.profile` / temporarily in the current shell.
+Or edit the `PATH` permanently in `~/.profile` / temporarily in the current shell.
 
 ### Adjusting Monitoring Granularity
 
