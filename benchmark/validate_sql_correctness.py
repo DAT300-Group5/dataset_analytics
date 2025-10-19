@@ -226,8 +226,8 @@ def main():
     config_path = Path(__file__).parent
     config = ConfigLoader(config_path, env=args.env)
     experiments = config.filter_experiments(config.config_data.validate_pairs)
-    validate_pairs = config.config_data.validate_pairs
-    
+    validate_pairs = [(experiment.group_id, experiment.engine) for experiment in config.config_data.validate_pairs]
+
     print(f"\n📋 Configuration:")
     print(f"   • Total experiments: {len(experiments)}")
     print(f"   • Validation pairs: {len(validate_pairs)}")
