@@ -34,7 +34,7 @@ std_repeat: 5
 # output_cwd: Output directory for results
 # Structure: output_cwd/
 #   ├── summary.json (aggregated results for all experiments)
-#   └── <experiment_name>/results/ (individual run logs and profiling data)
+#   └── <experiment_name>/ (individual run logs and profiling data)
 output_cwd: ./results
 
 # ------------------------------------------------------------
@@ -80,35 +80,49 @@ query_groups:
     sqlite_sql: ./queries/Q1/Q1_sqlite.sql
     chdb_sql: ./queries/Q1/Q1_clickhouse.sql
 
-  - id: Q2
+  - id: anomaly-Q1
     duckdb_sql: queries/anomaly/Q2_duckdb.sql
     sqlite_sql: queries/anomaly/Q2_sqlite.sql
-
-  - id: Q3
+  - id: anomaly-Q2
+    duckdb_sql: queries/anomaly/Q2_duckdb.sql
+    sqlite_sql: queries/anomaly/Q2_sqlite.sql
+  - id: anomaly-Q3
     duckdb_sql: queries/anomaly/Q3_duckdb.sql
     sqlite_sql: queries/anomaly/Q3_sqlite.sql
+  - id: anomaly-Q4
+    duckdb_sql: queries/anomaly/Q4_duckdb.sql
+    sqlite_sql: queries/anomaly/Q4_sqlite.sql
 
-  - id: trend_Q1
+  - id: trend-Q1
     duckdb_sql: queries/trend/Q1_duckdb.sql
-
-  - id: trend_Q2
+  - id: trend-Q2
     duckdb_sql: queries/trend/Q2_duckdb.sql
-
-  - id: trend_Q3
+  - id: trend-Q3
     duckdb_sql: queries/trend/Q3_duckdb.sql
+  - id: trend-Q4
+    duckdb_sql: queries/trend/Q4_duckdb.sql
+  - id: trend-Q5
+    duckdb_sql: queries/trend/Q5_duckdb.sql
 
-# ------------------------------------------------------------
-# Visualization Comparison Pairs
-# ------------------------------------------------------------
-
-# compare_pairs: Define which experiments to compare in visualizations
-# Format: [ query_group_id, engine ]
-# Purpose: Used by analyze_results.py to generate comparison charts
-# These pairs will be plotted together for easy performance comparison
-compare_pairs:
-  - [ sample-Q1, duckdb ]
-  - [ sample-Q1, sqlite ]
-  - [ sample-Q1, chdb ]
+  - id: category-Q1
+    duckdb_sql: queries/category/Q1_duckdb.sql
+    sqlite_sql: queries/category/Q1_sqlite.sql
+  - id: category-Q2
+    duckdb_sql: queries/category/Q2_duckdb.sql
+    sqlite_sql: queries/category/Q2_sqlite.sql
+  - id: category-Q3
+    duckdb_sql: queries/category/Q3_duckdb.sql
+    sqlite_sql: queries/category/Q3_sqlite.sql
+  - id: category-Q4
+    duckdb_sql: queries/category/Q4_duckdb.sql
+    sqlite_sql: queries/category/Q4_sqlite.sql
+  
+  - id: tremor_detection-Q1
+    duckdb_sql: queries/tremor_detection/Q1_duckdb.sql
+    sqlite_sql: queries/tremor_detection/Q1_sqlite.sql
+  - id: tremor_detection-Q2
+    duckdb_sql: queries/tremor_detection/Q2_duckdb.sql
+    sqlite_sql: queries/tremor_detection/Q2_sqlite.sql
 
 # ------------------------------------------------------------
 # SQL Correctness Validation Pairs
@@ -120,6 +134,19 @@ compare_pairs:
 # The script will execute these queries and verify that results are identical
 # across different engines (e.g., duckdb vs sqlite) for the same query_group_id
 validate_pairs:
+  - [ sample-Q1, duckdb ]
+  - [ sample-Q1, sqlite ]
+  - [ sample-Q1, chdb ]
+
+# ------------------------------------------------------------
+# Visualization Comparison Pairs
+# ------------------------------------------------------------
+
+# compare_pairs: Define which experiments to compare in visualizations
+# Format: [ query_group_id, engine ]
+# Purpose: Used by analyze_results.py to generate comparison charts
+# These pairs will be plotted together for easy performance comparison
+compare_pairs:
   - [ sample-Q1, duckdb ]
   - [ sample-Q1, sqlite ]
   - [ sample-Q1, chdb ]
