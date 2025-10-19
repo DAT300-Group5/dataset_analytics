@@ -197,17 +197,19 @@ Before running benchmarks, verify that queries produce identical results across 
 
 **Configuration:**
 
-First, configure validation pairs in `config_<exp>.yaml`:
+First, configure validation pairs in `config.yaml` and `config_<exp>.yaml`:
 
 ```yaml
-# Step 1: Define your queries in query_groups
 query_groups:
   - id: sample-Q1
     duckdb_sql: ./queries/Q1/Q1_duckdb.sql
     sqlite_sql: ./queries/Q1/Q1_sqlite.sql
     chdb_sql: ./queries/Q1/Q1_clickhouse.sql
+```
 
-# Step 2: Specify which query results to validate
+```yaml
+output_cwd: ./results/dev
+
 validate_pairs:
   - [ sample-Q1, duckdb ]
   - [ sample-Q1, sqlite ]
@@ -311,8 +313,8 @@ This is useful for rapid SQL debugging before running full benchmarks.
 
 ### 5. Run Benchmarks
 
-```bashs
-# Use environment-specific overrides (loads `config_dev.yaml` in addition to `config.yaml`)
+```bash
+# Use environment-specific overrides (loads config_dev.yaml in addition to config.yaml)
 python run_experiments.py --env dev
 ```
 
@@ -336,13 +338,13 @@ All experiments are configured through `config.yaml`, with optional environment-
 
 ### Core Parameters
 
-| Parameter      | Description                                     | Default                 |
-|----------------|-------------------------------------------------|-------------------------|
+| Parameter      | Description                                     | Default                  |
+| -------------- | ----------------------------------------------- | ------------------------ |
 | `engines`      | Database engines to benchmark                   | `[duckdb, sqlite，chdb]` |
-| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                     |
-| `sample_count` | Target monitoring samples per query             | `10`                    |
-| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                     |
-| `output_cwd`   | Results output directory                        | `./results`             |
+| `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                      |
+| `sample_count` | Target monitoring samples per query             | `10`                     |
+| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                      |
+| `output_cwd`   | Results output directory                        | `./results`              |
 
 ### Execution Model
 
@@ -360,7 +362,7 @@ Stage 2/2: Run Benchmark
 
 ### Example Configuration
 
-See detailed comments in [`config.yaml`](config.yaml) for more information.
+See detailed comments in [`config.yaml`](config.yaml) and [`config_dev.yaml`](config_dev.yaml) for more information.
 
 ### Validation Configuration
 
@@ -477,7 +479,7 @@ python run_experiments.py --env dev
 python analyze_results.py --env dev
 ```
 
-Charts will be saved to `results/visual/`:
+Charts will be saved to `visual/`:
 
 - `execution_time_comparison.png`
 - `memory_usage_comparison.png`
@@ -528,7 +530,7 @@ Charts will be saved to `results/visual/`:
 
 ### Visualization Output
 
-Generated charts in `results/visual/`:
+Generated charts in `visual/`:
 
 1. **Execution Time Comparison**: Bar chart comparing query execution times
 2. **Memory Usage Comparison**: Peak memory consumption across engines

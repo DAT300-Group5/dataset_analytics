@@ -1,3 +1,9 @@
+# output_cwd: Output directory for results
+# Structure: output_cwd/
+#   ├── summary.json (aggregated results for all experiments)
+#   └── <experiment_name>/ (individual run logs and profiling data)
+output_cwd: ./results/dev
+
 # ------------------------------------------------------------
 # SQL Correctness Validation Pairs
 # ------------------------------------------------------------
