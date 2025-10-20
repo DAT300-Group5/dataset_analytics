@@ -66,7 +66,7 @@ class SQLiteRunner:
 
 if __name__ == "__main__":
 
-    # python3 -m service.profile_parser.sqlite_log_parser
+    # python3 -m service.runner.sqlite_runner
 
     from util.file_utils import project_root
     

@@ -57,7 +57,7 @@ class DuckdbRunner:
                     stdin=None,
                     stdout=output_file,
                     stderr=stderr_file,
-                    cwd=self.results_dir,
+                    cwd=self.results_dir,  # will make profiling_query_*.json files appear here
                     text=True
                 )
                 return process

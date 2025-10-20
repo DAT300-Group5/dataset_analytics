@@ -140,7 +140,7 @@ if __name__ == "__main__":
     root = project_root()
     
     # need sqlite log files in test directory
-    log_path = "/Users/xiejiangzhao/PycharmProject/dataset_analytics/benchmark/service/profile_parser"
+    log_path = root / "benchmark/service/profile_parser"
     
     parser = SqliteLogParser(log_path=log_path)
     metrics = parser.parse_log()
