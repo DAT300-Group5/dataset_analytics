@@ -48,10 +48,14 @@ def build_experiment(params : ExperimentParams) :
         task_executor = TaskExecutor(runner=runner, log_parser=chdb_parser, sample_count=params.sample_count, std_repeat=params.std_repeat)
         return task_executor
 
-def add_result_to_summary(summary: dict, group_id: str, engine: EngineType, result: dict) -> None:
+def add_result_to_summary(summary: dict, exp: ExperimentParams, result: dict) -> None:
+    group_id = exp.group_id
+    optimizer_status = "ban_ops" if exp.ban_optimizer else "default"
     if group_id not in summary:
         summary[group_id] = {}
-    summary[group_id][engine.value] = result
+    if exp.engine.value not in summary[group_id]:
+        summary[group_id][exp.engine.value] = {}
+    summary[group_id][exp.engine.value][optimizer_status] = result
 
 def main() -> None:
     """
@@ -93,7 +97,7 @@ def main() -> None:
         logger.info("-" * 60)
         task_executor = build_experiment(exp)
         result = task_executor.std_execute()
-        add_result_to_summary(summary, exp.group_id, exp.engine, result.to_dict())
+        add_result_to_summary(summary, exp, result.to_dict())
         logger.info(f"✓ Experiment {idx}/{len(experiments)} completed")
         logger.info("")
 
