@@ -8,6 +8,8 @@ comprehensive performance comparison charts.
 
 import json
 from pathlib import Path
+from typing import Dict, List
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -16,12 +18,16 @@ from models.plot_params import PlotParams
 from cli.cli import parse_env_args
 from util.file_utils import clean_path
 
-# Define colors for different engines
-ENGINE_COLORS = {
-    'duckdb': '#1f77b4',
-    'sqlite': '#ff7f0e',
-    'chdb': '#2ca02c'
-}
+# Define a shared color cycle for datasets
+DEFAULT_COLOR_SEQUENCE = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+]
+
+
+def get_color_sequence(count):
+    """Return a sequence of colors cycling through the default palette."""
+    return [DEFAULT_COLOR_SEQUENCE[i % len(DEFAULT_COLOR_SEQUENCE)] for i in range(count)]
 
 
 def load_summary_data(file_path):
@@ -38,7 +44,7 @@ def load_summary_data(file_path):
         return json.load(f)
 
 
-def compare_specific_results(data, comparisons, output_dir):
+def compare_specific_results(title : str , data_list, output_dir : Path):
     """
     Compare specific (group_id, engine) combinations and generate visualization.
     
@@ -50,10 +56,11 @@ def compare_specific_results(data, comparisons, output_dir):
     Example:
         comparisons = [('Q1', 'duckdb'), ('Q1', 'sqlite'), ('Q2', 'duckdb')]
     """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     labels = []
-    for comparison in comparisons:
-        group_id, engine = comparison
-        labels.append(f"{group_id}_{engine.value}")
+    for data in data_list:
+        labels.append(data['key'])
     
     # Extract metrics for comparison
     exec_times = []
@@ -62,8 +69,8 @@ def compare_specific_results(data, comparisons, output_dir):
     cpu_peak = []
     throughput = []
     
-    for group_id, engine in comparisons:
-        metrics = data[group_id][engine.value]
+    for data in data_list:
+        metrics = data['data']
         exec_times.append(metrics['execution_time']['avg'])
         memory_usage.append(metrics['peak_memory_bytes']['avg'] / (1024 * 1024))
         cpu_avg.append(metrics['cpu_avg_percent']['avg'])
@@ -74,14 +81,13 @@ def compare_specific_results(data, comparisons, output_dir):
         throughput.append(rows / time_sec if time_sec > 0 else 0)
     
     # Create comparison visualization
-    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    
-    x = np.arange(len(comparisons))
-    colors = [ENGINE_COLORS.get(engine.value, '#333333') for _, engine in comparisons]
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    x = np.arange(len(data_list))
+    bar_colors = get_color_sequence(len(labels))
     
     # 1. Execution Time
     ax = axes[0, 0]
-    ax.bar(x, exec_times, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, exec_times, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('Time (seconds)')
     ax.set_title('Execution Time')
     ax.set_xticks(x)
@@ -90,7 +96,7 @@ def compare_specific_results(data, comparisons, output_dir):
     
     # 2. Memory Usage
     ax = axes[0, 1]
-    ax.bar(x, memory_usage, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, memory_usage, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('Memory (MB)')
     ax.set_title('Peak Memory Usage')
     ax.set_xticks(x)
@@ -99,7 +105,7 @@ def compare_specific_results(data, comparisons, output_dir):
     
     # 3. CPU Average
     ax = axes[0, 2]
-    ax.bar(x, cpu_avg, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, cpu_avg, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('CPU (%)')
     ax.set_title('Average CPU Usage')
     ax.set_xticks(x)
@@ -108,7 +114,7 @@ def compare_specific_results(data, comparisons, output_dir):
     
     # 4. CPU Peak
     ax = axes[1, 0]
-    ax.bar(x, cpu_peak, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, cpu_peak, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('CPU (%)')
     ax.set_title('Peak CPU Usage')
     ax.set_xticks(x)
@@ -117,7 +123,7 @@ def compare_specific_results(data, comparisons, output_dir):
     
     # 5. Throughput
     ax = axes[1, 1]
-    ax.bar(x, throughput, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, throughput, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('Rows/sec')
     ax.set_title('Throughput')
     ax.set_xticks(x)
@@ -128,7 +134,7 @@ def compare_specific_results(data, comparisons, output_dir):
     ax = axes[1, 2]
     ax.axis('off')
     table_data = []
-    for i, (group_id, engine) in enumerate(comparisons):
+    for i, _ in enumerate(data_list):
         table_data.append([
             labels[i],
             f"{exec_times[i]:.3f}s",
@@ -149,15 +155,16 @@ def compare_specific_results(data, comparisons, output_dir):
     for i in range(4):
         table[(0, i)].set_facecolor('#40466e')
         table[(0, i)].set_text_props(weight='bold', color='white')
-    
-    plt.tight_layout()
+
+    fig.tight_layout(rect=[0, 0.03, 1, 0.94])
+    fig.suptitle(title, y=0.99, fontsize=18)
     
     # Generate filename from comparisons
-    comparison_name = "_vs_".join([f"{g}_{e.value}" for g, e in comparisons[:3]])
-    if len(comparisons) > 3:
+    comparison_name = "_VS_".join([f"{item['key']}" for item in data_list[:3]])
+    if len(data_list) > 3:
         comparison_name += "_and_more"
     
-    output_file = output_dir / f"comparison_{comparison_name}.png"
+    output_file = output_dir / f"{comparison_name}.png"
     plt.savefig(output_file, dpi=160)
     print(f"✓ Generated: {output_file.name}")
     plt.close()
@@ -179,7 +186,6 @@ def create_execution_time_comparison(data, compare_pairs, output_dir):
     # Extract data for the specified compare_pairs
     values = []
     labels = []
-    colors = []
     
     for group_id, engine in compare_pairs:
         # Validate that this combination exists in data
@@ -195,13 +201,12 @@ def create_execution_time_comparison(data, compare_pairs, output_dir):
         label = f"{group_id}_{engine}"
         labels.append(label)
         
-        # Get color for this engine
-        color = ENGINE_COLORS.get(engine.value, '#333333')
-        colors.append(color)
     
     if not values:
         print("❌ No valid data found for execution time comparison")
         return
+    
+    colors = get_color_sequence(len(labels))
     
     # Construct PlotParams
     params = PlotParams(
@@ -236,7 +241,6 @@ def create_memory_usage_comparison(data, compare_pairs, output_dir):
     # Extract data for the specified compare_pairs
     values = []
     labels = []
-    colors = []
     
     for group_id, engine in compare_pairs:
         # Validate that this combination exists in data
@@ -252,14 +256,11 @@ def create_memory_usage_comparison(data, compare_pairs, output_dir):
         label = f"{group_id}_{engine}"
         labels.append(label)
         
-        # Get color for this engine
-        color = ENGINE_COLORS.get(engine.value, '#333333')
-        colors.append(color)
-    
     if not values:
         print("❌ No valid data found for memory usage comparison")
         return
     
+    colors = get_color_sequence(len(labels))
     # Construct PlotParams
     params = PlotParams(
         values=values,
@@ -294,7 +295,6 @@ def create_cpu_usage_comparison(data, compare_pairs, output_dir):
     peak_values = []
     avg_values = []
     labels = []
-    colors = []
     
     for group_id, engine in compare_pairs:
         # Validate that this combination exists in data
@@ -312,14 +312,11 @@ def create_cpu_usage_comparison(data, compare_pairs, output_dir):
         label = f"{group_id}_{engine}"
         labels.append(label)
         
-        # Get color for this engine
-        color = ENGINE_COLORS.get(engine.value, '#333333')
-        colors.append(color)
-    
     if not peak_values:
         print("❌ No valid data found for CPU usage comparison")
         return
     
+    colors = get_color_sequence(len(labels))
     # Create Peak CPU chart
     params_peak = PlotParams(
         values=peak_values,
@@ -365,7 +362,6 @@ def create_throughput_comparison(data, compare_pairs, output_dir):
     # Extract data for the specified compare_pairs
     values = []
     labels = []
-    colors = []
     
     for group_id, engine in compare_pairs:
         # Validate that this combination exists in data
@@ -383,14 +379,11 @@ def create_throughput_comparison(data, compare_pairs, output_dir):
         label = f"{group_id}_{engine}"
         labels.append(label)
         
-        # Get color for this engine
-        color = ENGINE_COLORS.get(engine.value, '#333333')
-        colors.append(color)
-    
     if not values:
         print("❌ No valid data found for throughput comparison")
         return
     
+    colors = get_color_sequence(len(labels))
     # Construct PlotParams
     params = PlotParams(
         values=values,
@@ -424,8 +417,6 @@ def create_performance_percentiles(data, output_dir):
         positions = []
         labels = []
         box_data = []
-        colors_list = []
-        
         for i, engine in enumerate(engines):
             exec_time = query_data[engine]['execution_time']
             # Create box plot data: [min, p50, avg, p95, max]
@@ -438,7 +429,8 @@ def create_performance_percentiles(data, output_dir):
             ])
             positions.append(i)
             labels.append(engine)
-            colors_list.append(ENGINE_COLORS.get(engine, '#333333'))
+        
+        colors_list = get_color_sequence(len(labels))
         
         # Create box plot
         bp = ax.boxplot(box_data, positions=positions, widths=0.6,
@@ -461,22 +453,22 @@ def create_performance_percentiles(data, output_dir):
         plt.close()
 
 
-def create_comprehensive_dashboard(data, compare_pairs, output_dir):
+def create_comprehensive_dashboard(title, data_list, output_dir):
     """
     Create a comprehensive dashboard with multiple metrics.
     Simply calls compare_specific_results with all available combinations.
     
     Args:
-        data (dict): Summary data
-        compare_pairs (list): List of tuples [(group_id, engine), ...]
+        `data (dict): Summary data
+        data_list (list): List of tuples [(group_id, engine), ...]
         output_dir (Path): Output directory path
     """
-    if not compare_pairs:
-        print("⚠️  No compare_pairs provided for comprehensive dashboard")
+    if len(data_list) < 2:
+        print("Skipping comprehensive dashboard: not enough data to compare.")
         return
 
     # Just call compare_specific_results which already does comprehensive comparison
-    compare_specific_results(data, compare_pairs, output_dir)
+    compare_specific_results(title, data_list, output_dir)
 
 
 def create_performance_summary_table(data, output_dir):
@@ -517,6 +509,57 @@ def create_performance_summary_table(data, output_dir):
     print(f"✓ Generated: {output_file.name}")
 
 
+
+def aggregate_by_group_default(data: Dict) -> Dict[str, List[dict]]:
+    result = {}
+    for group_id, engines in data.items():
+        if group_id not in result:
+            result[group_id] = []
+        for engine, states in engines.items():
+            if "default" in states:
+                key = engine + "_ops_default"
+                result[group_id].append({"key": key, "data": states["default"]})
+    return result
+
+def create_dashboard_by_group(data: Dict, output_dir: Path):
+    aggregated_data = aggregate_by_group_default(data)
+    for group_id, entries in aggregated_data.items():
+        create_comprehensive_dashboard( f"Comparison by group {group_id}", entries, output_dir / group_id)
+
+
+def aggregate_by_engine_default(data: Dict) -> Dict[str, List[dict]]:
+    result = {}
+    for group_id, engines in data.items():
+        for engine, states in engines.items():
+            if engine not in result:
+                result[engine] = []
+            if "default" in states:
+                key = group_id + "_" + engine + "ops_default"
+                result[engine].append({"key": key, "data": states["default"]})
+    return result
+
+def create_dashboard_by_engine(data: Dict, output_dir: Path):
+    aggregated_data = aggregate_by_engine_default(data)
+    for engine, entries in aggregated_data.items():
+        create_comprehensive_dashboard(f"Comparison by group {engine}" , entries, output_dir / engine)
+
+def aggregate_by_optimizer(data: Dict) -> Dict[str, List[dict]]:
+    result = {}
+    for group_id, engines in data.items():
+        for engine, states in engines.items():
+            for optimizer_state, metrics in states.items():
+                group_key = f"{group_id}_{engine}"
+                if group_key not in result:
+                    result[group_key] = []
+                key = f"{engine}_{optimizer_state}"
+                result[group_key].append({"key": key, "data": metrics})
+    return result
+
+def create_dashboard_by_optimizer(data: Dict, output_dir: Path):
+    aggregated_data = aggregate_by_optimizer(data)
+    for group_key, entries in aggregated_data.items():
+        create_comprehensive_dashboard(f"Comparison by optimizer {group_key}" , entries, output_dir / group_key)
+
 def main():
     """Main function: load data and generate all visualizations."""
     args = parse_env_args("Analyze benchmark experiment results")
@@ -536,13 +579,16 @@ def main():
     print("-" * 50)
 
     clean_path(str(output_dir.resolve()))
-    create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
-    create_memory_usage_comparison(data, config.config_data.compare_pairs, output_dir)
-    create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)
-    create_throughput_comparison(data, config.config_data.compare_pairs, output_dir)
-    create_performance_percentiles(data, output_dir)
-    create_comprehensive_dashboard(data, config.config_data.compare_pairs, output_dir)
-    create_performance_summary_table(data, output_dir)
+    create_dashboard_by_group(data, output_dir / "comparison_by_group")
+    create_dashboard_by_engine(data, output_dir / "comparison_by_engine")
+    create_dashboard_by_optimizer(data, output_dir / "comparison_by_optimizer")
+    # create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_memory_usage_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_throughput_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_performance_percentiles(data, output_dir)
+    # create_comprehensive_dashboard(data, config.config_data.compare_pairs, output_dir)
+    # create_performance_summary_table(data, output_dir)
 
 
 

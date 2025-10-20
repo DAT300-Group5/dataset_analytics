@@ -2,7 +2,7 @@
 # Structure: output_cwd/
 #   ├── summary.json (aggregated results for all experiments)
 #   └── <experiment_name>/ (individual run logs and profiling data)
-output_cwd: ./results/dev
+output_cwd: ./results/compare_in_trend
 
 # ------------------------------------------------------------
 # SQL Correctness Validation Pairs
@@ -14,9 +14,11 @@ output_cwd: ./results/dev
 # The script will execute these queries and verify that results are identical
 # across different engines (e.g., duckdb vs sqlite) for the same query_group_id
 validate_pairs:
-  - [ sample-Q1, duckdb ]
-  - [ sample-Q1, sqlite ]
-  - [ sample-Q1, chdb ]
+#  - [ trend-Q1, duckdb ]
+  - [ trend-Q2, duckdb ]
+  - [ trend-Q3, duckdb ]
+  - [ trend-Q4, duckdb ]
+#  - [ trend-Q5, duckdb ]
 
 
 # ------------------------------------------------------------
@@ -30,9 +32,9 @@ validate_pairs:
 
 # Update: BAN_OPS versions will be executed automatically for each pair (if available)
 execute_pairs:
-  - [ sample-Q1, duckdb ]
-  - [ sample-Q1, sqlite ]
-  - [ sample-Q1, chdb ]
+  - [ trend-Q2, duckdb ]
+  - [ trend-Q3, duckdb ]
+  - [ trend-Q4, duckdb ]
 
 
 # ------------------------------------------------------------
@@ -44,6 +46,6 @@ execute_pairs:
 # Purpose: Used by analyze_results.py to generate comparison charts
 # These pairs will be plotted together for easy performance comparison
 compare_pairs:
-  - [ sample-Q1, duckdb ]
-  - [ sample-Q1, sqlite ]
-  - [ sample-Q1, chdb ]
+  - [ trend-Q2, duckdb ]
+  - [ trend-Q3, duckdb ]
+  - [ trend-Q4, duckdb ]

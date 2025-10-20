@@ -81,7 +81,7 @@ if __name__ == "__main__":
     root = project_root()
 
     chdb_cmd = root / "benchmark/chdb_cli/chdb_cli"
-    sql_file = root / "benchmark/queries/Q1/Q1_clickhouse.sql"
+    sql_file = root / "benchmark/queries/Q1/Q1_chdb.sql"
     db_file = root / "benchmark/db_vs14/vs14_data_chdb"
     cwd = root / "benchmark/test"
 

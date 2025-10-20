@@ -12,7 +12,7 @@ This benchmark system provides:
 - **Visualization**: Generate comparison charts automatically
 - **Configuration-driven**: Simple YAML configuration
 
-### Key Features
+Key Features:
 
 1. **Two-stage execution model**:
    - Stage 1: Automatic sampling interval calculation (pilot runs)
@@ -173,7 +173,7 @@ query_groups:
   - id: sample-Q1
     duckdb_sql: ./queries/Q1/Q1_duckdb.sql
     sqlite_sql: ./queries/Q1/Q1_sqlite.sql
-    chdb_sql: ./queries/Q1/Q1_clickhouse.sql
+    chdb_sql: ./queries/Q1/Q1_chdb.sql
 ```
 
 Example `config_dev.yaml`:
@@ -208,7 +208,7 @@ query_groups:
   - id: sample-Q1
     duckdb_sql: ./queries/Q1/Q1_duckdb.sql
     sqlite_sql: ./queries/Q1/Q1_sqlite.sql
-    chdb_sql: ./queries/Q1/Q1_clickhouse.sql
+    chdb_sql: ./queries/Q1/Q1_chdb.sql
 ```
 
 ```yaml
@@ -562,7 +562,48 @@ engine_paths:
 
 Or edit the `PATH` permanently in `~/.profile` / temporarily in the current shell.
 
-### Adjusting Monitoring Granularity
+### BAN Optimizers
+
+Query groups also accept: `duckdb_sql_ban_ops`, `sqlite_sql_ban_ops` and `chdb_sql_ban_ops`.
+
+```yaml
+query_groups:
+  - id: sample-Q1
+    duckdb_sql: ./queries/Q1/Q1_duckdb.sql
+    sqlite_sql: ./queries/Q1/Q1_sqlite.sql
+    chdb_sql: ./queries/Q1/Q1_chdb.sql
+    duckdb_sql_ban_ops: ./queries/Q1/Q1_duckdb_ban_ops.sql
+    sqlite_sql_ban_ops: ./queries/Q1/Q1_sqlite_ban_ops.sql
+    chdb_sql_ban_ops: ./queries/Q1/Q1_chdb_ban_ops.sql
+```
+
+They are viewed as variants, you don't need to add them in `execute_pairs` or `compare_pairs`.
+
+### Compare Cross Query Groups
+
+`trend-Q2`, `trend-Q3` and `trend-Q4` have the same ouput but different ways of querying. We want to dive into the difference.
+
+```yaml
+query_groups:
+  - id: trend-Q2
+    duckdb_sql: queries/trend/Q2_duckdb.sql
+  - id: trend-Q3
+    duckdb_sql: queries/trend/Q3_duckdb.sql
+  - id: trend-Q4
+    duckdb_sql: queries/trend/Q4_duckdb.sql
+```
+
+Try this one:
+
+```bash
+python validate_sql_correctness.py --env compare_in_trend
+
+python run_experiments.py --env compare_in_trend
+
+python analyze_results.py --env compare_in_trend
+```
+
+### Adjusting Monitoring Interval
 
 For faster queries, increase `sample_count` for finer monitoring:
 

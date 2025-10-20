@@ -75,10 +75,13 @@ datasets:
 # query_groups: SQL queries to execute on each database
 # Each query group can have engine-specific SQL files
 query_groups:
-  - id: sample-Q1  # Query identifier (used in results and compare_pairs)
+  - id: sample-Q1  # Query identifier (used in validate_pairs, execute_pairs, compare_pairs)
     duckdb_sql: ./queries/Q1/Q1_duckdb.sql
     sqlite_sql: ./queries/Q1/Q1_sqlite.sql
-    chdb_sql: ./queries/Q1/Q1_clickhouse.sql
+    chdb_sql: ./queries/Q1/Q1_chdb.sql
+    duckdb_sql_ban_ops: ./queries/Q1/Q1_duckdb_ban_ops.sql
+    sqlite_sql_ban_ops: ./queries/Q1/Q1_sqlite_ban_ops.sql
+    chdb_sql_ban_ops: ./queries/Q1/Q1_chdb_ban_ops.sql
 
   - id: anomaly-Q1
     duckdb_sql: queries/anomaly/Q2_duckdb.sql
