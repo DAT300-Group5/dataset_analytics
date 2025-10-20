@@ -25,11 +25,23 @@ SQLite's CLI has dot command - `.eqp on` can also open `EXPLAIN QUERY PLAN`.
 
 ### Optimizers
 
-Could be optimizers: [Pragma statements supported by SQLite](https://sqlite.org/pragma.html)
+[The SQLite Query Optimizer Overview](https://www.sqlite.org/optoverview.html)
 
-The `PRAGMA optimize`, does have some optimizers, but none of them is related to analytical SQL.
+SQLite’s optimizer does include several mechanisms that can be helpful for analytical workloads, particularly:
 
-In other words, if your workload is mainly read-only analytical, `PRAGMA optimize;` will hardly bring you any performance improvement.
+- Subquery flattening
+- GROUP BY / ORDER BY optimizations
+- Covering index and range scan optimizations
+- Expression simplification and constant folding
+
+However, its overall architecture makes it less suitable for handling large-scale aggregations, complex joins, window functions, or highly concurrent analytical queries.
+
+The documentation explains many aspects of what the optimizer does, but it does **not** provide fine-grained switches like those available in ClickHouse or DuckDB.
+
+Looking at the [Pragma statements supported by SQLite](https://sqlite.org/pragma.html), the available controls are quite limited. For example,
+`PRAGMA automatic_index = ON|OFF` determines whether SQLite automatically creates transient indexes for equality joins and similar cases.
+
+---
 
 In addition, not only SQLite, but also various database engines' configurable items will include options for how many resources the database engine can use, such as setting `cache_size`, `mmap_size`, and so on. I don't think blindly increasing these settings in resource-constrained situations will be helpful - it may even be harmful, such as common jitter and paging problems in the operating system.
 
@@ -41,16 +53,28 @@ The "three Join algorithms" - **Nested-Loop / Merge / Hash**
 
 **SQLite actually only has Nested-Loop Join** (inner loop + index/table access); it **does not have** the traditional Merge Join or Hash Join operators that you can switch to.
 
+> <https://www.sqlite.org/optoverview.html>
+>
+> 14.1. Hash Joins
+>
+> An automatic index is almost the same thing as a hash join. The only difference is that a B-Tree is used instead of a hash table. If you are willing to say that the transient B-Tree constructed for an automatic index is really just a fancy hash table, then a query that uses an automatic index is just a hash join.
+>
+> SQLite constructs a transient index instead of a hash table in this instance because it already has a robust and high performance B-Tree implementation at hand, whereas a hash-table would need to be added. Adding a separate hash table implementation to handle this one case would increase the size of the library (which is designed for use on low-memory embedded devices) for minimal performance gain. SQLite might be enhanced with a hash-table implementation someday, but for now it seems better to continue using automatic indexes in cases where client/server database engines might use a hash join.
+
 ## DuckDB
 
 ### Execution Plan
+
+Recommend!: <https://db.cs.uni-tuebingen.de/explain/>
+
+---
 
 `EXPLAIN your_query;`, `EXPLAIN ANALYZE your_query;`.
 
 - `EXPLAIN`: Only provides the logical/physical execution plan (tree structure).
 - `EXPLAIN ANALYZE`: **Actually executes the query** and returns information such as the time, row count, estimated vs. actual for each operator.
 
-Could use with `PRAGMA explain_output = 'optimized_only';`.
+You can limit the output to the optimized logical plan with `PRAGMA explain_output='optimized_only';`.
 
 ---
 
@@ -77,7 +101,7 @@ This JSON is used for **automation analysis / visualization tools / post-process
 - [Tuning Workloads – DuckDB](https://duckdb.org/docs/stable/guides/performance/how_to_tune_workloads)
 
 1. The optimizer in DuckDB can be easily disabled by using `PRAGMA disable_optimizer;`.
-2. List the optimizer rules using the built-in table function: `SELECT name FROM duckdb_optimizers() ORDER BY 1;` `
+2. List the optimizer rules using the built-in table function: `SELECT name FROM duckdb_optimizers() ORDER BY 1;`
 
 ```bash
 name
@@ -196,7 +220,7 @@ The design of DuckDB is highly modular, and these 28 optimizers almost cover all
 
 [Understanding Query Execution with the Analyzer | ClickHouse Docs](https://clickhouse.com/docs/guides/developer/understanding-query-execution-with-the-analyzer#planner)
 
-Just like DuckDB, it could use `EXPLAIN your_query;`, `EXPLAIN PLAN ANALYZE your_query;`.
+It could use `EXPLAIN your_query;`, `EXPLAIN PLAN ANALYZE your_query;`.
 
 ### Optimizers
 
@@ -211,27 +235,19 @@ Ref：
 - [holistic-performance-optimization | ClickHouse Docs](https://clickhouse.com/docs/academic_overview#4-4-holistic-performance-optimization)
 - [Guide for Query optimization | ClickHouse Docs](https://clickhouse.com/docs/optimize/query-optimization#basic-optimization)
 
+#### How to check
+
 Check how many ClickHouse mechanisms chDB actually supports:
 
 ```sql
 SELECT * FROM system.settings;
 ```
 
-Check how many optimization items there are:
-
-```sql
-SELECT name, value, description
-FROM system.settings
-WHERE name LIKE '%optimize%' OR name LIKE '%optimizer%';
-```
-
 Check currently open:
 
 ```sql
-SELECT name, value, description
-FROM system.settings
-WHERE (name LIKE '%optimize%' OR name LIKE '%optimizer%')
-  AND value IN ('1', 'true');
+SELECT name FROM system.settings
+WHERE value IN ('1', 'true');
 ```
 
 Only look at the items that have been modified:
@@ -239,36 +255,81 @@ Only look at the items that have been modified:
 ```sql
 SELECT name, value, changed, default_value
 FROM system.settings
-WHERE changed AND (name LIKE '%optimize%' OR name LIKE '%optimizer%');
+WHERE changed;
 ```
 
-Select some of the contents and complete a setting that disables most optimizations:
+#### Description (Relevant)
+
+| Setting                                       | Description                                                                                |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `enable_optimize_predicate_expression`        | Enables optimization of predicate expressions such as constant folding and simplification. |
+| `query_plan_optimize_prewhere`                | Enables the PREWHERE optimization at the query plan stage.                                 |
+| `optimize_move_to_prewhere`                   | Automatically moves eligible conditions from WHERE to PREWHERE.                            |
+| `optimize_move_to_prewhere_if_final`          | Enables PREWHERE optimization for queries with the FINAL modifier.                         |
+| `optimize_read_in_order`                      | Enables ordered read optimization when data is sorted by primary or sorting key.           |
+| `optimize_read_in_window_order`               | Optimizes reading for window functions by using sorted input order.                        |
+| `optimize_aggregation_in_order`               | Enables ordered aggregation optimization to reduce memory usage.                           |
+| `optimize_functions_to_subcolumns`            | Allows function calls to be optimized to read subcolumns directly (e.g., JSON fields).     |
+| `optimize_time_filter_with_preimage`          | Enables optimized time filtering with preimage transformation.                             |
+| `optimize_extract_common_expressions`         | Extracts and reuses common subexpressions to avoid redundant computation.                  |
+| `optimize_uniq_to_count`                      | Rewrites `uniq()` functions to `count()` when possible.                                    |
+| `optimize_rewrite_sum_if_to_count_if`         | Rewrites `sumIf()` to `countIf()` when appropriate.                                        |
+| `optimize_rewrite_aggregate_function_with_if` | Rewrites aggregate functions containing IF conditions into equivalent simpler forms.       |
+| `optimize_injective_functions_in_group_by`    | Allows injective functions (like `toInt32()`) to be optimized in GROUP BY clauses.         |
+| `optimize_group_by_function_keys`             | Optimizes GROUP BY expressions containing functions.                                       |
+| `optimize_group_by_constant_keys`             | Optimizes GROUP BY with constant expressions by simplifying aggregation.                   |
+| `optimize_normalize_count_variants`           | Normalizes different COUNT function variants to a common form.                             |
+| `optimize_trivial_count_query`                | Enables fast-path optimization for simple `SELECT count()` queries.                        |
+| `optimize_count_from_files`                   | Allows retrieving row counts directly from file metadata instead of scanning.              |
+| `optimize_use_projections`                    | Enables the use of materialized projections for query optimization.                        |
+| `optimize_use_implicit_projections`           | Enables implicit projections automatically inferred by the optimizer.                      |
+| `force_optimize_projection`                   | Forces the optimizer to use available projections when applicable.                         |
+| `allow_general_join_planning`                 | Enables the general join planning algorithm for complex JOINs.                             |
+| `cross_to_inner_join_rewrite`                 | Rewrites CROSS JOINs to INNER JOINs when join conditions exist.                            |
+
+#### Select optimizations to disable
+
+Based on these configurable optimizer settings, we can selectively disable most of them to observe the baseline performance.
 
 ```sql
+-- Disable All Major Optimizations (Safe for Analytical Load Experiments)
+
+-- Expression / Predicate Optimizations
 SET enable_optimize_predicate_expression = 0;
 SET query_plan_optimize_prewhere         = 0;
 SET optimize_move_to_prewhere            = 0;
+SET optimize_move_to_prewhere_if_final   = 0;
 
+-- Scan / Read Order Optimizations
 SET optimize_read_in_order               = 0;
 SET optimize_read_in_window_order        = 0;
-SET optimize_aggregation_in_order        = 0;
 
-SET optimize_functions_to_subcolumns     = 0;
-SET optimize_time_filter_with_preimage   = 0;
-SET optimize_extract_common_expressions  = 0;
-SET optimize_uniq_to_count               = 0;
-SET optimize_rewrite_sum_if_to_count_if  = 0;
-SET optimize_rewrite_aggregate_function_with_if = 0;
+-- Aggregation / Group By Optimizations
+SET optimize_aggregation_in_order        = 0;
 SET optimize_injective_functions_in_group_by     = 0;
 SET optimize_group_by_function_keys      = 0;
 SET optimize_group_by_constant_keys      = 0;
 SET optimize_normalize_count_variants    = 0;
-
 SET optimize_trivial_count_query         = 0;
 SET optimize_count_from_files            = 0;
+SET optimize_uniq_to_count               = 0;
+SET optimize_rewrite_sum_if_to_count_if  = 0;
+SET optimize_rewrite_aggregate_function_with_if = 0;
 
+-- Expression / Subcolumn / Common Expression Optimizations
+SET optimize_functions_to_subcolumns     = 0;
+SET optimize_time_filter_with_preimage   = 0;
+SET optimize_extract_common_expressions  = 0;
+
+-- Projection / Storage-level Optimizations
 SET optimize_use_projections             = 0;
 SET optimize_use_implicit_projections    = 0;
 SET force_optimize_projection            = 0;
-```
 
+-- Join / Rewrite Optimizations
+SET allow_general_join_planning          = 0;
+SET cross_to_inner_join_rewrite          = 0;
+
+-- Note: These settings can be safely applied in a session context.
+-- They affect only query optimization, not query correctness or stability.
+```
