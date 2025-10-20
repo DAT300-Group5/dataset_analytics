@@ -18,3 +18,4 @@ class QueryGroup:
     chdb_sql: Optional[str] = None
     duckdb_sql_ban_ops: Optional[str] = None
     chdb_sql_ban_ops: Optional[str] = None
+    sqlite_sql_ban_ops: Optional[str] = None

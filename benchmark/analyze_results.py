@@ -18,12 +18,16 @@ from models.plot_params import PlotParams
 from cli.cli import parse_env_args
 from util.file_utils import clean_path
 
-# Define colors for different engines
-ENGINE_COLORS = {
-    'duckdb': '#1f77b4',
-    'sqlite': '#ff7f0e',
-    'chdb': '#2ca02c'
-}
+# Define a shared color cycle for datasets
+DEFAULT_COLOR_SEQUENCE = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+]
+
+
+def get_color_sequence(count):
+    """Return a sequence of colors cycling through the default palette."""
+    return [DEFAULT_COLOR_SEQUENCE[i % len(DEFAULT_COLOR_SEQUENCE)] for i in range(count)]
 
 
 def load_summary_data(file_path):
@@ -79,11 +83,11 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
     # Create comparison visualization
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     x = np.arange(len(data_list))
-    colors = '#333333'
+    bar_colors = get_color_sequence(len(labels))
     
     # 1. Execution Time
     ax = axes[0, 0]
-    ax.bar(x, exec_times, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, exec_times, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('Time (seconds)')
     ax.set_title('Execution Time')
     ax.set_xticks(x)
@@ -92,7 +96,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
     
     # 2. Memory Usage
     ax = axes[0, 1]
-    ax.bar(x, memory_usage, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, memory_usage, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('Memory (MB)')
     ax.set_title('Peak Memory Usage')
     ax.set_xticks(x)
@@ -101,7 +105,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
     
     # 3. CPU Average
     ax = axes[0, 2]
-    ax.bar(x, cpu_avg, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, cpu_avg, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('CPU (%)')
     ax.set_title('Average CPU Usage')
     ax.set_xticks(x)
@@ -110,7 +114,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
     
     # 4. CPU Peak
     ax = axes[1, 0]
-    ax.bar(x, cpu_peak, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, cpu_peak, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('CPU (%)')
     ax.set_title('Peak CPU Usage')
     ax.set_xticks(x)
@@ -119,7 +123,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
     
     # 5. Throughput
     ax = axes[1, 1]
-    ax.bar(x, throughput, color=colors, edgecolor='black', linewidth=1)
+    ax.bar(x, throughput, color=bar_colors, edgecolor='black', linewidth=1)
     ax.set_ylabel('Rows/sec')
     ax.set_title('Throughput')
     ax.set_xticks(x)
@@ -182,7 +186,6 @@ def create_execution_time_comparison(data, compare_pairs, output_dir):
     # Extract data for the specified compare_pairs
     values = []
     labels = []
-    colors = []
     
     for group_id, engine in compare_pairs:
         # Validate that this combination exists in data
@@ -198,13 +201,12 @@ def create_execution_time_comparison(data, compare_pairs, output_dir):
         label = f"{group_id}_{engine}"
         labels.append(label)
         
-        # Get color for this engine
-        color = ENGINE_COLORS.get(engine.value, '#333333')
-        colors.append(color)
     
     if not values:
         print("❌ No valid data found for execution time comparison")
         return
+    
+    colors = get_color_sequence(len(labels))
     
     # Construct PlotParams
     params = PlotParams(
@@ -239,7 +241,6 @@ def create_memory_usage_comparison(data, compare_pairs, output_dir):
     # Extract data for the specified compare_pairs
     values = []
     labels = []
-    colors = []
     
     for group_id, engine in compare_pairs:
         # Validate that this combination exists in data
@@ -255,14 +256,11 @@ def create_memory_usage_comparison(data, compare_pairs, output_dir):
         label = f"{group_id}_{engine}"
         labels.append(label)
         
-        # Get color for this engine
-        color = ENGINE_COLORS.get(engine.value, '#333333')
-        colors.append(color)
-    
     if not values:
         print("❌ No valid data found for memory usage comparison")
         return
     
+    colors = get_color_sequence(len(labels))
     # Construct PlotParams
     params = PlotParams(
         values=values,
@@ -297,7 +295,6 @@ def create_cpu_usage_comparison(data, compare_pairs, output_dir):
     peak_values = []
     avg_values = []
     labels = []
-    colors = []
     
     for group_id, engine in compare_pairs:
         # Validate that this combination exists in data
@@ -315,14 +312,11 @@ def create_cpu_usage_comparison(data, compare_pairs, output_dir):
         label = f"{group_id}_{engine}"
         labels.append(label)
         
-        # Get color for this engine
-        color = ENGINE_COLORS.get(engine.value, '#333333')
-        colors.append(color)
-    
     if not peak_values:
         print("❌ No valid data found for CPU usage comparison")
         return
     
+    colors = get_color_sequence(len(labels))
     # Create Peak CPU chart
     params_peak = PlotParams(
         values=peak_values,
@@ -368,7 +362,6 @@ def create_throughput_comparison(data, compare_pairs, output_dir):
     # Extract data for the specified compare_pairs
     values = []
     labels = []
-    colors = []
     
     for group_id, engine in compare_pairs:
         # Validate that this combination exists in data
@@ -386,14 +379,11 @@ def create_throughput_comparison(data, compare_pairs, output_dir):
         label = f"{group_id}_{engine}"
         labels.append(label)
         
-        # Get color for this engine
-        color = ENGINE_COLORS.get(engine.value, '#333333')
-        colors.append(color)
-    
     if not values:
         print("❌ No valid data found for throughput comparison")
         return
     
+    colors = get_color_sequence(len(labels))
     # Construct PlotParams
     params = PlotParams(
         values=values,
@@ -427,8 +417,6 @@ def create_performance_percentiles(data, output_dir):
         positions = []
         labels = []
         box_data = []
-        colors_list = []
-        
         for i, engine in enumerate(engines):
             exec_time = query_data[engine]['execution_time']
             # Create box plot data: [min, p50, avg, p95, max]
@@ -441,7 +429,8 @@ def create_performance_percentiles(data, output_dir):
             ])
             positions.append(i)
             labels.append(engine)
-            colors_list.append(ENGINE_COLORS.get(engine, '#333333'))
+        
+        colors_list = get_color_sequence(len(labels))
         
         # Create box plot
         bp = ax.boxplot(box_data, positions=positions, widths=0.6,
