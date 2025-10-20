@@ -218,9 +218,18 @@ The design of DuckDB is highly modular, and these 28 optimizers almost cover all
 
 ### Execution Plan
 
-[Understanding Query Execution with the Analyzer | ClickHouse Docs](https://clickhouse.com/docs/guides/developer/understanding-query-execution-with-the-analyzer#planner)
+- [EXPLAIN Statement | ClickHouse Docs](https://clickhouse.com/docs/sql-reference/statements/explain)
+- [Understanding Query Execution with the Analyzer | ClickHouse Docs](https://clickhouse.com/docs/guides/developer/understanding-query-execution-with-the-analyzer)
 
-It could use `EXPLAIN your_query;`, `EXPLAIN PLAN ANALYZE your_query;`.
+```sql
+EXPLAIN
+
+EXPLAIN PLAN
+
+EXPLAIN json = 1, description = 1, actions = 1, header = 1
+
+EXPLAIN PIPELINE header = 1, graph = 1
+```
 
 ### Optimizers
 
