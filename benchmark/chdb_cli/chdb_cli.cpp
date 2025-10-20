@@ -26,23 +26,6 @@ double getPeakMemoryMB() {
 #endif
 }
 
-size_t count_output_rows(const std::string& data, bool has_header = false) {
-    std::istringstream iss(data);
-    std::string line;
-    size_t count = 0;
-
-    while (std::getline(iss, line)) {
-        if (!line.empty()) {
-            count++;
-        }
-    }
-
-    if (has_header && count > 0)
-        count -= 1;
-
-    return count;
-}
-
 class ChDBConnection {
 private:
     chdb_connection* conn;
@@ -101,24 +84,12 @@ public:
         uint64_t rows_read = chdb_result_rows_read(result);
         uint64_t bytes_read = chdb_result_bytes_read(result);
         
-        // Count output rows AFTER memory measurement (to avoid affecting profiling)
-        size_t output_rows = 0;
-        if (verbose) {
-            if (!data.empty()) {
-                // NOTE: This is an approximate line count for CSV.
-                // Newlines inside quoted CSV fields will be over-counted.
-                bool has_header = format.find("WithNames") != std::string::npos;
-                output_rows = count_output_rows(data, has_header);
-            }
-        }
-        
         // Output query statistics (only if verbose mode)
         if (verbose) {
             std::cout << "Query statistics:\n";
             std::cout << "  Elapsed: " << elapsed << " seconds\n";
             std::cout << "  Rows read: " << rows_read << "\n";
             std::cout << "  Bytes read: " << bytes_read << " bytes\n";
-            std::cout << "  Output rows: " << output_rows << "\n";
         }
         
         // Memory profiling (if enabled)

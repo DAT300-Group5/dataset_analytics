@@ -46,7 +46,7 @@ chdb_cli <dbpath> [options] < input.sql
 
 ```bash
 export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
-./chdb_cli ../db_vs14/vs14_data_chdb < ../queries/Q1/Q1_clickhouse.sql
+./chdb_cli ../db_vs14/vs14_data_chdb < ../queries/Q1/Q1_chdb.sql
 ```
 
 Output format:
