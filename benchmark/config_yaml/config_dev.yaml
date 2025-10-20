@@ -30,8 +30,7 @@ validate_pairs:
 execute_pairs:
   - [ sample-Q1, duckdb ]
   - [ sample-Q1, sqlite ]
-  - [ anomaly-Q3, duckdb ]
-  - [ anomaly-Q3, sqlite ]
+  - [ sample-Q1, chdb ]
 
 
 # ------------------------------------------------------------
@@ -45,5 +44,4 @@ execute_pairs:
 compare_pairs:
   - [ sample-Q1, duckdb ]
   - [ sample-Q1, sqlite ]
-  - [ anomaly-Q3, duckdb ]
-  - [ anomaly-Q3, sqlite ]
+  - [ sample-Q1, chdb ]

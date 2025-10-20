@@ -1,3 +1,29 @@
+SET enable_optimize_predicate_expression = 0;
+SET query_plan_optimize_prewhere         = 0;
+SET optimize_move_to_prewhere            = 0;
+
+SET optimize_read_in_order               = 0;
+SET optimize_read_in_window_order        = 0;
+SET optimize_aggregation_in_order        = 0;
+
+SET optimize_functions_to_subcolumns     = 0;
+SET optimize_time_filter_with_preimage   = 0;
+SET optimize_extract_common_expressions  = 0;
+SET optimize_uniq_to_count               = 0;
+SET optimize_rewrite_sum_if_to_count_if  = 0;
+SET optimize_rewrite_aggregate_function_with_if = 0;
+SET optimize_injective_functions_in_group_by     = 0;
+SET optimize_group_by_function_keys      = 0;
+SET optimize_group_by_constant_keys      = 0;
+SET optimize_normalize_count_variants    = 0;
+
+SET optimize_trivial_count_query         = 0;
+SET optimize_count_from_files            = 0;
+
+SET optimize_use_projections             = 0;
+SET optimize_use_implicit_projections    = 0;
+SET force_optimize_projection            = 0;
+
 USE sensor;
 
 WITH

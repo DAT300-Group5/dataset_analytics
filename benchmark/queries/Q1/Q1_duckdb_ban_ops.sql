@@ -1,3 +1,5 @@
+PRAGMA disable_optimizer;
+
 SET timezone='UTC';
 
 WITH
