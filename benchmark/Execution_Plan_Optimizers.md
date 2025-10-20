@@ -21,6 +21,8 @@ SQLite's CLI has dot command - `.eqp on` can also open `EXPLAIN QUERY PLAN`.
 
 [EXPLAIN QUERY PLAN](https://sqlite.org/eqp.html)
 
+[Explanations of the operators as seen in the SQLite query execution plan](https://use-the-index-luke.com/sql/explain-plan/sqlite/operations)
+
 ### Optimizers
 
 Could be optimizers: [Pragma statements supported by SQLite](https://sqlite.org/pragma.html)
@@ -269,3 +271,4 @@ SET optimize_use_projections             = 0;
 SET optimize_use_implicit_projections    = 0;
 SET force_optimize_projection            = 0;
 ```
+
