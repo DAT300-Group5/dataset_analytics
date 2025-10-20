@@ -12,6 +12,7 @@ class ExperimentParams:
     db_file : Path
     exp_name : str
     group_id : str
+    ban_optimizer: bool
     engine_cmd : str
     chdb_library_path : Optional[str]
     cwd : Path
@@ -25,6 +26,7 @@ class ExperimentParams:
                 f"  db_file={self.db_file.resolve()},\n"
                 f"  exp_name={self.exp_name},\n"
                 f"  group_id={self.group_id},\n"
+                f"  ban_optimizer={self.ban_optimizer},\n"
                 f"  engine_cmd={self.engine_cmd},\n"
                 f"  cwd={self.cwd.resolve()},\n"
                 f"  sample_count={self.sample_count},\n"

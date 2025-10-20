@@ -81,7 +81,7 @@ def main() -> None:
     if args.env:
         logger.info(f"Loaded configuration with environment override: {args.env}")
     
-    experiments = config.filter_experiments(config.config_data.execute_pairs)
+    experiments = config.filter_experiments(config.config_data.execute_pairs, True)
     logger.info(f"Loaded {len(experiments)} experiments from config")
     logger.info("")
 
