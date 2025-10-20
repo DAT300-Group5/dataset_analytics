@@ -56,7 +56,7 @@ public:
         }
     }
     
-    std::string query(const std::string& sql, const std::string& format = "CSV") {
+    std::string query(const std::string& sql, const std::string& format) {
         chdb_result* result = chdb_query(*conn, sql.c_str(), format.c_str());
         if (!result) {
             throw std::runtime_error("Query execution failed");
@@ -105,9 +105,10 @@ public:
 void print_usage(const char* program_name) {
     std::cerr << "Usage: " << program_name << " <dbpath> [options]\n";
     std::cerr << "  <dbpath>       Database directory path\n";
+    std::cerr << "  -csv, --csv    Output format: CSV (default with headers)\n";
     std::cerr << "  -v, --verbose  Show query statistics (elapsed time and so on)\n";
     std::cerr << "  -m, --memory   Show peak memory usage\n";
-    std::cerr << "\nReads SQL from stdin and outputs CSV with headers (query statistics) to stdout\n";
+    std::cerr << "\nReads SQL from stdin\n";
     std::cerr << "\nExamples:\n";
     std::cerr << "  " << program_name << " /tmp/mydb < query.sql\n";
     std::cerr << "  " << program_name << " /tmp/mydb -m < query.sql\n";
@@ -130,6 +131,7 @@ int main(int argc, char* argv[]) {
         std::string dbpath = argv[1];
         bool verbose = false;
         bool profile_memory = false;
+        std::string output_format = "CSVWithNames";
         
         // Parse options
         for (int i = 2; i < argc; i++) {
@@ -138,6 +140,15 @@ int main(int argc, char* argv[]) {
                 verbose = true;
             } else if (arg == "-m" || arg == "--memory") {
                 profile_memory = true;
+            } else if (arg == "-h" || arg == "--help") {
+                print_usage(argv[0]);
+                return 0;
+            } else if (arg == "-csv" || arg == "--csv") {
+                output_format = "CSVWithNames";
+            } else {
+                std::cerr << "Unknown option: " << arg << "\n";
+                print_usage(argv[0]);
+                return 1;
             }
         }
         
@@ -164,7 +175,7 @@ int main(int argc, char* argv[]) {
         }
          
         // Execute query and output CSV with headers to stdout
-        std::string result = db.query(sql, "CSVWithNames");
+        std::string result = db.query(sql, output_format);
         std::cout << result;
         std::cout.flush();
         
