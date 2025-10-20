@@ -144,6 +144,27 @@ class ConfigLoader:
                         )
                         experiments.append(exp_params)
                         print(f"Created experiment", exp_params)
+
+                    sql_ban_optimizer = getattr(query_group, f"{engine.value}_sql_ban_ops", None)
+                    if sql_ban_optimizer and db_file:
+                        exp_name = f"{query_group.id}_{engine.value}_ban_ops"
+
+                        engine_cmd = self.config_data.engine_paths.get(engine.value, engine.value)
+
+                        exp_params = ExperimentParams(
+                            engine=engine,
+                            sql_file=Path(sql_ban_optimizer),
+                            db_file=Path(db_file),
+                            exp_name=exp_name,
+                            group_id=query_group.id,
+                            engine_cmd=engine_cmd,
+                            chdb_library_path=self.config_data.chdb_library_path,
+                            cwd=Path(self.config_data.cwd),
+                            sample_count=self.config_data.sample_count,
+                            std_repeat=self.config_data.std_repeat
+                        )
+                        experiments.append(exp_params)
+                        print(f"Created experiment with banned optimizer", exp_params)
         self.experiments = experiments
         return experiments
     
@@ -153,7 +174,7 @@ if __name__ == "__main__":
     from util.file_utils import project_root
     
     root = project_root()
-    config = ConfigLoader(root / "benchmark/config.yaml")
+    config = ConfigLoader(root / "benchmark/config_yaml", env="dev")
     
     config.get_experiments()
     print(config.config_data)
