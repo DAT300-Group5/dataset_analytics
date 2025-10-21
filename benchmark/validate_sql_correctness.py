@@ -96,8 +96,8 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
     
     try:
         # Read CSV files with pandas
-        df1 = pd.read_csv(file1, header=None)
-        df2 = pd.read_csv(file2, header=None)
+        df1 = pd.read_csv(file1, header=None, low_memory=False)
+        df2 = pd.read_csv(file2, header=None, low_memory=False)
     except Exception as e:
         print(f"  ❌ Error reading CSV files: {e}")
         return True, 1
@@ -113,18 +113,15 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
             print(f"     Row count: {df1.shape[0]} vs {df2.shape[0]}")
         if df1.shape[1] != df2.shape[1]:
             print(f"     Column count: {df1.shape[1]} vs {df2.shape[1]}")
+        return has_diff, 1  # Stop further comparison if shapes differ
     
-    # Compare data (only for overlapping rows/columns)
-    min_rows = min(df1.shape[0], df2.shape[0])
-    min_cols = min(df1.shape[1], df2.shape[1])
-    
-    # Limit output to first 20 rows
-    display_limit = min(min_rows, 20)
-    
-    for row_idx in range(display_limit):
+    rows = df1.shape[0]
+    cols = df1.shape[1]
+
+    for row_idx in range(rows):
         diff_cols = []
         
-        for col_idx in range(min_cols):
+        for col_idx in range(cols):
             val1 = df1.iloc[row_idx, col_idx]
             val2 = df2.iloc[row_idx, col_idx]
             
@@ -178,9 +175,12 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
                 print(f"     Column {col_idx}: '{val1}' ≠ '{val2}'")
             if len(diff_cols) > 5:
                 print(f"     ... and {len(diff_cols) - 5} more column(s)")
+        if diff_count >= 20:
+            print(f"  ⚠️  Stopping after 20 differing rows for brevity")
+            break
     
-    if min_rows > 20:
-        print(f"  ℹ️  (Showing first 20 of {min_rows} rows)")
+    if rows > 20:
+        print(f"  ℹ️  (Showing first 20 of {rows} rows)")
     
     if not has_diff:
         print(f"  ✅ Results are identical ({df1.shape[0]} rows, {df1.shape[1]} columns)")
