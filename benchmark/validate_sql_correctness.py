@@ -15,7 +15,7 @@ from service.runner.sqlite_runner import SQLiteRunner
 from service.runner.chdb_runner import ChdbRunner
 from cli.cli import parse_env_args
 from util.log_config import setup_logger
-
+from tabulate import tabulate
 
 logger = setup_logger(__name__)
 
@@ -127,15 +127,65 @@ def _infer_column_type(series1: pd.Series, series2: pd.Series, sample_rows: int 
 
     sample_str = sample.astype("string[python]").str.strip()
 
-    numeric_candidate = pd.to_numeric(sample_str, errors="coerce")
-    if not numeric_candidate.isna().any():
-        return "numeric"
-
+    # Check timestamp first (before numeric), since Unix timestamps are also numeric
     timestamp_candidate = sample_str.map(lambda v: try_parse_timestamp(v) is not None)
     if timestamp_candidate.all():
         return "timestamp"
 
+    numeric_candidate = pd.to_numeric(sample_str, errors="coerce")
+    if not numeric_candidate.isna().any():
+        return "numeric"
+
     return "string"
+
+
+def _format_diff_value(value, max_len: int = 40) -> str:
+    """Format a value for diff output, handling NaN/None and truncation."""
+    if value is None:
+        text = "<null>"
+    elif isinstance(value, (float, np.floating)) and np.isnan(value):
+        text = "<NaN>"
+    elif pd.isna(value):
+        text = "<NA>"
+    else:
+        text = str(value)
+    return text if len(text) <= max_len else text[: max_len - 1] + "…"
+
+
+def _print_diff_summary(
+    diff_mask: pd.DataFrame,
+    diff_rows: pd.Series,
+    df1: pd.DataFrame,
+    df2: pd.DataFrame,
+    label1: str,
+    label2: str,
+    max_diff_rows: int = 20,
+    max_columns_per_row: int = 5,
+) -> None:
+    """Print a concise table of differing rows/columns."""
+    diff_row_indices = np.flatnonzero(diff_rows.values)
+
+    truncated_columns = False
+    records = []
+
+    for row_idx in diff_row_indices[:max_diff_rows]:
+        diff_columns = np.flatnonzero(diff_mask.iloc[row_idx].values)
+        truncated_columns |= len(diff_columns) > max_columns_per_row
+        for col_pos in diff_columns[:max_columns_per_row]:
+            column_name = diff_mask.columns[col_pos]
+            val1 = df1[column_name].iloc[row_idx] if column_name in df1.columns else "<missing>"
+            val2 = df2[column_name].iloc[row_idx] if column_name in df2.columns else "<missing>"
+            records.append([row_idx + 1, column_name, val1, val2,
+                ]
+            )
+
+    headers = ["row", "column", label1, label2]
+    formatted_records = [
+        [row, column, _format_diff_value(val1), _format_diff_value(val2)]
+        for row, column, val1, val2 in records
+    ]
+    print("  ❌ Differences detected:")
+    print(tabulate(formatted_records, headers=headers, tablefmt="github", stralign="left", numalign="left"))
 
 
 def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, atol=1e-8) -> Tuple[bool, int]:
@@ -180,6 +230,8 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
         print(f"  ⚠️  Column header mismatch")
         print(f"     {label1} columns: {list(df1.columns)}")
         print(f"     {label2} columns: {list(df2.columns)}")
+        # Return early if headers differ
+        return True, 0
 
     one_na = df1.isna() ^ df2.isna()
     both_na = df1.isna() & df2.isna()
@@ -235,33 +287,9 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
     has_diff = (diff_count > 0) or header_diff
 
     if diff_count > 0:
-        diff_array = diff_mask.values
-        diff_columns_names = list(diff_mask.columns)
-        differing_rows = np.flatnonzero(diff_rows.values)
-        for row_idx in differing_rows[:20]:
-            diff_columns = np.flatnonzero(diff_array[row_idx])
-            print(f"  ❌ Row {row_idx + 1}: {len(diff_columns)} column(s) differ")
-            for col_pos in diff_columns[:5]:
-                column_name = diff_columns_names[col_pos]
-                val1 = (
-                    df1[column_name].iloc[row_idx]
-                    if column_name in df1.columns
-                    else "<missing>"
-                )
-                val2 = (
-                    df2[column_name].iloc[row_idx]
-                    if column_name in df2.columns
-                    else "<missing>"
-                )
-                print(f"     Column {column_name}: '{val1}' ≠ '{val2}'")
-            if len(diff_columns) > 5:
-                print(f"     ... and {len(diff_columns) - 5} more column(s)")
-        if len(differing_rows) > 20:
-            print(f"  ⚠️  Stopping after 20 differing rows for brevity")
+        _print_diff_summary(diff_mask, diff_rows, df1, df2, label1, label2)
     elif header_diff:
         print("  ❌ Column headers differ")
-    if rows > 20:
-        print(f"  ℹ️  (Showing first 20 of {rows} rows)")
 
     if has_diff and diff_count > 0:
         print(f"  ⚠️  Found {diff_count} row(s) with differences")
