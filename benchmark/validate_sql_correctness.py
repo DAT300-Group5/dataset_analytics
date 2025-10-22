@@ -15,7 +15,7 @@ from service.runner.sqlite_runner import SQLiteRunner
 from service.runner.chdb_runner import ChdbRunner
 from cli.cli import parse_env_args
 from util.log_config import setup_logger
-
+from tabulate import tabulate
 
 logger = setup_logger(__name__)
 
@@ -45,11 +45,14 @@ def build_experiment(params: ExperimentParams):
 NUMERIC_RTOL = 1e-5
 NUMERIC_ATOL = 1e-8
 
+# Number of rows to sample when inferring column types
+SAMPLE_ROWS = 10
+
 
 def try_parse_timestamp(value) -> pd.Timestamp:
     """
     Try to parse a value as timestamp (Unix timestamp or datetime string).
-    
+
     Supports:
     - Unix timestamp in seconds (10 digits)
     - Unix timestamp in milliseconds (13 digits)
@@ -67,15 +70,122 @@ def try_parse_timestamp(value) -> pd.Timestamp:
             num_val = int(str_val)
             # Millisecond timestamp (13 digits)
             if len(str_val) == 13:
-                return pd.to_datetime(num_val, unit='ms')
+                return pd.to_datetime(num_val, unit='ms').tz_localize(None)
             # Second timestamp (10 digits)
             elif len(str_val) == 10:
-                return pd.to_datetime(num_val, unit='s')
+                return pd.to_datetime(num_val, unit='s').tz_localize(None)
         
         # Try parsing as datetime string
         return pd.to_datetime(str_val)
     except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime):
         return None 
+
+
+def _parse_timestamp_series(series: pd.Series) -> pd.Series:
+    """Vectorized timestamp parsing that mimics try_parse_timestamp semantics."""
+    # Ensure string dtype for consistent string accessors
+    str_series = series.astype("string[python]").str.strip()
+    result = pd.Series(pd.NaT, index=str_series.index, dtype="datetime64[ns, UTC]")
+
+    not_na = str_series.notna()
+    if not not_na.any():
+        return result
+
+    candidates = str_series[not_na]
+    digits_mask = candidates.str.fullmatch(r"\d+")
+    ms_mask = digits_mask & (candidates.str.len() == 13)
+    s_mask = digits_mask & (candidates.str.len() == 10)
+
+    if ms_mask.any():
+        ms_index = ms_mask[ms_mask].index
+        result.loc[ms_index] = pd.to_datetime(
+            candidates.loc[ms_index], unit="ms", errors="coerce", utc=True
+        )
+    if s_mask.any():
+        s_index = s_mask[s_mask].index
+        result.loc[s_index] = pd.to_datetime(
+            candidates.loc[s_index], unit="s", errors="coerce", utc=True
+        )
+
+    processed_mask = ms_mask | s_mask
+    remaining_candidates = candidates[~processed_mask]
+    if not remaining_candidates.empty:
+        remaining_index = remaining_candidates.index
+        result.loc[remaining_index] = pd.to_datetime(
+            remaining_candidates, errors="coerce", utc=True
+        )
+
+    return result
+
+
+def _infer_column_type(series1: pd.Series, series2: pd.Series, sample_rows: int = SAMPLE_ROWS) -> str:
+    """Infer column comparison strategy based on the first few rows of both series."""
+    sample = pd.concat([series1.head(sample_rows), series2.head(sample_rows)], ignore_index=True)
+    sample = sample.dropna()
+    if sample.empty:
+        return "string"
+
+    sample_str = sample.astype("string[python]").str.strip()
+
+    # Check timestamp first (before numeric), since Unix timestamps are also numeric
+    timestamp_candidate = sample_str.map(lambda v: try_parse_timestamp(v) is not None)
+    if timestamp_candidate.all():
+        return "timestamp"
+
+    numeric_candidate = pd.to_numeric(sample_str, errors="coerce")
+    if not numeric_candidate.isna().any():
+        return "numeric"
+
+    return "string"
+
+
+def _format_diff_value(value, max_len: int = 40) -> str:
+    """Format a value for diff output, handling NaN/None and truncation."""
+    if value is None:
+        text = "<null>"
+    elif isinstance(value, (float, np.floating)) and np.isnan(value):
+        text = "<NaN>"
+    elif pd.isna(value):
+        text = "<NA>"
+    else:
+        text = str(value)
+    return text if len(text) <= max_len else text[: max_len - 1] + "…"
+
+
+def _print_diff_summary(
+    diff_mask: pd.DataFrame,
+    diff_rows: pd.Series,
+    df1: pd.DataFrame,
+    df2: pd.DataFrame,
+    label1: str,
+    label2: str,
+    max_diff_rows: int = 20,
+    max_columns_per_row: int = 5,
+) -> None:
+    """Print a concise table of differing rows/columns."""
+    diff_row_indices = np.flatnonzero(diff_rows.values)
+
+    truncated_columns = False
+    records = []
+
+    for row_idx in diff_row_indices[:max_diff_rows]:
+        diff_columns = np.flatnonzero(diff_mask.iloc[row_idx].values)
+        truncated_columns |= len(diff_columns) > max_columns_per_row
+        for col_pos in diff_columns[:max_columns_per_row]:
+            column_name = diff_mask.columns[col_pos]
+            val1 = df1[column_name].iloc[row_idx] if column_name in df1.columns else "<missing>"
+            val2 = df2[column_name].iloc[row_idx] if column_name in df2.columns else "<missing>"
+            records.append([row_idx + 1, column_name, val1, val2,
+                ]
+            )
+
+    headers = ["row", "column", label1, label2]
+    formatted_records = [
+        [row, column, _format_diff_value(val1), _format_diff_value(val2)]
+        for row, column, val1, val2 in records
+    ]
+    print("  ❌ Differences detected:")
+    print(tabulate(formatted_records, headers=headers, tablefmt="github", stralign="left", numalign="left"))
 
 
 def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, atol=1e-8) -> Tuple[bool, int]:
@@ -95,16 +205,13 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
     print(f"\n🔍 {label1} ↔ {label2}")
     
     try:
-        # Read CSV files with pandas
-        df1 = pd.read_csv(file1, header=None)
-        df2 = pd.read_csv(file2, header=None)
+        # Read CSV files with pandas, using the first row as header
+        df1 = pd.read_csv(file1, header=0, low_memory=False)
+        df2 = pd.read_csv(file2, header=0, low_memory=False)
     except Exception as e:
         print(f"  ❌ Error reading CSV files: {e}")
         return True, 1
-    
-    has_diff = False
-    diff_count = 0
-    
+
     # Compare shapes
     if df1.shape != df2.shape:
         has_diff = True
@@ -113,80 +220,84 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
             print(f"     Row count: {df1.shape[0]} vs {df2.shape[0]}")
         if df1.shape[1] != df2.shape[1]:
             print(f"     Column count: {df1.shape[1]} vs {df2.shape[1]}")
+        return has_diff, 1  # Stop further comparison if shapes differ
     
-    # Compare data (only for overlapping rows/columns)
-    min_rows = min(df1.shape[0], df2.shape[0])
-    min_cols = min(df1.shape[1], df2.shape[1])
-    
-    # Limit output to first 20 rows
-    display_limit = min(min_rows, 20)
-    
-    for row_idx in range(display_limit):
-        diff_cols = []
-        
-        for col_idx in range(min_cols):
-            val1 = df1.iloc[row_idx, col_idx]
-            val2 = df2.iloc[row_idx, col_idx]
-            
-            # Check if values are different
-            values_differ = False
-            
-            # Both are numeric
-            if pd.api.types.is_numeric_dtype(type(val1)) and pd.api.types.is_numeric_dtype(type(val2)):
-                # Handle NaN
-                if pd.isna(val1) and pd.isna(val2):
-                    continue
-                elif pd.isna(val1) or pd.isna(val2):
-                    values_differ = True
-                else:
-                    # Use numpy's isclose for numeric comparison with tolerance
-                    if not np.isclose(val1, val2, rtol=rtol, atol=atol):
-                        values_differ = True
-            else:
-                # String comparison (convert to string for consistency)
-                str1 = str(val1).strip()
-                str2 = str(val2).strip()
-                
-                # Try timestamp comparison first
-                ts1 = try_parse_timestamp(str1)
-                ts2 = try_parse_timestamp(str2)
-                
-                if ts1 is not None and ts2 is not None:
-                    # Both are valid timestamps, compare them
-                    if ts1 != ts2:
-                        values_differ = True
-                else:
-                    # Try numeric comparison if both can be converted to float
-                    try:
-                        num1 = float(str1)
-                        num2 = float(str2)
-                        if not np.isclose(num1, num2, rtol=rtol, atol=atol):
-                            values_differ = True
-                    except (ValueError, TypeError):
-                        # Fall back to string comparison
-                        if str1 != str2:
-                            values_differ = True
-            
-            if values_differ:
-                diff_cols.append((col_idx, val1, val2))
-        
-        if diff_cols:
-            has_diff = True
-            diff_count += 1
-            print(f"  ❌ Row {row_idx + 1}: {len(diff_cols)} column(s) differ")
-            for col_idx, val1, val2 in diff_cols[:5]:  # Limit to 5 columns per row
-                print(f"     Column {col_idx}: '{val1}' ≠ '{val2}'")
-            if len(diff_cols) > 5:
-                print(f"     ... and {len(diff_cols) - 5} more column(s)")
-    
-    if min_rows > 20:
-        print(f"  ℹ️  (Showing first 20 of {min_rows} rows)")
-    
-    if not has_diff:
-        print(f"  ✅ Results are identical ({df1.shape[0]} rows, {df1.shape[1]} columns)")
-    else:
+    rows = df1.shape[0]
+
+    header_diff = False
+    if list(df1.columns) != list(df2.columns):
+        header_diff = True
+        print(f"  ⚠️  Column header mismatch")
+        print(f"     {label1} columns: {list(df1.columns)}")
+        print(f"     {label2} columns: {list(df2.columns)}")
+        # Return early if headers differ
+        return True, 0
+
+    one_na = df1.isna() ^ df2.isna()
+    both_na = df1.isna() & df2.isna()
+
+    df1_string = df1.astype("string[python]").apply(lambda col: col.str.strip())
+    df2_string = df2.astype("string[python]").apply(lambda col: col.str.strip())
+
+    column_types = {
+        column: _infer_column_type(df1[column], df2[column]) for column in df1.columns
+    }
+
+    diff_mask = one_na.copy()
+
+    for column in df1.columns:
+        col_type = column_types[column]
+        column_diff = pd.Series(False, index=df1.index)
+
+        if col_type == "numeric":
+            series1_num = pd.to_numeric(df1[column], errors="coerce")
+            series2_num = pd.to_numeric(df2[column], errors="coerce")
+
+            numeric_valid = (~series1_num.isna()) & (~series2_num.isna())
+            if numeric_valid.any():
+                close_mask = np.isclose(series1_num[numeric_valid], series2_num[numeric_valid], rtol=rtol, atol=atol)
+                column_diff.loc[numeric_valid] = ~close_mask
+
+            fallback_mask = (~numeric_valid) & (~both_na[column])
+            if fallback_mask.any():
+                same_strings = (df1_string[column] == df2_string[column]).fillna(False)
+                column_diff.loc[fallback_mask] = ~same_strings.loc[fallback_mask]
+
+        elif col_type == "timestamp":
+            ts1 = _parse_timestamp_series(df1_string[column])
+            ts2 = _parse_timestamp_series(df2_string[column])
+
+            timestamp_valid = ts1.notna() & ts2.notna()
+            if timestamp_valid.any():
+                column_diff.loc[timestamp_valid] = ts1.loc[timestamp_valid] != ts2.loc[timestamp_valid]
+
+            fallback_mask = (~timestamp_valid) & (~both_na[column])
+            if fallback_mask.any():
+                same_strings = (df1_string[column] == df2_string[column]).fillna(False)
+                column_diff.loc[fallback_mask] = ~same_strings.loc[fallback_mask]
+
+        else:  # Treat as string comparison
+            same_strings = (df1_string[column] == df2_string[column]).fillna(False)
+            column_diff = (~same_strings) & (~both_na[column])
+
+        diff_mask[column] = diff_mask[column] | column_diff
+
+    diff_rows = diff_mask.any(axis=1)
+    diff_count = int(diff_rows.sum())
+    has_diff = (diff_count > 0) or header_diff
+
+    if diff_count > 0:
+        _print_diff_summary(diff_mask, diff_rows, df1, df2, label1, label2)
+    elif header_diff:
+        print("  ❌ Column headers differ")
+
+    if has_diff and diff_count > 0:
         print(f"  ⚠️  Found {diff_count} row(s) with differences")
-    
+    elif has_diff:
+        print("  ⚠️  Detected differences in column headers")
+    else:
+        print(f"  ✅ Results are identical ({df1.shape[0]} rows, {df1.shape[1]} columns)")
+
     return has_diff, diff_count
 
 
