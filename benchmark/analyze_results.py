@@ -129,7 +129,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
         exec_times.append(metrics['execution_time']['avg'])
         memory_usage.append(metrics['peak_memory_bytes']['avg'] / (1024 * 1024))
         cpu_avg.append(metrics['cpu_avg_percent']['avg'])
-        cpu_peak.append(metrics['cpu_peek_percent']['avg'])
+        cpu_peak.append(metrics['cpu_peak_percent']['avg'])
         
         time_sec = metrics['execution_time']['avg']
         rows = metrics['output_rows']
@@ -358,7 +358,7 @@ def create_cpu_usage_comparison(data, compare_pairs, output_dir):
             continue
         
         # Get CPU peak and average
-        cpu_peak = data[group_id][engine.value]['cpu_peek_percent']['avg']
+        cpu_peak = data[group_id][engine.value]['cpu_peak_percent']['avg']
         cpu_avg = data[group_id][engine.value]['cpu_avg_percent']['avg']
         peak_values.append(cpu_peak)
         avg_values.append(cpu_avg)
@@ -551,7 +551,7 @@ def create_performance_summary_table(data, output_dir):
                 f.write(f"    Execution Time (p50): {metrics['execution_time']['p50']:.4f} s\n")
                 f.write(f"    Execution Time (p95): {metrics['execution_time']['p95']:.4f} s\n")
                 f.write(f"    Peak Memory: {metrics['peak_memory_bytes']['avg'] / (1024 * 1024):.2f} MB\n")
-                f.write(f"    CPU Peak: {metrics['cpu_peek_percent']['avg']:.2f}%\n")
+                f.write(f"    CPU Peak: {metrics['cpu_peak_percent']['avg']:.2f}%\n")
                 f.write(f"    CPU Average: {metrics['cpu_avg_percent']['avg']:.2f}%\n")
                 f.write(f"    Output Rows: {metrics['output_rows']}\n")
                 

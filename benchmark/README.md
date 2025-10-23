@@ -499,7 +499,7 @@ Charts will be saved to `visual/`:
 {
   "Q1_aggregation": {
     "duckdb": {
-      "cpu_peek_percent": {
+      "cpu_peak_percent": {
         "min": 89.5,
         "max": 95.2,
         "p50": 92.1,

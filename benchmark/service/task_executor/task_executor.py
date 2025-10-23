@@ -54,7 +54,7 @@ class TaskExecutor:
         # Calculate statistical summaries across all runs
         logger.info(f"  Aggregating {repeat} run(s)...")
         summary_result = TaskExecuteResult(
-            cpu_peek_percent=calculate_stat_summary([r.cpu_peek_percent for r in results]),
+            cpu_peak_percent=calculate_stat_summary([r.cpu_peak_percent for r in results]),
             cpu_avg_percent=calculate_stat_summary([r.cpu_avg_percent for r in results]),
             cpu_samples_count=int(sum(r.cpu_samples_count for r in results) / len(results)),
             cpu_sampling_interval=sum(r.cpu_sampling_interval for r in results) / len(results),
