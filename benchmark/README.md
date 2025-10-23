@@ -562,6 +562,10 @@ engine_paths:
 
 Or edit the `PATH` permanently in `~/.profile` / temporarily in the current shell.
 
+### Run on Virtual Machine
+
+See [Simulating Experiments on Embedded Devices](Simulating.md).
+
 ### BAN Optimizers
 
 Query groups also accept: `duckdb_sql_ban_ops`, `sqlite_sql_ban_ops` and `chdb_sql_ban_ops`.
