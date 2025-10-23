@@ -566,6 +566,10 @@ Or edit the `PATH` permanently in `~/.profile` / temporarily in the current shel
 
 See [Simulating Experiments on Embedded Devices](Simulating.md).
 
+> The virtual machine is **not** responsible for `create`, `validate`, or final `analyze` stages.
+>
+> It only handles the **`run_experiments`** step.
+
 ### BAN Optimizers
 
 Query groups also accept: `duckdb_sql_ban_ops`, `sqlite_sql_ban_ops` and `chdb_sql_ban_ops`.
