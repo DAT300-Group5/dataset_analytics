@@ -18,7 +18,7 @@ class StatSummary:
 
 @dataclasses.dataclass
 class TaskExecuteResult:
-    cpu_peek_percent: StatSummary
+    cpu_peak_percent: StatSummary
     cpu_avg_percent: StatSummary
     cpu_samples_count: int
     cpu_sampling_interval: float
@@ -33,7 +33,7 @@ class TaskExecuteResult:
 
 @dataclasses.dataclass
 class SingleTaskExecuteResult:
-    cpu_peek_percent: float
+    cpu_peak_percent: float
     cpu_avg_percent: float
     cpu_samples_count: int
     cpu_sampling_interval: float

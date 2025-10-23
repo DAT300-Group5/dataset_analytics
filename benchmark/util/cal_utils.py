@@ -22,7 +22,7 @@ def calculate_stat_summary(values: list[float]) -> StatSummary:
 
 def combine_results(monitor_result : ProcessMonitorResult, query_metric : QueryMetrics) -> SingleTaskExecuteResult:
     return SingleTaskExecuteResult(
-        cpu_peek_percent=monitor_result.peak_cpu_percent,
+        cpu_peak_percent=monitor_result.peak_cpu_percent,
         cpu_avg_percent=monitor_result.avg_cpu_percent,
         cpu_samples_count=monitor_result.samples_count,
         cpu_sampling_interval=monitor_result.sampling_interval,

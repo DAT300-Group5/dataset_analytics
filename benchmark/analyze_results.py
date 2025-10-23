@@ -7,10 +7,12 @@ comprehensive performance comparison charts.
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Dict, List
 
 import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
 import numpy as np
 
 from config.config_loader import ConfigLoader
@@ -18,16 +20,142 @@ from models.plot_params import PlotParams
 from cli.cli import parse_env_args
 from util.file_utils import clean_path
 
-# Define a shared color cycle for datasets
-DEFAULT_COLOR_SEQUENCE = [
-    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-]
+# Default base colors per engine (deterministic mapping)
+# SQLite -> blue, DuckDB -> orange, CHDB -> green (as requested)
+ENGINE_BASE_COLORS = {
+    'sqlite': '#1f77b4',   # blue
+    'duckdb': '#ff7f0e',   # orange
+    'chdb':   '#2ca02c',   # green
+}
 
 
-def get_color_sequence(count):
-    """Return a sequence of colors cycling through the default palette."""
-    return [DEFAULT_COLOR_SEQUENCE[i % len(DEFAULT_COLOR_SEQUENCE)] for i in range(count)]
+def _find_engine_in_label(label: str) -> str:
+    """Try to extract the engine name from a label string.
+
+    The label patterns in this file commonly include the engine name as a
+    substring (for example: 'Q1_sqlite', 'sqlite_ops_default', 'group_chdb').
+    This helper does a case-insensitive substring match against known
+    engines and returns the matching engine key or None.
+    """
+    ll = label.lower()
+    for engine in ENGINE_BASE_COLORS.keys():
+        if engine in ll:
+            return engine
+    return None
+
+
+def _generate_shades(hex_color: str, n: int):
+    """Generate n visually distinct shades from a base hex color.
+
+    We produce lighter variants by interpolating the base color towards
+    white. The first shade is the base color and subsequent shades are
+    progressively lighter.
+    """
+    if n <= 0:
+        return []
+    try:
+        base_rgb = mcolors.to_rgb(hex_color)
+    except Exception:
+        # fallback to a neutral gray
+        base_rgb = (0.5, 0.5, 0.5)
+
+    shades = []
+    for i in range(n):
+        # t from 0.0 (base) to 0.7 (much lighter) depending on index
+        t = (i / max(1, n - 1)) * 0.7 if n > 1 else 0.0
+        mixed = tuple((1 - t) * c + t * 1.0 for c in base_rgb)  # interpolate to white
+        shades.append(mcolors.to_hex(mixed))
+    return shades
+
+
+def get_colors_for_labels(labels):
+    """Return a list of colors aligned with `labels`.
+
+    Behavior:
+      - If a label contains a known engine name, use that engine's base color.
+      - If multiple labels map to the same engine, generate different shades
+        for that engine so same-engine series are visually related but
+        distinguishable.
+      - If an engine cannot be detected, fall back to matplotlib's default
+        color cycle.
+    """
+    # Map engine -> indices in labels
+    engine_indices = {}
+    fallback_indices = []
+    for idx, label in enumerate(labels):
+        engine = _find_engine_in_label(str(label))
+        if engine:
+            engine_indices.setdefault(engine, []).append(idx)
+        else:
+            fallback_indices.append(idx)
+
+    colors = [None] * len(labels)
+
+    # Assign shades for each engine group
+    for engine, idxs in engine_indices.items():
+        base = ENGINE_BASE_COLORS.get(engine, '#7f7f7f')
+        shades = _generate_shades(base, len(idxs))
+        for i, idx in enumerate(idxs):
+            colors[idx] = shades[i]
+
+    # Fill fallback indices using matplotlib default cycle
+    default_cycle = list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())
+    # keep a small, deterministic selection from the default_cycle
+    fallback_cycle = [list(mcolors.TABLEAU_COLORS.values())[i % len(mcolors.TABLEAU_COLORS)] for i in range(max(1, len(fallback_indices)))]
+    for i, idx in enumerate(fallback_indices):
+        # fallback_cycle entries are color names; ensure hex via to_hex
+        try:
+            colors[idx] = mcolors.to_hex(fallback_cycle[i % len(fallback_cycle)])
+        except Exception:
+            colors[idx] = '#7f7f7f'
+
+    # For any remaining None (shouldn't happen), put a neutral gray
+    for i, c in enumerate(colors):
+        if c is None:
+            colors[i] = '#7f7f7f'
+
+    return colors
+
+
+def plot_bar_chart(params : PlotParams):
+
+    x = np.arange(len(params.values))
+    fig, ax = plt.subplots(figsize=params.figsize)
+
+    ax.bar(x, params.values, color=params.colors, linewidth=1)
+
+    # y axis label and title
+    ax.set_ylabel(params.ylabel)
+    ax.set_title(params.title)
+    ax.set_xticks(x)
+    ax.set_xticklabels(params.labels, rotation=params.rotation, ha="right")
+
+    # add grid
+    ax.grid(True, alpha=0.3, axis="y")
+
+    # add annotation
+    if params.annotate:
+        for i, v in enumerate(params.values):
+            ax.text(
+                i,
+                v + (max(params.values) * 0.01),  # slightly move above the bar
+                f"{v:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
+
+    plt.tight_layout()
+
+    # save or show
+    if params.output_path:
+        output_path = Path(params.output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_path, dpi=160)
+        print(f"✓ Saved: {output_path.name}")
+    else:
+        plt.show()
+    plt.close()
 
 
 def load_summary_data(file_path):
@@ -40,8 +168,21 @@ def load_summary_data(file_path):
     Returns:
         dict: Parsed JSON data
     """
-    with open(file_path, 'r') as f:
-        return json.load(f)
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Summary file not found: {path}")
+
+    try:
+        with open(path, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        # Provide a clearer error for invalid JSON content
+        raise ValueError(f"Invalid JSON in summary file {path}: {e}") from e
+    except PermissionError as e:
+        raise PermissionError(f"Permission denied reading summary file {path}: {e}") from e
+    except Exception as e:
+        # Catch-all to convert unexpected IO errors into a runtime error with context
+        raise RuntimeError(f"Unexpected error reading summary file {path}: {e}") from e
 
 
 def compare_specific_results(title : str , data_list, output_dir : Path):
@@ -74,7 +215,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
         exec_times.append(metrics['execution_time']['avg'])
         memory_usage.append(metrics['peak_memory_bytes']['avg'] / (1024 * 1024))
         cpu_avg.append(metrics['cpu_avg_percent']['avg'])
-        cpu_peak.append(metrics['cpu_peek_percent']['avg'])
+        cpu_peak.append(metrics['cpu_peak_percent']['avg'])
         
         time_sec = metrics['execution_time']['avg']
         rows = metrics['output_rows']
@@ -83,7 +224,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
     # Create comparison visualization
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     x = np.arange(len(data_list))
-    bar_colors = get_color_sequence(len(labels))
+    bar_colors = get_colors_for_labels(labels)
     
     # 1. Execution Time
     ax = axes[0, 0]
@@ -206,7 +347,7 @@ def create_execution_time_comparison(data, compare_pairs, output_dir):
         print("❌ No valid data found for execution time comparison")
         return
     
-    colors = get_color_sequence(len(labels))
+    colors = get_colors_for_labels(labels)
     
     # Construct PlotParams
     params = PlotParams(
@@ -260,7 +401,7 @@ def create_memory_usage_comparison(data, compare_pairs, output_dir):
         print("❌ No valid data found for memory usage comparison")
         return
     
-    colors = get_color_sequence(len(labels))
+    colors = get_colors_for_labels(labels)
     # Construct PlotParams
     params = PlotParams(
         values=values,
@@ -303,7 +444,7 @@ def create_cpu_usage_comparison(data, compare_pairs, output_dir):
             continue
         
         # Get CPU peak and average
-        cpu_peak = data[group_id][engine.value]['cpu_peek_percent']['avg']
+        cpu_peak = data[group_id][engine.value]['cpu_peak_percent']['avg']
         cpu_avg = data[group_id][engine.value]['cpu_avg_percent']['avg']
         peak_values.append(cpu_peak)
         avg_values.append(cpu_avg)
@@ -316,7 +457,7 @@ def create_cpu_usage_comparison(data, compare_pairs, output_dir):
         print("❌ No valid data found for CPU usage comparison")
         return
     
-    colors = get_color_sequence(len(labels))
+    colors = get_colors_for_labels(labels)
     # Create Peak CPU chart
     params_peak = PlotParams(
         values=peak_values,
@@ -383,7 +524,7 @@ def create_throughput_comparison(data, compare_pairs, output_dir):
         print("❌ No valid data found for throughput comparison")
         return
     
-    colors = get_color_sequence(len(labels))
+    colors = get_colors_for_labels(labels)
     # Construct PlotParams
     params = PlotParams(
         values=values,
@@ -429,23 +570,23 @@ def create_performance_percentiles(data, output_dir):
             ])
             positions.append(i)
             labels.append(engine)
-        
-        colors_list = get_color_sequence(len(labels))
-        
+
+        colors_list = get_colors_for_labels(labels)
+
         # Create box plot
         bp = ax.boxplot(box_data, positions=positions, widths=0.6,
                         patch_artist=True, showmeans=True,
-                        tick_labels=labels)
-        
+                        labels=labels)
+
         # Color the boxes
         for patch, color in zip(bp['boxes'], colors_list):
             patch.set_facecolor(color)
             patch.set_alpha(0.7)
-        
+
         ax.set_ylabel('Execution Time (seconds)')
         ax.set_title(f'{query} - Execution Time Distribution (min, p50, avg, p95, max)')
         ax.grid(True, alpha=0.3, axis='y')
-        
+
         plt.tight_layout()
         output_file = output_dir / f"{query}_percentiles.png"
         plt.savefig(output_file, dpi=160)
@@ -459,12 +600,12 @@ def create_comprehensive_dashboard(title, data_list, output_dir):
     Simply calls compare_specific_results with all available combinations.
     
     Args:
-        `data (dict): Summary data
+        title (str): Title of the dashboard
         data_list (list): List of tuples [(group_id, engine), ...]
         output_dir (Path): Output directory path
     """
     if len(data_list) < 2:
-        print("Skipping comprehensive dashboard: not enough data to compare.")
+        print(f"Skipping comprehensive \"{title}\" dashboard: not enough data to compare.")
         return
 
     # Just call compare_specific_results which already does comprehensive comparison
@@ -496,7 +637,7 @@ def create_performance_summary_table(data, output_dir):
                 f.write(f"    Execution Time (p50): {metrics['execution_time']['p50']:.4f} s\n")
                 f.write(f"    Execution Time (p95): {metrics['execution_time']['p95']:.4f} s\n")
                 f.write(f"    Peak Memory: {metrics['peak_memory_bytes']['avg'] / (1024 * 1024):.2f} MB\n")
-                f.write(f"    CPU Peak: {metrics['cpu_peek_percent']['avg']:.2f}%\n")
+                f.write(f"    CPU Peak: {metrics['cpu_peak_percent']['avg']:.2f}%\n")
                 f.write(f"    CPU Average: {metrics['cpu_avg_percent']['avg']:.2f}%\n")
                 f.write(f"    Output Rows: {metrics['output_rows']}\n")
                 
@@ -534,14 +675,16 @@ def aggregate_by_engine_default(data: Dict) -> Dict[str, List[dict]]:
             if engine not in result:
                 result[engine] = []
             if "default" in states:
-                key = group_id + "_" + engine + "ops_default"
+                key = group_id + "_" + engine + "_ops_default"
                 result[engine].append({"key": key, "data": states["default"]})
     return result
+
 
 def create_dashboard_by_engine(data: Dict, output_dir: Path):
     aggregated_data = aggregate_by_engine_default(data)
     for engine, entries in aggregated_data.items():
-        create_comprehensive_dashboard(f"Comparison by group {engine}" , entries, output_dir / engine)
+        create_comprehensive_dashboard(f"Comparison by engine {engine}" , entries, output_dir / engine)
+
 
 def aggregate_by_optimizer(data: Dict) -> Dict[str, List[dict]]:
     result = {}
@@ -555,41 +698,11 @@ def aggregate_by_optimizer(data: Dict) -> Dict[str, List[dict]]:
                 result[group_key].append({"key": key, "data": metrics})
     return result
 
+
 def create_dashboard_by_optimizer(data: Dict, output_dir: Path):
     aggregated_data = aggregate_by_optimizer(data)
     for group_key, entries in aggregated_data.items():
         create_comprehensive_dashboard(f"Comparison by optimizer {group_key}" , entries, output_dir / group_key)
-
-def main():
-    """Main function: load data and generate all visualizations."""
-    args = parse_env_args("Analyze benchmark experiment results")
-    config_path = Path(__file__).parent / "config_yaml"
-    config = ConfigLoader(config_path, env=args.env)
-    summary_file = Path(config.config_data.cwd) / "summary.json"
-    output_dir = Path(config.config_data.cwd)  / "visual"
-    
-    # Ensure output directory exists
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    print("Loading benchmark data...")
-    data = load_summary_data(summary_file)
-    print(f"Loaded data for {len(data)} queries\n")
-    
-    print("Generating visualizations...")
-    print("-" * 50)
-
-    clean_path(str(output_dir.resolve()))
-    create_dashboard_by_group(data, output_dir / "comparison_by_group")
-    create_dashboard_by_engine(data, output_dir / "comparison_by_engine")
-    create_dashboard_by_optimizer(data, output_dir / "comparison_by_optimizer")
-    # create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_memory_usage_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_throughput_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_performance_percentiles(data, output_dir)
-    # create_comprehensive_dashboard(data, config.config_data.compare_pairs, output_dir)
-    # create_performance_summary_table(data, output_dir)
-
 
 
 def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
@@ -618,52 +731,61 @@ def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
     output_dir.mkdir(parents=True, exist_ok=True)
     
     print(f"Loading data from {summary_file}...")
-    data = load_summary_data(summary_file)
-    
+    try:
+        data = load_summary_data(summary_file)
+    except (FileNotFoundError, ValueError, PermissionError, RuntimeError) as e:
+        print(f"❌ Failed to load summary data: {e}")
+        return False
+
     print(f"Generating comparison for {len(comparisons)} combinations...")
-    # compare_specific_results(data, comparisons, output_dir)
-    
+
     print(f"✅ Comparison saved to {output_dir.resolve()}")
+    return True
 
-def plot_bar_chart(params : PlotParams):
 
-    x = np.arange(len(params.values))
-    fig, ax = plt.subplots(figsize=params.figsize)
+def main():
+    """Main function: load data and generate all visualizations."""
+    args = parse_env_args("Analyze benchmark experiment results")
+    config_path = Path(__file__).parent / "config_yaml"
+    config = ConfigLoader(config_path, env=args.env)
+    summary_file = Path(config.config_data.cwd) / "summary.json"
+    output_dir = Path(config.config_data.cwd)  / "visual"
+    
+    # Ensure output directory exists
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    print("Loading benchmark data...")
+    try:
+        data = load_summary_data(summary_file)
+    except FileNotFoundError as e:
+        print(f"❌ {e}")
+        sys.exit(2)
+    except ValueError as e:
+        print(f"❌ {e}")
+        sys.exit(3)
+    except PermissionError as e:
+        print(f"❌ {e}")
+        sys.exit(4)
+    except RuntimeError as e:
+        print(f"❌ {e}")
+        sys.exit(5)
 
-    ax.bar(x, params.values, color=params.colors, linewidth=1)
+    print(f"Loaded data for {len(data)} queries\n")
+    
+    print("Generating visualizations...")
+    print("-" * 50)
 
-    # y axis label and title
-    ax.set_ylabel(params.ylabel)
-    ax.set_title(params.title)
-    ax.set_xticks(x)
-    ax.set_xticklabels(params.labels, rotation=params.rotation, ha="right")
-
-    # add grid
-    ax.grid(True, alpha=0.3, axis="y")
-
-    # add annotation
-    if params.annotate:
-        for i, v in enumerate(params.values):
-            ax.text(
-                i,
-                v + (max(params.values) * 0.01),  # slightly move above the bar
-                f"{v:.2f}",
-                ha="center",
-                va="bottom",
-                fontsize=9,
-            )
-
-    plt.tight_layout()
-
-    # save or show
-    if params.output_path:
-        output_path = Path(params.output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(output_path, dpi=160)
-        print(f"✓ Saved: {output_path.name}")
-    else:
-        plt.show()
-    plt.close()
+    clean_path(str(output_dir.resolve()))
+    create_dashboard_by_group(data, output_dir / "comparison_by_group")
+    create_dashboard_by_engine(data, output_dir / "comparison_by_engine")
+    create_dashboard_by_optimizer(data, output_dir / "comparison_by_optimizer")
+    # create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_memory_usage_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_throughput_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_performance_percentiles(data, output_dir)
+    # create_comprehensive_dashboard(data, config.config_data.compare_pairs, output_dir)
+    # create_performance_summary_table(data, output_dir)
 
 
 if __name__ == "__main__":
