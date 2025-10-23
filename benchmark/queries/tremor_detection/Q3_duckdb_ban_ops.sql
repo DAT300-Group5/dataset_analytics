@@ -1,4 +1,4 @@
-PRAGMA enable_optimizer;
+PRAGMA disable_optimizer;
 
 --display number of tremors per day
 SELECT

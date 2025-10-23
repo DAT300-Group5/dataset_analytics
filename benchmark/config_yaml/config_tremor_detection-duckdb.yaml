@@ -2,7 +2,7 @@
 # Structure: output_cwd/
 #   ├── summary.json (aggregated results for all experiments)
 #   └── <experiment_name>/ (individual run logs and profiling data)
-output_cwd: ./results/tremor_detection-Q1
+output_cwd: ./results/tremor_detection-duckdb
 
 # ------------------------------------------------------------
 # SQL Correctness Validation Pairs
@@ -15,8 +15,10 @@ output_cwd: ./results/tremor_detection-Q1
 # across different engines (e.g., duckdb vs sqlite) for the same query_group_id
 validate_pairs:
   - [ tremor_detection-Q1, duckdb ]
-  - [ tremor_detection-Q1, sqlite ]
-  - [ tremor_detection-Q1, chdb ]
+  - [ tremor_detection-Q2, duckdb ]
+  - [ tremor_detection-Q3, duckdb ]
+
+
 
 
 # ------------------------------------------------------------
@@ -29,8 +31,8 @@ validate_pairs:
 # Only the pairs listed here will be scheduled and executed in the benchmark
 execute_pairs:
   - [ tremor_detection-Q1, duckdb ]
-  - [ tremor_detection-Q1, sqlite ]
-  - [ tremor_detection-Q1, chdb ]
+  - [ tremor_detection-Q2, duckdb ]
+  - [ tremor_detection-Q3, duckdb ]
 
 
 # ------------------------------------------------------------
@@ -43,5 +45,6 @@ execute_pairs:
 # These pairs will be plotted together for easy performance comparison
 compare_pairs:
   - [ tremor_detection-Q1, duckdb ]
-  - [ tremor_detection-Q1, sqlite ]
-  - [ tremor_detection-Q1, chdb ]
+  - [ tremor_detection-Q2, duckdb ]
+  - [ tremor_detection-Q3, duckdb ]
+

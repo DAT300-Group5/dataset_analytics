@@ -1,16 +1,33 @@
-
+PRAGMA enable_optimizer;
 WITH
 -- Divide dataset into 1 second windows for analysis
 -- Calculate mean acc and mean gyr over each window
+magnitude_windows_acc AS (
+    SELECT 
+    date_trunc('second', ts) AS time_window,
+    sqrt(avg(x*x + y*y + z*z)) AS acc_mean_magnitude
+    FROM acc
+    GROUP BY time_window
+    ORDER BY time_window
+),
+
+magnitude_windows_gyr AS (
+    SELECT 
+    date_trunc('second', ts) AS time_window,
+    sqrt(avg(x*x + y*y + z*z)) AS gyr_mean_magnitude
+    FROM gyr
+    GROUP BY time_window
+    ORDER BY time_window
+),
+
 magnitude_per_window AS (
     SELECT
-    date_trunc('second', a.ts) AS time_window,
-    sqrt(avg(a.x*a.x + a.y*a.y + a.z*a.z)) AS acc_mean_magnitude,
-    sqrt(avg(g.x*g.x + g.y*g.y + g.z*g.z)) AS gyr_mean_magnitude
-  FROM acc a
-  JOIN gyr g  ON date_trunc('second', a.ts) = date_trunc('second', g.ts)
-  GROUP BY time_window
-  ORDER BY time_window
+    a.time_window,
+    a.acc_mean_magnitude,
+    g.gyr_mean_magnitude
+  FROM magnitude_windows_acc a
+  JOIN magnitude_windows_gyr g  ON a.time_window = g.time_window
+  ORDER BY a.time_window
 ),
 
 -- Calculate if mean shows a change in direction
@@ -61,8 +78,6 @@ aggregate_data AS (
 detect_tremor AS (
   SELECT
     time_window,
-    acc_mean_magnitude,
-    gyr_mean_magnitude,
     avg_acc_change,
     avg_gyr_change,
     acc_direction_change_rate,
@@ -80,7 +95,9 @@ detect_tremor AS (
 --display number of tremors per day
 SELECT
   date_trunc('day', time_window) AS date_time,
-  sum(tremor_detected) as tremors_per_day
+  -- round to closest 100-number to account for different
+  -- handling of rounding numbers across engines
+  (floor(sum(tremor_detected) / 100)) * 100 as tremors_per_day
 FROM detect_tremor
 GROUP BY date_time
 ORDER BY date_time;

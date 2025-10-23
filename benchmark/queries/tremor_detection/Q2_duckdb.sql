@@ -65,6 +65,10 @@ aggregate_data AS (
     time_window,
     acc_mean_magnitude,
     gyr_mean_magnitude,
+    acc_change,
+    gyr_change,
+    acc_direction_change,
+    gyr_direction_change,
     avg(acc_change)  OVER (ORDER BY time_window ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS avg_acc_change,
     avg(gyr_change) OVER (ORDER BY time_window ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS avg_gyr_change,
     sum(acc_direction_change)  OVER (ORDER BY time_window ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS acc_direction_change_rate,
@@ -78,8 +82,10 @@ aggregate_data AS (
 detect_tremor AS (
   SELECT
     time_window,
-    acc_mean_magnitude,
-    gyr_mean_magnitude,
+    acc_change,
+    gyr_change,
+    acc_direction_change,
+    gyr_direction_change,
     avg_acc_change,
     avg_gyr_change,
     acc_direction_change_rate,
@@ -97,7 +103,9 @@ detect_tremor AS (
 --display number of tremors per day
 SELECT
   date_trunc('day', time_window) AS date_time,
-  sum(tremor_detected) as tremors_per_day
+  -- round to closest 100-number to account for different
+  -- handling of rounding numbers across engines
+  (floor(sum(tremor_detected) / 100)) * 100 as tremors_per_day
 FROM detect_tremor
 GROUP BY date_time
 ORDER BY date_time;
