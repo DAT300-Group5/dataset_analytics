@@ -7,6 +7,7 @@ comprehensive performance comparison charts.
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -30,6 +31,47 @@ def get_color_sequence(count):
     return [DEFAULT_COLOR_SEQUENCE[i % len(DEFAULT_COLOR_SEQUENCE)] for i in range(count)]
 
 
+def plot_bar_chart(params : PlotParams):
+
+    x = np.arange(len(params.values))
+    fig, ax = plt.subplots(figsize=params.figsize)
+
+    ax.bar(x, params.values, color=params.colors, linewidth=1)
+
+    # y axis label and title
+    ax.set_ylabel(params.ylabel)
+    ax.set_title(params.title)
+    ax.set_xticks(x)
+    ax.set_xticklabels(params.labels, rotation=params.rotation, ha="right")
+
+    # add grid
+    ax.grid(True, alpha=0.3, axis="y")
+
+    # add annotation
+    if params.annotate:
+        for i, v in enumerate(params.values):
+            ax.text(
+                i,
+                v + (max(params.values) * 0.01),  # slightly move above the bar
+                f"{v:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
+
+    plt.tight_layout()
+
+    # save or show
+    if params.output_path:
+        output_path = Path(params.output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(output_path, dpi=160)
+        print(f"✓ Saved: {output_path.name}")
+    else:
+        plt.show()
+    plt.close()
+
+
 def load_summary_data(file_path):
     """
     Load benchmark summary data from JSON file.
@@ -40,8 +82,21 @@ def load_summary_data(file_path):
     Returns:
         dict: Parsed JSON data
     """
-    with open(file_path, 'r') as f:
-        return json.load(f)
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Summary file not found: {path}")
+
+    try:
+        with open(path, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        # Provide a clearer error for invalid JSON content
+        raise ValueError(f"Invalid JSON in summary file {path}: {e}") from e
+    except PermissionError as e:
+        raise PermissionError(f"Permission denied reading summary file {path}: {e}") from e
+    except Exception as e:
+        # Catch-all to convert unexpected IO errors into a runtime error with context
+        raise RuntimeError(f"Unexpected error reading summary file {path}: {e}") from e
 
 
 def compare_specific_results(title : str , data_list, output_dir : Path):
@@ -459,12 +514,12 @@ def create_comprehensive_dashboard(title, data_list, output_dir):
     Simply calls compare_specific_results with all available combinations.
     
     Args:
-        `data (dict): Summary data
+        title (str): Title of the dashboard
         data_list (list): List of tuples [(group_id, engine), ...]
         output_dir (Path): Output directory path
     """
     if len(data_list) < 2:
-        print("Skipping comprehensive dashboard: not enough data to compare.")
+        print(f"Skipping comprehensive \"{title}\" dashboard: not enough data to compare.")
         return
 
     # Just call compare_specific_results which already does comprehensive comparison
@@ -534,14 +589,16 @@ def aggregate_by_engine_default(data: Dict) -> Dict[str, List[dict]]:
             if engine not in result:
                 result[engine] = []
             if "default" in states:
-                key = group_id + "_" + engine + "ops_default"
+                key = group_id + "_" + engine + "_ops_default"
                 result[engine].append({"key": key, "data": states["default"]})
     return result
+
 
 def create_dashboard_by_engine(data: Dict, output_dir: Path):
     aggregated_data = aggregate_by_engine_default(data)
     for engine, entries in aggregated_data.items():
-        create_comprehensive_dashboard(f"Comparison by group {engine}" , entries, output_dir / engine)
+        create_comprehensive_dashboard(f"Comparison by engine {engine}" , entries, output_dir / engine)
+
 
 def aggregate_by_optimizer(data: Dict) -> Dict[str, List[dict]]:
     result = {}
@@ -555,41 +612,11 @@ def aggregate_by_optimizer(data: Dict) -> Dict[str, List[dict]]:
                 result[group_key].append({"key": key, "data": metrics})
     return result
 
+
 def create_dashboard_by_optimizer(data: Dict, output_dir: Path):
     aggregated_data = aggregate_by_optimizer(data)
     for group_key, entries in aggregated_data.items():
         create_comprehensive_dashboard(f"Comparison by optimizer {group_key}" , entries, output_dir / group_key)
-
-def main():
-    """Main function: load data and generate all visualizations."""
-    args = parse_env_args("Analyze benchmark experiment results")
-    config_path = Path(__file__).parent / "config_yaml"
-    config = ConfigLoader(config_path, env=args.env)
-    summary_file = Path(config.config_data.cwd) / "summary.json"
-    output_dir = Path(config.config_data.cwd)  / "visual"
-    
-    # Ensure output directory exists
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    print("Loading benchmark data...")
-    data = load_summary_data(summary_file)
-    print(f"Loaded data for {len(data)} queries\n")
-    
-    print("Generating visualizations...")
-    print("-" * 50)
-
-    clean_path(str(output_dir.resolve()))
-    create_dashboard_by_group(data, output_dir / "comparison_by_group")
-    create_dashboard_by_engine(data, output_dir / "comparison_by_engine")
-    create_dashboard_by_optimizer(data, output_dir / "comparison_by_optimizer")
-    # create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_memory_usage_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_throughput_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_performance_percentiles(data, output_dir)
-    # create_comprehensive_dashboard(data, config.config_data.compare_pairs, output_dir)
-    # create_performance_summary_table(data, output_dir)
-
 
 
 def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
@@ -618,52 +645,61 @@ def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
     output_dir.mkdir(parents=True, exist_ok=True)
     
     print(f"Loading data from {summary_file}...")
-    data = load_summary_data(summary_file)
-    
+    try:
+        data = load_summary_data(summary_file)
+    except (FileNotFoundError, ValueError, PermissionError, RuntimeError) as e:
+        print(f"❌ Failed to load summary data: {e}")
+        return False
+
     print(f"Generating comparison for {len(comparisons)} combinations...")
-    # compare_specific_results(data, comparisons, output_dir)
-    
+
     print(f"✅ Comparison saved to {output_dir.resolve()}")
+    return True
 
-def plot_bar_chart(params : PlotParams):
 
-    x = np.arange(len(params.values))
-    fig, ax = plt.subplots(figsize=params.figsize)
+def main():
+    """Main function: load data and generate all visualizations."""
+    args = parse_env_args("Analyze benchmark experiment results")
+    config_path = Path(__file__).parent / "config_yaml"
+    config = ConfigLoader(config_path, env=args.env)
+    summary_file = Path(config.config_data.cwd) / "summary.json"
+    output_dir = Path(config.config_data.cwd)  / "visual"
+    
+    # Ensure output directory exists
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    print("Loading benchmark data...")
+    try:
+        data = load_summary_data(summary_file)
+    except FileNotFoundError as e:
+        print(f"❌ {e}")
+        sys.exit(2)
+    except ValueError as e:
+        print(f"❌ {e}")
+        sys.exit(3)
+    except PermissionError as e:
+        print(f"❌ {e}")
+        sys.exit(4)
+    except RuntimeError as e:
+        print(f"❌ {e}")
+        sys.exit(5)
 
-    ax.bar(x, params.values, color=params.colors, linewidth=1)
+    print(f"Loaded data for {len(data)} queries\n")
+    
+    print("Generating visualizations...")
+    print("-" * 50)
 
-    # y axis label and title
-    ax.set_ylabel(params.ylabel)
-    ax.set_title(params.title)
-    ax.set_xticks(x)
-    ax.set_xticklabels(params.labels, rotation=params.rotation, ha="right")
-
-    # add grid
-    ax.grid(True, alpha=0.3, axis="y")
-
-    # add annotation
-    if params.annotate:
-        for i, v in enumerate(params.values):
-            ax.text(
-                i,
-                v + (max(params.values) * 0.01),  # slightly move above the bar
-                f"{v:.2f}",
-                ha="center",
-                va="bottom",
-                fontsize=9,
-            )
-
-    plt.tight_layout()
-
-    # save or show
-    if params.output_path:
-        output_path = Path(params.output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(output_path, dpi=160)
-        print(f"✓ Saved: {output_path.name}")
-    else:
-        plt.show()
-    plt.close()
+    clean_path(str(output_dir.resolve()))
+    create_dashboard_by_group(data, output_dir / "comparison_by_group")
+    create_dashboard_by_engine(data, output_dir / "comparison_by_engine")
+    create_dashboard_by_optimizer(data, output_dir / "comparison_by_optimizer")
+    # create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_memory_usage_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_throughput_comparison(data, config.config_data.compare_pairs, output_dir)
+    # create_performance_percentiles(data, output_dir)
+    # create_comprehensive_dashboard(data, config.config_data.compare_pairs, output_dir)
+    # create_performance_summary_table(data, output_dir)
 
 
 if __name__ == "__main__":
