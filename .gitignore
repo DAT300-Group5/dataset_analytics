@@ -5,6 +5,7 @@
 *.duckdb
 *.json
 *.png
+*.qcow2
 __pycache__/
 db*/
 sqlite*/

@@ -44,13 +44,14 @@ Login credentials:
 
 **Password:** DAT300
 
-------
+---
 
 A Python environment is already provided, along with the CLI for three database engines and all benchmark code related to `run_experiments.py`.
 
 You only need to upload your **database files**, **YAML configuration files**, and **SQL files**:
 
 ```bash
+# In benchmark/ dir
 # Upload database (first time)
 # Later updates only require uploading config or SQL files
 sftp -P 2222 root@localhost
@@ -72,7 +73,22 @@ engine_paths:
 
 This is because all these executables are already installed in the system and added to the `PATH`.
 
-------
+---
+
+Connect from host:
+
+```bash
+ssh -p 2222 root@localhost
+```
+
+Then run your experiment:
+
+```bash
+cd benchmark/
+python run_experiments.py --env dev
+```
+
+---
 
 Export experimental results:
 
