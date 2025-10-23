@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
 import numpy as np
 
 from config.config_loader import ConfigLoader
@@ -19,16 +20,101 @@ from models.plot_params import PlotParams
 from cli.cli import parse_env_args
 from util.file_utils import clean_path
 
-# Define a shared color cycle for datasets
-DEFAULT_COLOR_SEQUENCE = [
-    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-]
+# Default base colors per engine (deterministic mapping)
+# SQLite -> blue, DuckDB -> orange, CHDB -> green (as requested)
+ENGINE_BASE_COLORS = {
+    'sqlite': '#1f77b4',   # blue
+    'duckdb': '#ff7f0e',   # orange
+    'chdb':   '#2ca02c',   # green
+}
 
 
-def get_color_sequence(count):
-    """Return a sequence of colors cycling through the default palette."""
-    return [DEFAULT_COLOR_SEQUENCE[i % len(DEFAULT_COLOR_SEQUENCE)] for i in range(count)]
+def _find_engine_in_label(label: str) -> str:
+    """Try to extract the engine name from a label string.
+
+    The label patterns in this file commonly include the engine name as a
+    substring (for example: 'Q1_sqlite', 'sqlite_ops_default', 'group_chdb').
+    This helper does a case-insensitive substring match against known
+    engines and returns the matching engine key or None.
+    """
+    ll = label.lower()
+    for engine in ENGINE_BASE_COLORS.keys():
+        if engine in ll:
+            return engine
+    return None
+
+
+def _generate_shades(hex_color: str, n: int):
+    """Generate n visually distinct shades from a base hex color.
+
+    We produce lighter variants by interpolating the base color towards
+    white. The first shade is the base color and subsequent shades are
+    progressively lighter.
+    """
+    if n <= 0:
+        return []
+    try:
+        base_rgb = mcolors.to_rgb(hex_color)
+    except Exception:
+        # fallback to a neutral gray
+        base_rgb = (0.5, 0.5, 0.5)
+
+    shades = []
+    for i in range(n):
+        # t from 0.0 (base) to 0.7 (much lighter) depending on index
+        t = (i / max(1, n - 1)) * 0.7 if n > 1 else 0.0
+        mixed = tuple((1 - t) * c + t * 1.0 for c in base_rgb)  # interpolate to white
+        shades.append(mcolors.to_hex(mixed))
+    return shades
+
+
+def get_colors_for_labels(labels):
+    """Return a list of colors aligned with `labels`.
+
+    Behavior:
+      - If a label contains a known engine name, use that engine's base color.
+      - If multiple labels map to the same engine, generate different shades
+        for that engine so same-engine series are visually related but
+        distinguishable.
+      - If an engine cannot be detected, fall back to matplotlib's default
+        color cycle.
+    """
+    # Map engine -> indices in labels
+    engine_indices = {}
+    fallback_indices = []
+    for idx, label in enumerate(labels):
+        engine = _find_engine_in_label(str(label))
+        if engine:
+            engine_indices.setdefault(engine, []).append(idx)
+        else:
+            fallback_indices.append(idx)
+
+    colors = [None] * len(labels)
+
+    # Assign shades for each engine group
+    for engine, idxs in engine_indices.items():
+        base = ENGINE_BASE_COLORS.get(engine, '#7f7f7f')
+        shades = _generate_shades(base, len(idxs))
+        for i, idx in enumerate(idxs):
+            colors[idx] = shades[i]
+
+    # Fill fallback indices using matplotlib default cycle
+    default_cycle = list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())
+    # keep a small, deterministic selection from the default_cycle
+    fallback_cycle = [list(mcolors.TABLEAU_COLORS.values())[i % len(mcolors.TABLEAU_COLORS)] for i in range(max(1, len(fallback_indices)))]
+    for i, idx in enumerate(fallback_indices):
+        # fallback_cycle entries are color names; ensure hex via to_hex
+        try:
+            colors[idx] = mcolors.to_hex(fallback_cycle[i % len(fallback_cycle)])
+        except Exception:
+            colors[idx] = '#7f7f7f'
+
+    # For any remaining None (shouldn't happen), put a neutral gray
+    for i, c in enumerate(colors):
+        if c is None:
+            colors[i] = '#7f7f7f'
+
+    return colors
 
 
 def plot_bar_chart(params : PlotParams):
@@ -138,7 +224,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
     # Create comparison visualization
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     x = np.arange(len(data_list))
-    bar_colors = get_color_sequence(len(labels))
+    bar_colors = get_colors_for_labels(labels)
     
     # 1. Execution Time
     ax = axes[0, 0]
@@ -261,7 +347,7 @@ def create_execution_time_comparison(data, compare_pairs, output_dir):
         print("❌ No valid data found for execution time comparison")
         return
     
-    colors = get_color_sequence(len(labels))
+    colors = get_colors_for_labels(labels)
     
     # Construct PlotParams
     params = PlotParams(
@@ -315,7 +401,7 @@ def create_memory_usage_comparison(data, compare_pairs, output_dir):
         print("❌ No valid data found for memory usage comparison")
         return
     
-    colors = get_color_sequence(len(labels))
+    colors = get_colors_for_labels(labels)
     # Construct PlotParams
     params = PlotParams(
         values=values,
@@ -371,7 +457,7 @@ def create_cpu_usage_comparison(data, compare_pairs, output_dir):
         print("❌ No valid data found for CPU usage comparison")
         return
     
-    colors = get_color_sequence(len(labels))
+    colors = get_colors_for_labels(labels)
     # Create Peak CPU chart
     params_peak = PlotParams(
         values=peak_values,
@@ -438,7 +524,7 @@ def create_throughput_comparison(data, compare_pairs, output_dir):
         print("❌ No valid data found for throughput comparison")
         return
     
-    colors = get_color_sequence(len(labels))
+    colors = get_colors_for_labels(labels)
     # Construct PlotParams
     params = PlotParams(
         values=values,
@@ -484,23 +570,23 @@ def create_performance_percentiles(data, output_dir):
             ])
             positions.append(i)
             labels.append(engine)
-        
-        colors_list = get_color_sequence(len(labels))
-        
+
+        colors_list = get_colors_for_labels(labels)
+
         # Create box plot
         bp = ax.boxplot(box_data, positions=positions, widths=0.6,
                         patch_artist=True, showmeans=True,
-                        tick_labels=labels)
-        
+                        labels=labels)
+
         # Color the boxes
         for patch, color in zip(bp['boxes'], colors_list):
             patch.set_facecolor(color)
             patch.set_alpha(0.7)
-        
+
         ax.set_ylabel('Execution Time (seconds)')
         ax.set_title(f'{query} - Execution Time Distribution (min, p50, avg, p95, max)')
         ax.grid(True, alpha=0.3, axis='y')
-        
+
         plt.tight_layout()
         output_file = output_dir / f"{query}_percentiles.png"
         plt.savefig(output_file, dpi=160)
