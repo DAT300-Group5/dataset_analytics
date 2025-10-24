@@ -522,7 +522,7 @@ For subsequent experiments, use the `snapshot=on` option. This avoids re-uploadi
 
 ```bash
 BIOS=$(dpkg -L qemu-efi-aarch64 | grep QEMU_EFI.fd | head -n1)
-FILE="gwatch-sim.qcow2"
+FILE="gwatch-sim-checkpoint.qcow2"
 
 qemu-system-aarch64 \
   -machine virt \
