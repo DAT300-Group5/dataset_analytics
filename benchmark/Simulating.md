@@ -8,7 +8,7 @@ Users can directly refer to the [User Manual](#user-manual).
 | ------------------- | -------------------------------------------------------- |
 | **Processor (SoC)** | Exynos 9110 Dual-core 1.15 GHz (Cortex-A53 architecture) |
 | **GPU**             | Mali-T720                                                |
-| **Memory (RAM)**    | 1.5 GB (LTE version); 0.75 GB (Bscraluetooth version)    |
+| **Memory (RAM)**    | 1.5 GB (LTE version); 0.75 GB (Bluetooth version)        |
 | **Storage (ROM)**   | 4 GB eMMC (approx. 1.4 GB available to users)            |
 
 ## What We Need to Simulate
