@@ -86,15 +86,19 @@ query_groups:
   - id: anomaly-Q1
     duckdb_sql: queries/anomaly/Q2_duckdb.sql
     sqlite_sql: queries/anomaly/Q2_sqlite.sql
+    chdb_sql: queries/anomaly/Q1_chdb.sql
   - id: anomaly-Q2
     duckdb_sql: queries/anomaly/Q2_duckdb.sql
     sqlite_sql: queries/anomaly/Q2_sqlite.sql
+    # chdb_sql: queries/anomaly/Q2_chdb.sql
   - id: anomaly-Q3
     duckdb_sql: queries/anomaly/Q3_duckdb.sql
     sqlite_sql: queries/anomaly/Q3_sqlite.sql
+    chdb_sql: queries/anomaly/Q3_chdb.sql
   - id: anomaly-Q4
     duckdb_sql: queries/anomaly/Q4_duckdb.sql
     sqlite_sql: queries/anomaly/Q4_sqlite.sql
+    chdb_sql: queries/anomaly/Q4_chdb.sql
 
   - id: trend-Q1
     duckdb_sql: queries/trend/Q1_duckdb.sql
@@ -110,15 +114,19 @@ query_groups:
   - id: category-Q1
     duckdb_sql: queries/category/Q1_duckdb.sql
     sqlite_sql: queries/category/Q1_sqlite.sql
+    chdb_sql: queries/category/Q1_chdb.sql
   - id: category-Q2
     duckdb_sql: queries/category/Q2_duckdb.sql
     sqlite_sql: queries/category/Q2_sqlite.sql
+    chdb_sql: queries/category/Q2_chdb.sql
   - id: category-Q3
     duckdb_sql: queries/category/Q3_duckdb.sql
     sqlite_sql: queries/category/Q3_sqlite.sql
+    chdb_sql: queries/category/Q3_chdb.sql
   - id: category-Q4
     duckdb_sql: queries/category/Q4_duckdb.sql
     sqlite_sql: queries/category/Q4_sqlite.sql
+    chdb_sql: queries/category/Q4_chdb.sql
   
   - id: tremor_detection-Q1
     duckdb_sql: queries/tremor_detection/Q1_duckdb.sql
@@ -140,5 +148,3 @@ query_groups:
     chdb_sql: ./queries/tremor_detection/Q3_chdb.sql
     duckdb_sql_ban_ops: ./queries/tremor_detection/Q3_duckdb_ban_ops.sql
     chdb_sql_ban_ops: ./queries/tremor_detection/Q3_chdb_ban_ops.sql
-
-

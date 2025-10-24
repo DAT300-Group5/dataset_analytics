@@ -1,3 +1,5 @@
+USE sensor;
+
 WITH HR_threshold AS (
     SELECT AVG(HR) + stddevSampStable(HR) AS threshold FROM hrm
 ),

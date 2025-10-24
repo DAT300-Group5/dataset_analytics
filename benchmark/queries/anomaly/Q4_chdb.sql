@@ -1,3 +1,5 @@
+USE sensor;
+
 SELECT 
     toStartOfMinute(h.ts) AS time_interval,
     AVG(h.HR) AS interval_HR, 

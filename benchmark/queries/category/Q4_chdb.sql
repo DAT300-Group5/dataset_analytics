@@ -28,8 +28,8 @@ FROM acc a JOIN LIT_intervals l ON toStartOfInterval(a.ts, INTERVAL 5 MINUTE) = 
 GROUP BY time_interval)
 
 SELECT 
-    h.time_interval, h.interval_HR, 
-    a.acc_magnitude, g.gyr_magnitude,
+    h.time_interval AS time_interval,
+    h.interval_HR, a.acc_magnitude, g.gyr_magnitude,
     CASE 
         WHEN h.interval_HR < 80 OR (a.acc_magnitude < 2 AND g.gyr_magnitude < 2) THEN 'sitting' 
         WHEN h.interval_HR < 110 OR (a.acc_magnitude < 10 AND g.gyr_magnitude < 10) THEN 'light_activity'
