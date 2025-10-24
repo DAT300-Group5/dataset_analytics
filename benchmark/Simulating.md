@@ -525,6 +525,7 @@ sudo virt-copy-out -a gwatch-sim.qcow2 /root/benchmark/results/$CONFIG_NAME ./re
 ### Start/Stop the VM
 
 > For macOS, BIOS path should be `/opt/homebrew/share/qemu/edk2-aarch64-code.fd`.
+> For macOS with Apple Silicon, `-accel hvf` can be used instead of `-accel tcg,thread=multi,tb-size=2048`.
 > If the default SSH port is occupied, change `hostfwd=tcp::2223-:22`.
 
 ```bash
