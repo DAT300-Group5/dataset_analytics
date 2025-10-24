@@ -1,5 +1,5 @@
 WITH HR_threshold AS (
-    SELECT AVG(HR) + var_pop(HR) AS threshold FROM hrm
+    SELECT AVG(HR) + STDDEV(HR) AS threshold FROM hrm
 ),
 hr_intervals AS (
     SELECT
