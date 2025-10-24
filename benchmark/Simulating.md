@@ -371,6 +371,8 @@ The virtual machine **does not** handle `create`, `validate`, or final `analyze`
 9. Repeat steps 5–8 for each experiment
 10. To switch databases, start again from step 2
 
+[Simulating Workflow](Simulating_Workflow.md) outlines the 1st to 8th steps of the simulating workflow.
+
 ### Install Required Tools
 
 ```bash
@@ -443,9 +445,10 @@ sftp -P 2222 root@localhost <<< $"get -r /root/data ./backup/"
 
 ---
 
-All code related to `run_experiments.py` under `benchmark`:
+Upload all code related to `run_experiments.py` under `benchmark`:
 
 ```bash
+# in benchmark dir
 sftp -P 2222 root@localhost
 sftp>
 mkdir benchmark
@@ -458,7 +461,7 @@ put -r ./util /root/benchmark/
 put ./run_experiments.py /root/benchmark/
 ```
 
-Database files, YAML configs, SQL files — upload separately by users:
+Upload database files, YAML configs, SQL files:
 
 ```bash
 sftp -P 2222 root@localhost
@@ -468,7 +471,7 @@ put -r ./config_yaml /root/benchmark/
 put -r ./queries /root/benchmark/
 ```
 
-Download experiment results (VM must be running, recommended):
+Download experiment results (VM must be running):
 
 ```bash
 # In benchmark directory
@@ -511,7 +514,7 @@ sudo virt-copy-in -a gwatch-sim.qcow2 \
   /root/benchmark/
 ```
 
-Download experiment results (**VM must be shut down**):
+Download experiment results (**VM must be shut down**, not recommended):
 
 ```bash
 # In benchmark directory
