@@ -38,7 +38,7 @@ SELECT
     CASE 
         WHEN h.interval_HR < 80 OR (a.acc_magnitude < 2 and g.gyr_magnitude < 2) THEN 'sitting' 
         WHEN h.interval_HR < 110 OR (a.acc_magnitude < 10 and g.gyr_magnitude < 10) THEN 'light_activity'
-        WHEN h.interval_HR >= 110 OR (a.acc_magnitude < 100 and g.gyr_magnitude < 100) THEN 'light_activity'
+        WHEN h.interval_HR >= 110 OR (a.acc_magnitude < 100 and g.gyr_magnitude < 100) THEN 'heavy_activity'
         ELSE 'misc'
         END AS type_of_activity
 FROM HR_intervals as h 

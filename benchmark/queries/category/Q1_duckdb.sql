@@ -1,8 +1,3 @@
--- === CTE
--- DESCRIPTION: 
--- - saves precomputed values
--- - filtering on daylight after the join
-
 WITH HR_intervals AS
 (SELECT 
     time_bucket(INTERVAL '5m', ts) AS time_interval,
@@ -37,7 +32,7 @@ SELECT
     CASE 
         WHEN h.interval_HR < 80 OR (a.acc_magnitude < 2 AND g.gyr_magnitude < 2) THEN 'sitting' 
         WHEN h.interval_HR < 110 OR (a.acc_magnitude < 10 AND g.gyr_magnitude < 10) THEN 'light_activity'
-        WHEN h.interval_HR >= 110 OR (a.acc_magnitude < 100 AND g.gyr_magnitude < 100) THEN 'light_activity'
+        WHEN h.interval_HR >= 110 OR (a.acc_magnitude < 100 AND g.gyr_magnitude < 100) THEN 'heavy_activity'
         ELSE 'misc' END AS type_of_activity
 FROM HR_intervals as h 
 JOIN LIT_intervals l ON h.time_interval = l.time_interval
