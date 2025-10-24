@@ -1,4 +1,6 @@
-# Simulating Experiments on Embedded Devices (Dev Doc)
+# Simulating Experiments on Embedded Devices
+
+Users can directly refer to the [User Manual](#user-manual).
 
 ## Samsung Galaxy Watch Active 2
 
@@ -30,7 +32,9 @@ nproc
 grep -c '^processor' /proc/cpuinfo
 ```
 
-## Booting / Disk Installation Commands
+## Build from scrach
+
+### Booting / Disk Installation Commands
 
 Install required packages (including ARM UEFI firmware):
 
@@ -51,7 +55,7 @@ qemu-img create -f qcow2 gwatch-sim.qcow2 20G
 
 A better image might exist — e.g. **Yocto Project / OpenEmbedded** or **Buildroot** — but these require additional learning time.
 
-### Boot for Installation (with ISO)
+#### Boot for Installation (with ISO)
 
 Find the BIOS firmware:
 
@@ -80,7 +84,7 @@ qemu-system-aarch64 \
 
 Follow the installer steps and set the `root` password to **DAT300**.
 
-### After Installation (Boot from Disk)
+#### After Installation (Boot from Disk)
 
 > The `-drive if=virtio` option defines the disk.
 >
@@ -148,7 +152,7 @@ qemu-system-aarch64 \
   -nographic
 ```
 
-## SSH and File Transfer
+### SSH and File Transfer
 
 Requirements:
 
@@ -235,7 +239,7 @@ CONFIG_NAME="dev"
 sftp -P 2222 root@localhost <<< $"get -r /root/benchmark/results/$CONFIG_NAME ./results/$CONFIG_NAME"
 ```
 
-## Installation and Setup
+### Installation and Setup
 
 Python 3 is preinstalled; make `python` alias to `python3`:
 
@@ -280,6 +284,129 @@ echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.profile
 source ~/.profile
 ```
 
+## User Manual
+
+Install the required packages (including ARM UEFI firmware):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y qemu-system-aarch64 qemu-utils qemu-efi-aarch64
+```
+
+Prepare the disk file.
+
+Backup the disk file:
+
+```bash
+cp gwatch-sim.qcow2 gwatch-sim-checkpoint.qcow2
+```
+
+Boot from the disk:
+
+> For macOS, the path should be: `/opt/homebrew/share/qemu/edk2-aarch64-code.fd` — modify accordingly.
+>
+> Network port forwarding: if the port is occupied, change to `hostfwd=tcp::2223-:22`.
+
+```bash
+qemu-system-aarch64 \
+  -machine virt \
+  -accel tcg,thread=multi,tb-size=2048 \
+  -cpu cortex-a53 \
+  -smp 2 -m 1536 \
+  -bios /usr/share/qemu-efi-aarch64/QEMU_EFI.fd \
+  -drive if=virtio,file=gwatch-sim-checkpoint.qcow2,format=qcow2,cache=writeback \
+  -nic user,model=virtio-net-pci,hostfwd=tcp::2222-:22 \
+  -nographic
+```
+
+Login credentials:
+
+- **Username:** root
+- **Password:** DAT300
+
+---
+
+A Python environment is already provided, along with the CLI for three database engines and all benchmark code related to `run_experiments.py`.
+
+You only need to upload your **database files**, **YAML configuration files**, and **SQL files**:
+
+```bash
+# In benchmark/ dir
+# Upload database (first time)
+# Later updates only require uploading config or SQL files
+sftp -P 2222 root@localhost
+
+sftp>
+put -r ./db_vs14 /root/benchmark/
+put -r ./config_yaml /root/benchmark/
+put -r ./queries /root/benchmark/
+```
+
+Note: You must modify the `chdb` path in `config_yaml/config.yaml` to:
+
+```yaml
+engine_paths:
+  duckdb: duckdb
+  sqlite: sqlite3
+  chdb: chdb_cli
+```
+
+This is because all these executables are already installed in the system and added to the `PATH`.
+
+---
+
+Connect from host:
+
+```bash
+ssh -p 2222 root@localhost
+```
+
+Then run your experiment:
+
+```bash
+cd benchmark/
+python run_experiments.py --env dev
+```
+
+---
+
+Export experimental results:
+
+```bash
+# In the benchmark directory
+mkdir -p results
+
+# Experiment configuration name
+CONFIG_NAME="dev"
+sftp -P 2222 root@localhost <<< $"get -r /root/benchmark/results/$CONFIG_NAME ./results/$CONFIG_NAME"
+```
+
+### Recommendation
+
+After uploading the database files, YAML configuration, and SQL files for the first time, you can safely power off the system (`poweroff`).
+
+For subsequent experiments, use the `snapshot=on` option:
+
+```bash
+qemu-system-aarch64 \
+  -machine virt \
+  -accel tcg,thread=multi,tb-size=2048 \
+  -cpu cortex-a53 \
+  -smp 2 -m 1536 \
+  -bios /usr/share/qemu-efi-aarch64/QEMU_EFI.fd \
+  -drive if=virtio,file=gwatch-sim-checkpoint.qcow2,format=qcow2,cache=writeback,snapshot=on \
+  -nic user,model=virtio-net-pci,hostfwd=tcp::2222-:22 \
+  -nographic
+```
+
+This allows you to avoid re-uploading the database each time while ensuring that different experiments do not interfere with one another.
+
+### Responsibilities of the Virtual Machine
+
+The virtual machine is **not** responsible for `create`, `validate`, or final `analyze` stages.
+
+It only handles the **`run_experiments`** step.
+
 ## Appendix
 
 ### QEMU – The Image Is Just a Disk
@@ -319,20 +446,20 @@ QEMU’s design advantages:
 
 QEMU has two fundamentally different operation modes:
 
-| Mode                                         | Purpose        | Mechanism                                                    | CPU Type Customizable |
-| -------------------------------------------- | -------------- | ------------------------------------------------------------ | --------------------- |
+| Mode                                         | Purpose        | Mechanism                                                        | CPU Type Customizable |
+| -------------------------------------------- | -------------- | ---------------------------------------------------------------- | --------------------- |
 | 🧠 **TCG (Tiny Code Generator)**              | Full emulation | Translates guest instructions into host instructions dynamically | ✅ Yes                 |
-| ⚙️ **Hardware Virtualization (KVM/HVF/WHPX)** | Virtualization | Executes guest instructions directly on host CPU             | ❌ No                  |
+| ⚙️ **Hardware Virtualization (KVM/HVF/WHPX)** | Virtualization | Executes guest instructions directly on host CPU                 | ❌ No                  |
 
 Only **TCG mode** simulates detailed **CPU microarchitecture**. For example:
 
 | Feature               | Real Cortex-A53 | QEMU TCG (`-cpu cortex-a53`) | HVF/KVM         |
 | --------------------- | --------------- | ---------------------------- | --------------- |
-| ISA (AArch64)         | ✅               | ✅                            | ✅ (via host)    |
-| LSE (Atomics)         | ❌               | ❌                            | Depends on host |
+| ISA (AArch64)         | ✅               | ✅                         | ✅ (via host)   |
+| LSE (Atomics)         | ❌               | ❌                         | Depends on host |
 | PMU/Timer             | A53-specific    | Emulated A53 PMU             | Host PMU        |
 | Performance           | Native          | Slow (software emulated)     | Near-native     |
-| Architecture fidelity | ✅               | ✅                            | ❌               |
+| Architecture fidelity | ✅               | ✅                         | ❌              |
 
 In short:
 
