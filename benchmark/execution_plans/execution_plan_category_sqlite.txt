@@ -1,0 +1,95 @@
+=== Plan q1 
+
+CO-ROUTINE HR_intervals
+    SCAN hrm
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE LIT_intervals
+    SCAN lit
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE ACC_intervals
+    SCAN acc
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE GYR_intervals
+    SCAN gyr
+    USE TEMP B-TREE FOR GROUP BY
+SCAN l
+BLOOM FILTER ON h (time_interval=?)
+SEARCH h USING AUTOMATIC COVERING INDEX (time_interval=?)
+BLOOM FILTER ON a (time_interval=?)
+SEARCH a USING AUTOMATIC COVERING INDEX (time_interval=?)
+BLOOM FILTER ON g (time_interval=?)
+SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
+USE TEMP B-TREE FOR ORDER BY
+
+=== Executing q2 
+
+CO-ROUTINE HR_intervals
+    SCAN hrm
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE LIT_intervals
+    SCAN lit
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE ACC_intervals
+    SCAN acc
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE GYR_intervals
+    SCAN gyr
+    USE TEMP B-TREE FOR GROUP BY
+SCAN l
+BLOOM FILTER ON h (time_interval=?)
+SEARCH h USING AUTOMATIC COVERING INDEX (time_interval=?)
+BLOOM FILTER ON a (time_interval=?)
+SEARCH a USING AUTOMATIC COVERING INDEX (time_interval=?)
+BLOOM FILTER ON g (time_interval=?)
+SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
+USE TEMP B-TREE FOR ORDER BY
+
+=== Executing q3 
+
+CO-ROUTINE HR_intervals
+    SCAN hrm
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE LIT_intervals
+    SCAN lit
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE ACC_intervals
+    SCAN acc
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE GYR_intervals
+    SCAN gyr
+    USE TEMP B-TREE FOR GROUP BY
+SCAN h
+BLOOM FILTER ON l (time_interval=?)
+SEARCH l USING AUTOMATIC COVERING INDEX (time_interval=?)
+BLOOM FILTER ON a (time_interval=?)
+SEARCH a USING AUTOMATIC COVERING INDEX (time_interval=?)
+BLOOM FILTER ON g (time_interval=?)
+SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
+USE TEMP B-TREE FOR ORDER BY
+
+=== Executing q4 
+
+CO-ROUTINE HR_intervals
+    MATERIALIZE LIT_intervals
+        SCAN lit
+        USE TEMP B-TREE FOR GROUP BY
+    SCAN h
+    BLOOM FILTER ON l (time_interval=?)
+    SEARCH l USING AUTOMATIC COVERING INDEX (time_interval=?)
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE ACC_intervals
+    SCAN a
+    BLOOM FILTER ON l (time_interval=?)
+    SEARCH l USING AUTOMATIC COVERING INDEX (time_interval=?)
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE GYR_intervals
+    SCAN g
+    BLOOM FILTER ON l (time_interval=?)
+    SEARCH l USING AUTOMATIC COVERING INDEX (time_interval=?)
+    USE TEMP B-TREE FOR GROUP BY
+SCAN h
+BLOOM FILTER ON a (time_interval=?)
+SEARCH a USING AUTOMATIC COVERING INDEX (time_interval=?)
+BLOOM FILTER ON g (time_interval=?)
+SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
+USE TEMP B-TREE FOR ORDER BY
