@@ -111,21 +111,21 @@ INTO OUTFILE 'output_anomaly/Q3_anomaly_chdb.csv' FORMAT CSVWithNames;
 #   INSTEAD OF TIMESTAMPS WE USED STRINGS TO COMPARE
 #   CALCULATING QUANTILE EACH TIME
 
-
 query4 = f"""
 SELECT 
-    toStartOfMinute(h.ts) AS time_interval,
+    formatDateTime(toStartOfMinute(h.ts), '%Y-%m-%d %H:%i') AS time_interval,
     AVG(h.HR) AS interval_HR, 
     MAX(p.steps) - MIN(p.steps) AS interval_steps,
     MAX(p.calories) - MIN(p.calories) AS interval_calories,
     CASE WHEN (interval_steps < 10 AND interval_HR > (SELECT AVG(HR) + stddevSampStable(HR) FROM hrm)) THEN 1 ELSE 0 END AS anomaly_flag
 FROM hrm AS h
 JOIN ped AS p
-    ON formatDateTime(toStartOfMinute(h.ts), '%Y-%m-%d %H:%M:%S') 
-       = formatDateTime(toStartOfMinute(p.ts), '%Y-%m-%d %H:%M:%S')
+    ON formatDateTime(toStartOfMinute(h.ts), '%Y-%m-%d %H:%i') = formatDateTime(toStartOfMinute(p.ts), '%Y-%m-%d %H:%i')
 GROUP BY toStartOfMinute(h.ts)
 ORDER BY toStartOfMinute(h.ts)
+INTO OUTFILE 'output_anomaly/Q4_anomaly_chdb.csv' FORMAT CSVWithNames;
 """
+
 
 # ==================================================================
 db_path = "../db_ba30/ba30_data_chdb"
@@ -134,7 +134,7 @@ conn.query("USE sensor;")
 
 queries = {"q1": query1, "q3": query3, "q4": query4}
 
-output_dir = "output_anomaly"
+output_dir = "./output_anomaly"
 os.makedirs(output_dir, exist_ok=True)
 
 for name, q in queries.items():
