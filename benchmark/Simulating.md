@@ -41,9 +41,11 @@ grep -c '^processor' /proc/cpuinfo
 sudo apt-get update
 sudo apt-get install -y \
   qemu-system-aarch64 qemu-utils qemu-efi-aarch64 \
-  libguestfs-tools cloud-image-utils \
-  curl xz-utils
-# Avoid “direct mode” issues required by libguestfs on some distributions
+  cloud-image-utils
+
+# libguestfs doesn't support Apple Silicon
+sudo apt-get install -y libguestfs-tools
+# Avoid "direct mode" issues required by libguestfs on some distributions
 echo 'export LIBGUESTFS_BACKEND=direct' >> ~/.bashrc
 source ~/.bashrc
 ```
@@ -374,11 +376,11 @@ The virtual machine **does not** handle `create`, `validate`, or final `analyze`
 ```bash
 # Debian/Ubuntu
 sudo apt-get update
-sudo apt-get install -y \
-  qemu-system-aarch64 qemu-utils qemu-efi-aarch64 \
-  libguestfs-tools cloud-image-utils \
-  curl xz-utils
-# Avoid “direct mode” issues required by libguestfs on some distributions
+sudo apt-get install -y qemu-system-aarch64 qemu-utils qemu-efi-aarch64
+
+# libguestfs doesn't support Apple Silicon
+sudo apt-get install -y libguestfs-tools
+# Avoid "direct mode" issues required by libguestfs on some distributions
 echo 'export LIBGUESTFS_BACKEND=direct' >> ~/.bashrc
 source ~/.bashrc
 ```
