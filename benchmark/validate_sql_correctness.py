@@ -98,13 +98,18 @@ def _parse_timestamp_series(series: pd.Series) -> pd.Series:
 
     if ms_mask.any():
         ms_index = ms_mask[ms_mask].index
+        # Cast candidate strings to numeric before passing to to_datetime with a unit
+        # to avoid FutureWarning: parsing strings with 'unit' is deprecated.
+        numeric_ms = pd.to_numeric(candidates.loc[ms_index], errors="coerce")
         result.loc[ms_index] = pd.to_datetime(
-            candidates.loc[ms_index], unit="ms", errors="coerce", utc=True
+            numeric_ms, unit="ms", errors="coerce", utc=True
         )
     if s_mask.any():
         s_index = s_mask[s_mask].index
+        # Cast candidate strings to numeric before passing to to_datetime with a unit
+        numeric_s = pd.to_numeric(candidates.loc[s_index], errors="coerce")
         result.loc[s_index] = pd.to_datetime(
-            candidates.loc[s_index], unit="s", errors="coerce", utc=True
+            numeric_s, unit="s", errors="coerce", utc=True
         )
 
     processed_mask = ms_mask | s_mask
