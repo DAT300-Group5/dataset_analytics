@@ -1,5 +1,16 @@
 # Simulating Workflow
 
+1. Install required tools + download the image
+2. Decompress image
+3. Create directory, upload project code and database files (SQL/YAML config)
+4. Backup after first upload
+5. Start the VM
+6. SSH login and run an experiment
+7. Download results
+8. Shut down the VM
+9. Repeat steps 5–8 for each experiment
+10. To switch databases, start again from step 2
+
 This document outlines the 1st to 8th steps of the simulating workflow.
 
 ## 1 Install Required Tools
