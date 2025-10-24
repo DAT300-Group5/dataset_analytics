@@ -32,7 +32,7 @@ nproc
 grep -c '^processor' /proc/cpuinfo
 ```
 
-## Build from scrach
+## Build from Scratch
 
 ### Booting / Disk Installation Commands
 

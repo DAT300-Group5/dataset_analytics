@@ -8,7 +8,7 @@ Users can directly refer to the [User Manual](#user-manual).
 | ------------------- | -------------------------------------------------------- |
 | **Processor (SoC)** | Exynos 9110 Dual-core 1.15 GHz (Cortex-A53 architecture) |
 | **GPU**             | Mali-T720                                                |
-| **Memory (RAM)**    | 1.5 GB (LTE version); 0.75 GB (Bluetooth version)        |
+| **Memory (RAM)**    | 1.5 GB (LTE version); 0.75 GB (Bscraluetooth version)    |
 | **Storage (ROM)**   | 4 GB eMMC (approx. 1.4 GB available to users)            |
 
 ## What We Need to Simulate
@@ -401,7 +401,85 @@ qemu-img convert -O qcow2 gwatch-sim.comp.qcow2 gwatch-sim.qcow2
 
 ### Upload/Download Files
 
-> Uploading does **not** require the VM to be running!
+Note: Modify the `chdb` path in `config_yaml/config.yaml` to:
+
+```yaml
+engine_paths:
+  duckdb: duckdb
+  sqlite: sqlite3
+  chdb: chdb_cli
+```
+
+Because all these executables are preinstalled and included in the `PATH`.
+
+#### Use SFTP
+
+Interactive file transfer:
+
+```bash
+# need to set fingerprint for first run
+sftp -P 2222 root@localhost
+
+# Upload a directory
+# (./dataset/) local -> (./root/) remote
+sftp> put -r ./dataset /root/
+
+# Download a directory
+# (/root/results) remote -> (./backup/) local
+sftp> get -r /root/results ./backup/
+```
+
+Non-interactive transfer:
+
+```bash
+# Upload
+sftp -P 2222 root@localhost:/remote/path/ <<< $"put -r /local/path/dir"
+
+# Download
+sftp -P 2222 root@localhost <<< $"get -r /root/data ./backup/"
+```
+
+---
+
+All code related to `run_experiments.py` under `benchmark`:
+
+```bash
+sftp -P 2222 root@localhost
+sftp>
+mkdir benchmark
+put -r ./cli /root/benchmark/
+put -r ./config /root/benchmark/
+put -r ./consts /root/benchmark/
+put -r ./models /root/benchmark/
+put -r ./service /root/benchmark/
+put -r ./util /root/benchmark/
+put ./run_experiments.py /root/benchmark/
+```
+
+Database files, YAML configs, SQL files — upload separately by users:
+
+```bash
+sftp -P 2222 root@localhost
+sftp>
+put -r ./db_vs14 /root/benchmark/
+put -r ./config_yaml /root/benchmark/
+put -r ./queries /root/benchmark/
+```
+
+Download experiment results (VM must be running, recommended):
+
+```bash
+# In benchmark directory
+mkdir -p results
+
+# Experiment configuration name
+CONFIG_NAME="dev"
+sftp -P 2222 root@localhost <<< $"get -r /root/benchmark/results/$CONFIG_NAME ./results/$CONFIG_NAME"
+```
+
+#### Use `libguestfs`
+
+> `libguestfs` does **not** require the VM to be running!
 
 Create directory:
 
@@ -431,33 +509,7 @@ sudo virt-copy-in -a gwatch-sim.qcow2 \
   /root/benchmark/
 ```
 
-Note: Modify the `chdb` path in `config_yaml/config.yaml` to:
-
-```yaml
-engine_paths:
-  duckdb: duckdb
-  sqlite: sqlite3
-  chdb: chdb_cli
-```
-
-Because all these executables are preinstalled and included in the `PATH`.
-
----
-
-Download experiment results:
-
-1. **Using sftp** (VM must be running, recommended):
-
-```bash
-# In benchmark directory
-mkdir -p results
-
-# Experiment configuration name
-CONFIG_NAME="dev"
-sftp -P 2222 root@localhost <<< $"get -r /root/benchmark/results/$CONFIG_NAME ./results/$CONFIG_NAME"
-```
-
-1. **Using libguestfs** (VM must be shut down):
+Download experiment results (**VM must be shut down**):
 
 ```bash
 # In benchmark directory
