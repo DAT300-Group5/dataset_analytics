@@ -1,3 +1,5 @@
+USE sensor;
+
 SELECT 
     formatDateTime(toStartOfMinute(h.ts), '%Y-%m-%d %H:%i') AS time_interval,
     AVG(h.HR) AS interval_HR, 
