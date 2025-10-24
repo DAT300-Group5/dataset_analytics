@@ -1,4 +1,4 @@
-=== Plan q1 
+=== Plan Q1 
 
 CO-ROUTINE HR_intervals
     SCAN hrm
@@ -21,7 +21,7 @@ BLOOM FILTER ON g (time_interval=?)
 SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
 USE TEMP B-TREE FOR ORDER BY
 
-=== Executing q2 
+=== Plan Q2 
 
 CO-ROUTINE HR_intervals
     SCAN hrm
@@ -44,7 +44,7 @@ BLOOM FILTER ON g (time_interval=?)
 SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
 USE TEMP B-TREE FOR ORDER BY
 
-=== Executing q3 
+=== Plan Q3 
 
 CO-ROUTINE HR_intervals
     SCAN hrm
@@ -67,7 +67,7 @@ BLOOM FILTER ON g (time_interval=?)
 SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
 USE TEMP B-TREE FOR ORDER BY
 
-=== Executing q4 
+=== Plan Q4 
 
 CO-ROUTINE HR_intervals
     MATERIALIZE LIT_intervals

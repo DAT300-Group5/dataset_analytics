@@ -1,4 +1,4 @@
-=== Executing q1 
+=== PLan: Q1 
 
 SCAN h
 SCAN p
@@ -6,7 +6,7 @@ USE TEMP B-TREE FOR GROUP BY
 SCALAR SUBQUERY 1
     SCAN hrm
 
-=== Executing q3 
+=== PLan: Q3
 
 CO-ROUTINE hr_intervals
     SCAN hrm
@@ -21,7 +21,7 @@ BLOOM FILTER ON p (time_interval=?)
 SEARCH p USING AUTOMATIC COVERING INDEX (time_interval=?)
 SCAN q
 
-=== Executing q4 
+=== PLan: Q4
 
 SCAN h
 SCAN p
