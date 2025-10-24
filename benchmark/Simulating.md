@@ -389,7 +389,7 @@ Download image:
 
 ```bash
 pip install gdown
-QCOW2="https://drive.google.com/file/d/1ciPZ9iOy17D2KfCcIqjPRBcRj8OxU7Z8/"
+QCOW2="https://drive.google.com/uc?id=1ciPZ9iOy17D2KfCcIqjPRBcRj8OxU7Z8"
 gdown $QCOW2
 ```
 
