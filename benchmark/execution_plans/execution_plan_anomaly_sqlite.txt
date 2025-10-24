@@ -1,0 +1,30 @@
+=== PLan: Q1 
+
+SCAN h
+SCAN p
+USE TEMP B-TREE FOR GROUP BY
+SCALAR SUBQUERY 1
+    SCAN hrm
+
+=== PLan: Q3
+
+CO-ROUTINE hr_intervals
+    SCAN hrm
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE ped_intervals
+    SCAN ped
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE HR_threshold
+    SCAN hrm
+SCAN h
+BLOOM FILTER ON p (time_interval=?)
+SEARCH p USING AUTOMATIC COVERING INDEX (time_interval=?)
+SCAN q
+
+=== PLan: Q4
+
+SCAN h
+SCAN p
+USE TEMP B-TREE FOR GROUP BY
+SCALAR SUBQUERY 1
+    SCAN hrm
