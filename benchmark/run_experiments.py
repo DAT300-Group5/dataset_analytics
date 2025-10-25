@@ -48,11 +48,11 @@ def build_experiment(params : ExperimentParams) :
         task_executor = TaskExecutor(runner=runner, log_parser=chdb_parser, sample_count=params.sample_count, std_repeat=params.std_repeat)
         return task_executor
 
-def add_result_to_summary(summary: dict, exp: ExperimentParams, result: dict) -> None:
+def add_result_to_dict(data_dict: dict, exp: ExperimentParams, result: dict) -> None:
     group_id = exp.group_id
     db_name = exp.db_name
     optimizer_status = "ban_ops" if exp.ban_optimizer else "default"
-    summary.setdefault(db_name, {}).setdefault(group_id, {}).setdefault(exp.engine.value, {})[optimizer_status] = result
+    data_dict.setdefault(db_name, {}).setdefault(group_id, {}).setdefault(exp.engine.value, {})[optimizer_status] = result
 
 def main() -> None:
     """
@@ -87,6 +87,7 @@ def main() -> None:
     logger.info("")
 
     summary = {}
+    raw_data = {}
     # Execute experiments
     for idx, exp in enumerate(experiments, 1):
         logger.info("-" * 60)
@@ -94,7 +95,8 @@ def main() -> None:
         logger.info("-" * 60)
         task_executor = build_experiment(exp)
         result = task_executor.std_execute()
-        add_result_to_summary(summary, exp, result.to_dict())
+        add_result_to_dict(summary, exp, result.to_summary_dict())
+        add_result_to_dict(raw_data, exp, result.to_raw_data_dict())
         logger.info(f"✓ Experiment {idx}/{len(experiments)} completed")
         logger.info("")
 
@@ -106,7 +108,12 @@ def main() -> None:
         summary_path = Path(config.config_data.cwd) / db_name / "summary.json"
         with open(summary_path, 'w') as f:
             json.dump(summary[db_name], f, indent=2)
-        logger.info(f"✓ Results exported to: {summary_path.resolve()}")
+        logger.info(f"✓ Summary results exported to: {summary_path.resolve()}")
+        logger.info("")
+        raw_data_path = Path(config.config_data.cwd) / db_name / "raw_data.json"
+        with open(raw_data_path, 'w') as f:
+            json.dump(raw_data[db_name], f, indent=2)
+        logger.info(f"✓ Raw data exported to: {raw_data_path.resolve()}")
         logger.info("")
     logger.info("All experiments completed successfully!")
 
