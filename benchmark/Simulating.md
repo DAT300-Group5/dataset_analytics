@@ -369,7 +369,6 @@ The virtual machine **does not** handle `create`, `validate`, or final `analyze`
 7. Download results
 8. Shut down the VM
 9. Repeat steps 5–8 for each experiment
-10. To switch databases, start again from step 2
 
 [Simulating Workflow](Simulating_Workflow.md) outlines the 1st to 8th steps of the simulating workflow.
 
