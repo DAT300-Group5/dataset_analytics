@@ -6,12 +6,13 @@ from service.task_executor.task_execute_result import StatSummary, SingleTaskExe
 def calculate_stat_summary(values: list[float]) -> StatSummary:
     """Calculate statistical summary from a list of numeric values"""
     if not values:
-        return StatSummary(min=0, max=0, p50=0, p95=0, p99=0, avg=0)
+        return StatSummary(min=0, max=0, p50=0, p95=0, p99=0, avg=0, raw_data=[])
 
     sorted_values = sorted(values)
     n = len(sorted_values)
 
     return StatSummary(
+        raw_data=values,
         min=sorted_values[0],
         max=sorted_values[-1],
         p50=sorted_values[int(n * 0.50)],
