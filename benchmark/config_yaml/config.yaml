@@ -115,18 +115,26 @@ query_groups:
     duckdb_sql: queries/category/Q1_duckdb.sql
     sqlite_sql: queries/category/Q1_sqlite.sql
     chdb_sql: queries/category/Q1_chdb.sql
+    duckdb_sql_ban_ops: queries/category/Q1_duckdb_ban_ops.sql
+    chdb_sql_ban_ops: queries/category/Q1_chdb_ban_ops.sql
   - id: category-Q2
     duckdb_sql: queries/category/Q2_duckdb.sql
     sqlite_sql: queries/category/Q2_sqlite.sql
     chdb_sql: queries/category/Q2_chdb.sql
+    duckdb_sql_ban_ops: queries/category/Q2_duckdb_ban_ops.sql
+    chdb_sql_ban_ops: queries/category/Q2_chdb_ban_ops.sql
   - id: category-Q3
     duckdb_sql: queries/category/Q3_duckdb.sql
     sqlite_sql: queries/category/Q3_sqlite.sql
     chdb_sql: queries/category/Q3_chdb.sql
+    duckdb_sql_ban_ops: queries/category/Q3_duckdb_ban_ops.sql
+    chdb_sql_ban_ops: queries/category/Q3_chdb_ban_ops.sql
   - id: category-Q4
     duckdb_sql: queries/category/Q4_duckdb.sql
     sqlite_sql: queries/category/Q4_sqlite.sql
     chdb_sql: queries/category/Q4_chdb.sql
+    duckdb_sql_ban_ops: queries/category/Q4_duckdb_ban_ops.sql
+    chdb_sql_ban_ops: queries/category/Q4_chdb_ban_ops.sql
   
   - id: tremor_detection-Q1
     duckdb_sql: queries/tremor_detection/Q1_duckdb.sql
@@ -134,14 +142,12 @@ query_groups:
     chdb_sql: queries/tremor_detection/Q1_chdb.sql
     duckdb_sql_ban_ops: queries/tremor_detection/Q1_duckdb_ban_ops.sql
     chdb_sql_ban_ops: queries/tremor_detection/Q1_chdb_ban_ops.sql
-
   - id: tremor_detection-Q2
     duckdb_sql: queries/tremor_detection/Q2_duckdb.sql
     sqlite_sql: queries/tremor_detection/Q2_sqlite.sql
     chdb_sql: queries/tremor_detection/Q2_chdb.sql
     duckdb_sql_ban_ops: queries/tremor_detection/Q2_duckdb_ban_ops.sql
     chdb_sql_ban_ops: queries/tremor_detection/Q2_chdb_ban_ops.sql
-
   - id: tremor_detection-Q3
     duckdb_sql: queries/tremor_detection/Q3_duckdb.sql
     sqlite_sql: queries/tremor_detection/Q3_sqlite.sql

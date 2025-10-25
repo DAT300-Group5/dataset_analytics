@@ -1,4 +1,5 @@
 USE sensor;
+
 WITH LIT_intervals AS
 (SELECT 
     toStartOfInterval(ts, INTERVAL 5 MINUTE) AS time_interval
