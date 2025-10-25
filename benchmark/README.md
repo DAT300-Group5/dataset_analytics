@@ -128,23 +128,26 @@ python create_db.py --help
 # will create DuckDB database in default.
 python create_db.py vs14 ./test.duckdb
 python create_db.py ab60 ./my_data.duckdb
+# Create with post-SQL (e.g., create indexes)
+python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb --post-sql your_index.sql
+
 
 # Demo
 
 # Create a directory to store databases
-mkdir -p db_vs14
+NAME="vs14"
+DB_NAME="db_${NAME}"
+mkdir -p $DB_NAME
+
 # Create SQLite database
-python create_db.py vs14 ./db_vs14/vs14_data.sqlite --engine sqlite
+python create_db.py $NAME "./${DB_NAME}/${NAME}_data.sqlite" --engine sqlite
 
 # Create DuckDB database
-python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
+python create_db.py $NAME "./${DB_NAME}/${NAME}.duckdb" --engine duckdb
 
 # Create chDB database
 # chDB uses directory as DB, and need to specify the table
-python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
-
-# Create with post-SQL (e.g., create indexes)
-python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb --post-sql your_index.sql
+python create_db.py $NAME "./${DB_NAME}/${NAME}_data_chdb" --engine chdb
 ```
 
 ### 3. Configure Experiments
@@ -386,25 +389,20 @@ The `validate_pairs` parameter defines which experiments to run for SQL correctn
 ls raw_data/acc/acc_vs14.csv
 ls raw_data/hrm/hrm_vs14.csv
 # ... etc
-
-# Create in benchmark/ directory
-mkdir -p db_vs14
 ```
 
 ### Step 2: Create Databases
 
 ```bash
-# DuckDB
-python create_db.py vs14 ./db_vs14/vs14_data.duckdb --engine duckdb
-
-# SQLite
-python create_db.py vs14 ./db_vs14/vs14_data.sqlite --engine sqlite
-
-# chDB
-python create_db.py vs14 ./db_vs14/vs14_data_chdb --engine chdb
+NAME="vs14"
+DB_NAME="db_${NAME}"
+mkdir -p $DB_NAME
+python create_db.py $NAME "./${DB_NAME}/${NAME}_data.sqlite" --engine sqlite
+python create_db.py $NAME "./${DB_NAME}/${NAME}.duckdb" --engine duckdb
+python create_db.py $NAME "./${DB_NAME}/${NAME}_data_chdb" --engine chdb
 
 # Optional: Create with post-SQL (indexes, etc.)
-python create_db.py vs14 ./db_vs14/vs14_data.duckdb \
+python create_db.py $NAME "./${DB_NAME}/${NAME}_data.duckdb" \
   --engine duckdb \
   --post-sql ./queries/create_indexes.sql
 ```

@@ -17,12 +17,15 @@ validate_pairs:
   - [ anomaly-Q1, duckdb ]
   - [ anomaly-Q1, sqlite ]
   - [ anomaly-Q1, chdb ]
+
   - [ anomaly-Q2, duckdb ]
   - [ anomaly-Q2, sqlite ]
   # - [ anomaly-Q2, chdb ]
+
   - [ anomaly-Q3, duckdb ]
   - [ anomaly-Q3, sqlite ]
   - [ anomaly-Q3, chdb ]
+
   - [ anomaly-Q4, duckdb ]
   - [ anomaly-Q4, sqlite ]
   - [ anomaly-Q4, chdb ]
@@ -39,12 +42,15 @@ execute_pairs:
   - [ anomaly-Q1, duckdb ]
   - [ anomaly-Q1, sqlite ]
   - [ anomaly-Q1, chdb ]
+
   - [ anomaly-Q2, duckdb ]
   - [ anomaly-Q2, sqlite ]
   # - [ anomaly-Q2, chdb ]
+
   - [ anomaly-Q3, duckdb ]
   - [ anomaly-Q3, sqlite ]
   - [ anomaly-Q3, chdb ]
+
   - [ anomaly-Q4, duckdb ]
   - [ anomaly-Q4, sqlite ]
   - [ anomaly-Q4, chdb ]
@@ -62,12 +68,15 @@ compare_pairs:
   - [ anomaly-Q1, duckdb ]
   - [ anomaly-Q1, sqlite ]
   - [ anomaly-Q1, chdb ]
+
   - [ anomaly-Q2, duckdb ]
   - [ anomaly-Q2, sqlite ]
   # - [ anomaly-Q2, chdb ]
+
   - [ anomaly-Q3, duckdb ]
   - [ anomaly-Q3, sqlite ]
   - [ anomaly-Q3, chdb ]
+
   - [ anomaly-Q4, duckdb ]
   - [ anomaly-Q4, sqlite ]
   - [ anomaly-Q4, chdb ]

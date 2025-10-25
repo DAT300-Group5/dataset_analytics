@@ -17,12 +17,15 @@ validate_pairs:
   - [ category-Q1, duckdb ]
   - [ category-Q1, sqlite ]
   - [ category-Q1, chdb ]
+
   - [ category-Q2, duckdb ]
   - [ category-Q2, sqlite ]
   - [ category-Q2, chdb ]
+
   - [ category-Q3, duckdb ]
   - [ category-Q3, sqlite ]
   - [ category-Q3, chdb ]
+
   - [ category-Q4, duckdb ]
   - [ category-Q4, sqlite ]
   - [ category-Q4, chdb ]
@@ -39,12 +42,15 @@ execute_pairs:
   - [ category-Q1, duckdb ]
   - [ category-Q1, sqlite ]
   - [ category-Q1, chdb ]
+
   - [ category-Q2, duckdb ]
   - [ category-Q2, sqlite ]
   - [ category-Q2, chdb ]
+
   - [ category-Q3, duckdb ]
   - [ category-Q3, sqlite ]
   - [ category-Q3, chdb ]
+
   - [ category-Q4, duckdb ]
   - [ category-Q4, sqlite ]
   - [ category-Q4, chdb ]
@@ -62,12 +68,15 @@ compare_pairs:
   - [ category-Q1, duckdb ]
   - [ category-Q1, sqlite ]
   - [ category-Q1, chdb ]
+
   - [ category-Q2, duckdb ]
   - [ category-Q2, sqlite ]
   - [ category-Q2, chdb ]
+
   - [ category-Q3, duckdb ]
   - [ category-Q3, sqlite ]
   - [ category-Q3, chdb ]
+
   - [ category-Q4, duckdb ]
   - [ category-Q4, sqlite ]
   - [ category-Q4, chdb ]
