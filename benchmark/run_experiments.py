@@ -108,10 +108,12 @@ def main() -> None:
         summary_path = Path(config.config_data.cwd) / db_name / "summary.json"
         with open(summary_path, 'w') as f:
             json.dump(summary[db_name], f, indent=2)
+        logger.info(f"✓ Summary results exported to: {summary_path.resolve()}")
+        logger.info("")
         raw_data_path = Path(config.config_data.cwd) / db_name / "raw_data.json"
         with open(raw_data_path, 'w') as f:
             json.dump(raw_data[db_name], f, indent=2)
-        logger.info(f"✓ Results exported to: {summary_path.resolve()}")
+        logger.info(f"✓ Raw data exported to: {raw_data_path.resolve()}")
         logger.info("")
     logger.info("All experiments completed successfully!")
 
