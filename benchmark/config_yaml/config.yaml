@@ -80,36 +80,33 @@ query_groups:
     sqlite_sql: queries/Q1/Q1_sqlite.sql
     chdb_sql: queries/Q1/Q1_chdb.sql
     duckdb_sql_ban_ops: queries/Q1/Q1_duckdb_ban_ops.sql
-    sqlite_sql_ban_ops: queries/Q1/Q1_sqlite_ban_ops.sql
+    sqlite_sql_ban_ops: queries/Q1/Q1_sqlite_ban_ops.sql # A placeholder, not used
     chdb_sql_ban_ops: queries/Q1/Q1_chdb_ban_ops.sql
 
   - id: anomaly-Q1
     duckdb_sql: queries/anomaly/Q2_duckdb.sql
     sqlite_sql: queries/anomaly/Q2_sqlite.sql
     chdb_sql: queries/anomaly/Q1_chdb.sql
+    duckdb_sql_ban_ops: queries/anomaly/Q1_duckdb_ban_ops.sql
+    chdb_sql_ban_ops: queries/anomaly/Q1_chdb_ban_ops.sql
   - id: anomaly-Q2
     duckdb_sql: queries/anomaly/Q2_duckdb.sql
     sqlite_sql: queries/anomaly/Q2_sqlite.sql
     # chdb_sql: queries/anomaly/Q2_chdb.sql
+    duckdb_sql_ban_ops: queries/anomaly/Q2_duckdb_ban_ops.sql
+    # chdb_sql_ban_ops: queries/anomaly/Q2_chdb_ban_ops.sql
   - id: anomaly-Q3
     duckdb_sql: queries/anomaly/Q3_duckdb.sql
     sqlite_sql: queries/anomaly/Q3_sqlite.sql
     chdb_sql: queries/anomaly/Q3_chdb.sql
+    duckdb_sql_ban_ops: queries/anomaly/Q3_duckdb_ban_ops.sql
+    chdb_sql_ban_ops: queries/anomaly/Q3_chdb_ban_ops.sql
   - id: anomaly-Q4
     duckdb_sql: queries/anomaly/Q4_duckdb.sql
     sqlite_sql: queries/anomaly/Q4_sqlite.sql
     chdb_sql: queries/anomaly/Q4_chdb.sql
-
-  - id: trend-Q1
-    duckdb_sql: queries/trend/Q1_duckdb.sql
-  - id: trend-Q2
-    duckdb_sql: queries/trend/Q2_duckdb.sql
-  - id: trend-Q3
-    duckdb_sql: queries/trend/Q3_duckdb.sql
-  - id: trend-Q4
-    duckdb_sql: queries/trend/Q4_duckdb.sql
-  - id: trend-Q5
-    duckdb_sql: queries/trend/Q5_duckdb.sql
+    duckdb_sql_ban_ops: queries/anomaly/Q4_duckdb_ban_ops.sql
+    chdb_sql_ban_ops: queries/anomaly/Q4_chdb_ban_ops.sql
 
   - id: category-Q1
     duckdb_sql: queries/category/Q1_duckdb.sql
@@ -154,3 +151,14 @@ query_groups:
     chdb_sql: queries/tremor_detection/Q3_chdb.sql
     duckdb_sql_ban_ops: queries/tremor_detection/Q3_duckdb_ban_ops.sql
     chdb_sql_ban_ops: queries/tremor_detection/Q3_chdb_ban_ops.sql
+  
+  - id: trend-Q1
+    duckdb_sql: queries/trend/Q1_duckdb.sql
+  - id: trend-Q2
+    duckdb_sql: queries/trend/Q2_duckdb.sql
+  - id: trend-Q3
+    duckdb_sql: queries/trend/Q3_duckdb.sql
+  - id: trend-Q4
+    duckdb_sql: queries/trend/Q4_duckdb.sql
+  - id: trend-Q5
+    duckdb_sql: queries/trend/Q5_duckdb.sql
