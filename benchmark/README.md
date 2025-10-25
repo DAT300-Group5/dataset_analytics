@@ -111,7 +111,7 @@ source ~/.profile
 ### 1. Install Dependencies
 
 ```bash
-pip install psutil pandas duckdb matplotlib pyyaml
+pip install psutil pandas duckdb chdb matplotlib pyyaml
 ```
 
 ### 2. Create Databases
