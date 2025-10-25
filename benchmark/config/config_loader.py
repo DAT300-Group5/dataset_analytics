@@ -104,6 +104,11 @@ class ConfigLoader:
                     break
         return filtered_experiments
 
+    def get_validation_experiments(self) -> List[ExperimentParams]:
+        first_db = self.config_data.datasets[0]
+        experiments = self.filter_experiments(self.config_data.validate_pairs, include_ban_ops=False)
+        return [exp for exp in experiments if exp.db_name == first_db.name]
+
     def get_experiments(self) -> List[ExperimentParams]:
         """
         Generate a list of ExperimentParams for all combinations of datasets,
