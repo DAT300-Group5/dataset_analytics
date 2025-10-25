@@ -104,6 +104,11 @@ class ConfigLoader:
                     break
         return filtered_experiments
 
+    def get_validation_experiments(self) -> List[ExperimentParams]:
+        first_db = self.config_data.datasets[0]
+        experiments = self.filter_experiments(self.config_data.validate_pairs, include_ban_ops=False)
+        return [exp for exp in experiments if exp.db_name == first_db.name]
+
     def get_experiments(self) -> List[ExperimentParams]:
         """
         Generate a list of ExperimentParams for all combinations of datasets,
@@ -135,6 +140,7 @@ class ConfigLoader:
                             sql_file=Path(sql_file),
                             db_file=Path(db_file),
                             exp_name=exp_name,
+                            db_name=dataset.name,
                             group_id=query_group.id,
                             ban_optimizer=False,
                             engine_cmd=engine_cmd,
@@ -156,6 +162,7 @@ class ConfigLoader:
                             engine=engine,
                             sql_file=Path(sql_ban_optimizer),
                             db_file=Path(db_file),
+                            db_name=dataset.name,
                             exp_name=exp_name,
                             group_id=query_group.id,
                             ban_optimizer=True,

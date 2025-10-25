@@ -10,6 +10,7 @@ class ExperimentParams:
     engine : EngineType
     sql_file : Path
     db_file : Path
+    db_name: str
     exp_name : str
     group_id : str
     ban_optimizer: bool
@@ -24,6 +25,7 @@ class ExperimentParams:
                 f"  engine={self.engine},\n"
                 f"  sql_file={self.sql_file.resolve()},\n"
                 f"  db_file={self.db_file.resolve()},\n"
+                f"  db_name={self.db_name},\n"
                 f"  exp_name={self.exp_name},\n"
                 f"  group_id={self.group_id},\n"
                 f"  ban_optimizer={self.ban_optimizer},\n"
