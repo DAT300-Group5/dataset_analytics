@@ -748,44 +748,30 @@ def main():
     args = parse_env_args("Analyze benchmark experiment results")
     config_path = Path(__file__).parent / "config_yaml"
     config = ConfigLoader(config_path, env=args.env)
-    summary_file = Path(config.config_data.cwd) / "summary.json"
-    output_dir = Path(config.config_data.cwd)  / "visual"
-    
-    # Ensure output directory exists
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    print("Loading benchmark data...")
-    try:
-        data = load_summary_data(summary_file)
-    except FileNotFoundError as e:
-        print(f"❌ {e}")
-        sys.exit(2)
-    except ValueError as e:
-        print(f"❌ {e}")
-        sys.exit(3)
-    except PermissionError as e:
-        print(f"❌ {e}")
-        sys.exit(4)
-    except RuntimeError as e:
-        print(f"❌ {e}")
-        sys.exit(5)
+    for dataset in config.config_data.datasets:
+        db_name = dataset.name
+        summary_file = Path(config.config_data.cwd) / db_name / "summary.json"
+        output_dir = Path(config.config_data.cwd) / db_name / "visual"
 
-    print(f"Loaded data for {len(data)} queries\n")
-    
-    print("Generating visualizations...")
-    print("-" * 50)
+        # Ensure output directory exists
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    clean_path(str(output_dir.resolve()))
-    create_dashboard_by_group(data, output_dir / "comparison_by_group")
-    create_dashboard_by_engine(data, output_dir / "comparison_by_engine")
-    create_dashboard_by_optimizer(data, output_dir / "comparison_by_optimizer")
-    # create_execution_time_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_memory_usage_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_cpu_usage_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_throughput_comparison(data, config.config_data.compare_pairs, output_dir)
-    # create_performance_percentiles(data, output_dir)
-    # create_comprehensive_dashboard(data, config.config_data.compare_pairs, output_dir)
-    # create_performance_summary_table(data, output_dir)
+        print("Loading benchmark data...")
+        try:
+            data = load_summary_data(summary_file)
+        except Exception as e:
+            print(f"❌ {e}")
+            sys.exit(1)
+
+        print(f"Loaded data for {len(data)} queries\n")
+
+        print("Generating visualizations...")
+        print("-" * 50)
+
+        clean_path(str(output_dir.resolve()))
+        create_dashboard_by_group(data, output_dir / "comparison_by_group")
+        create_dashboard_by_engine(data, output_dir / "comparison_by_engine")
+        create_dashboard_by_optimizer(data, output_dir / "comparison_by_optimizer")
 
 
 if __name__ == "__main__":

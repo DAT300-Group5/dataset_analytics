@@ -24,7 +24,7 @@ def build_experiment(params: ExperimentParams):
     sql_file = str(params.sql_file.resolve())
     db_file = str(params.db_file.resolve())
     engine_cmd = params.engine_cmd
-    cwd = str((params.cwd / params.exp_name).resolve())
+    cwd = str((params.cwd / params.db_name / params.exp_name).resolve())
     if params.engine == EngineType.SQLITE:
         runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd, run_mode=RunMode.VALIDATE)
         return runner

@@ -29,7 +29,7 @@ def build_experiment(params : ExperimentParams) :
     db_file = str(params.db_file.resolve())
     engine_cmd = params.engine_cmd
     
-    cwd = str((params.cwd / params.exp_name).resolve())
+    cwd = str((params.cwd / params.db_name / params.exp_name).resolve())
     
     if params.engine == EngineType.SQLITE:
         runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd)
@@ -50,12 +50,15 @@ def build_experiment(params : ExperimentParams) :
 
 def add_result_to_summary(summary: dict, exp: ExperimentParams, result: dict) -> None:
     group_id = exp.group_id
+    db_name = exp.db_name
     optimizer_status = "ban_ops" if exp.ban_optimizer else "default"
-    if group_id not in summary:
-        summary[group_id] = {}
-    if exp.engine.value not in summary[group_id]:
-        summary[group_id][exp.engine.value] = {}
-    summary[group_id][exp.engine.value][optimizer_status] = result
+    if db_name not in summary:
+        summary[db_name] = {}
+    if group_id not in summary[db_name]:
+        summary[db_name][group_id] = {}
+    if exp.engine.value not in summary[db_name][group_id]:
+        summary[db_name][group_id][exp.engine.value] = {}
+    summary[db_name][group_id][exp.engine.value][optimizer_status] = result
 
 def main() -> None:
     """
@@ -105,11 +108,12 @@ def main() -> None:
     logger.info("=" * 60)
     logger.info("Exporting Results")
     logger.info("=" * 60)
-    summary_path = Path(config.config_data.cwd) / "summary.json"
-    with open(summary_path, 'w') as f:
-        json.dump(summary, f, indent=2)
-    logger.info(f"✓ Results exported to: {summary_path.resolve()}")
-    logger.info("")
+    for db_name in summary.keys():
+        summary_path = Path(config.config_data.cwd) / db_name / "summary.json"
+        with open(summary_path, 'w') as f:
+            json.dump(summary[db_name], f, indent=2)
+        logger.info(f"✓ Results exported to: {summary_path.resolve()}")
+        logger.info("")
     logger.info("All experiments completed successfully!")
 
 if __name__ == "__main__":
