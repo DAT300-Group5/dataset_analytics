@@ -52,13 +52,7 @@ def add_result_to_summary(summary: dict, exp: ExperimentParams, result: dict) ->
     group_id = exp.group_id
     db_name = exp.db_name
     optimizer_status = "ban_ops" if exp.ban_optimizer else "default"
-    if db_name not in summary:
-        summary[db_name] = {}
-    if group_id not in summary[db_name]:
-        summary[db_name][group_id] = {}
-    if exp.engine.value not in summary[db_name][group_id]:
-        summary[db_name][group_id][exp.engine.value] = {}
-    summary[db_name][group_id][exp.engine.value][optimizer_status] = result
+    summary.setdefault(db_name, {}).setdefault(group_id, {}).setdefault(exp.engine.value, {})[optimizer_status] = result
 
 def main() -> None:
     """
