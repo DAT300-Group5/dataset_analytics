@@ -12,15 +12,17 @@ logger = setup_logger(__name__)
 
 class SQLiteRunner(Runner):
 
-    def __init__(self, sql_file: Path, db_file: Path, cmd: str = "sqlite3", cwd: Path = None, run_mode: RunMode = RunMode.PROFILE):
-
-        self.sql_file = sql_file
-        self.db_file = db_file
-        self.cmd = cmd
-        self.cwd = Path.cwd() if cwd is None else cwd
-        self.run_mode = run_mode
+    def __init__(self, sql_file: Path, db_file: Path, cwd: Path = Path.cwd(), cmd: str = "sqlite", run_mode: RunMode = RunMode.PROFILE):
         
-        self.results_dir = self.cwd / str(run_mode.name)
+        super().__init__(
+            sql_file,
+            db_file,
+            cmd,
+            cwd,
+            run_mode,
+            cwd / str(run_mode.name)
+        )
+        
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
 

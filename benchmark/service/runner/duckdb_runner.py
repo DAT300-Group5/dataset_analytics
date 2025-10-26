@@ -12,18 +12,17 @@ logger = setup_logger(__name__)
 
 class DuckdbRunner(Runner):
 
-    def __init__(self, sql_file: Path, db_file: Path, cmd: str = "duckdb", cwd: Path = None, run_mode: RunMode = RunMode.PROFILE):
+    def __init__(self, sql_file: Path, db_file: Path, cwd: Path = Path.cwd(), cmd: str = "duckdb", run_mode: RunMode = RunMode.PROFILE):
 
-        self.sql_file = sql_file
-        if run_mode == RunMode.PROFILE:  # Prepare SQL file and use the temporary file
-            self.sql_file = prepare_profiling_duckdb_sql_file(sql_file)
-
-        self.db_file = db_file
-        self.cmd = cmd
-        self.cwd = Path.cwd() if cwd is None else cwd
-        self.run_mode = run_mode
+        super().__init__(
+            prepare_profiling_duckdb_sql_file(sql_file) if run_mode == RunMode.PROFILE else sql_file,
+            db_file,
+            cmd,
+            cwd,
+            run_mode,
+            cwd / str(run_mode.name)
+        )
         
-        self.results_dir = self.cwd / str(run_mode.name)
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
