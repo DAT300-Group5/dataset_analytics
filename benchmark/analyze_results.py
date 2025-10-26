@@ -101,8 +101,6 @@ def get_colors_for_labels(labels):
         for i, idx in enumerate(idxs):
             colors[idx] = shades[i]
 
-    # Fill fallback indices using matplotlib default cycle
-    default_cycle = list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())
     # keep a small, deterministic selection from the default_cycle
     tableau_values = list(mcolors.TABLEAU_COLORS.values())
     cycle_len = len(tableau_values) or 1
@@ -158,34 +156,33 @@ def plot_bar_chart(params : PlotParams):
     plt.close()
 
 
-def load_summary_data(file_path):
+def load_summary_data(file: Path):
     """
     Load benchmark summary data from JSON file.
     
     Args:
-        file_path (Path): Path to summary.json file
+        file (Path): Path to summary.json file
         
     Returns:
         dict: Parsed JSON data
     """
-    path = Path(file_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Summary file not found: {path}")
+    if not file.exists():
+        raise FileNotFoundError(f"Summary file not found: {file}")
 
     try:
-        with open(path, 'r') as f:
+        with open(file, 'r') as f:
             return json.load(f)
     except json.JSONDecodeError as e:
         # Provide a clearer error for invalid JSON content
-        raise ValueError(f"Invalid JSON in summary file {path}: {e}") from e
+        raise ValueError(f"Invalid JSON in summary file {file}: {e}") from e
     except PermissionError as e:
-        raise PermissionError(f"Permission denied reading summary file {path}: {e}") from e
+        raise PermissionError(f"Permission denied reading summary file {file}: {e}") from e
     except Exception as e:
         # Catch-all to convert unexpected IO errors into a runtime error with context
-        raise RuntimeError(f"Unexpected error reading summary file {path}: {e}") from e
+        raise RuntimeError(f"Unexpected error reading summary file {file}: {e}") from e
 
 
-def compare_specific_results(title : str , data_list, output_dir : Path):
+def compare_specific_results(title: str, data_list: list, output_dir: Path):
     """
     Compare specific (group_id, engine) combinations and generate visualization.
     
@@ -542,7 +539,7 @@ def create_throughput_comparison(data, compare_pairs, output_dir):
     plot_bar_chart(params)
 
 
-def create_performance_percentiles(data, output_dir):
+def create_performance_percentiles(data, output_dir: Path):
     """
     Create box plot showing performance percentiles for execution time.
     
@@ -597,7 +594,7 @@ def create_performance_percentiles(data, output_dir):
         plt.close()
 
 
-def create_comprehensive_dashboard(title, data_list, output_dir):
+def create_comprehensive_dashboard(title: str, data_list: list, output_dir: Path):
     """
     Create a comprehensive dashboard with multiple metrics.
     Simply calls compare_specific_results with all available combinations.
@@ -615,7 +612,7 @@ def create_comprehensive_dashboard(title, data_list, output_dir):
     compare_specific_results(title, data_list, output_dir)
 
 
-def create_performance_summary_table(data, output_dir):
+def create_performance_summary_table(data, output_dir: Path):
     """
     Create a text summary of performance metrics.
     
@@ -651,7 +648,6 @@ def create_performance_summary_table(data, output_dir):
             f.write("\n")
     
     print(f"✓ Generated: {output_file.name}")
-
 
 
 def aggregate_by_group_default(data: Dict) -> Dict[str, List[dict]]:
@@ -706,44 +702,6 @@ def create_dashboard_by_optimizer(data: Dict, output_dir: Path):
     aggregated_data = aggregate_by_optimizer(data)
     for group_key, entries in aggregated_data.items():
         create_comprehensive_dashboard(f"Comparison by optimizer {group_key}" , entries, output_dir / group_key)
-
-
-def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
-    """
-    Public API for generating custom comparisons.
-    
-    Args:
-        summary_file_path (str or Path): Path to summary.json
-        comparisons (list): List of tuples [(group_id, engine), ...]
-        output_dir (str or Path, optional): Output directory. Defaults to results/visual/
-        
-    Example:
-        generate_custom_comparison(
-            'results/summary.json',
-            [('Q1', 'duckdb'), ('Q1', 'sqlite'), ('Q2', 'duckdb')],
-            'results/visual/'
-        )
-    """
-    summary_file = Path(summary_file_path)
-    
-    if output_dir is None:
-        output_dir = summary_file.parent / "visual"
-    else:
-        output_dir = Path(output_dir)
-    
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    print(f"Loading data from {summary_file}...")
-    try:
-        data = load_summary_data(summary_file)
-    except (FileNotFoundError, ValueError, PermissionError, RuntimeError) as e:
-        print(f"❌ Failed to load summary data: {e}")
-        return False
-
-    print(f"Generating comparison for {len(comparisons)} combinations...")
-
-    print(f"✅ Comparison saved to {output_dir.resolve()}")
-    return True
 
 
 def main():

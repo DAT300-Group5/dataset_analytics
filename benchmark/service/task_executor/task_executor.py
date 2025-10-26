@@ -36,7 +36,7 @@ class TaskExecutor:
                    f"Memory(peak)={result.peak_memory_bytes.max / 1024 / 1024:.1f}MB")
         return result
 
-    def _execute(self, repeat, interval, is_pivot=False) -> TaskExecuteResult:
+    def _execute(self, repeat: int, interval: float, is_pivot: bool = False) -> TaskExecuteResult:
         clean_path(self.runner.results_dir)
         results = []
         for i in range(repeat):
