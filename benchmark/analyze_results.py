@@ -9,7 +9,7 @@ comprehensive performance comparison charts.
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
@@ -29,7 +29,7 @@ ENGINE_BASE_COLORS = {
 }
 
 
-def _find_engine_in_label(label: str) -> str:
+def _find_engine_in_label(label: str) -> Optional[str]:
     """Try to extract the engine name from a label string.
 
     The label patterns in this file commonly include the engine name as a
@@ -64,7 +64,9 @@ def _generate_shades(hex_color: str, n: int):
         # t from 0.0 (base) to 0.7 (much lighter) depending on index
         t = (i / max(1, n - 1)) * 0.7 if n > 1 else 0.0
         mixed = tuple((1 - t) * c + t * 1.0 for c in base_rgb)  # interpolate to white
-        shades.append(mcolors.to_hex(mixed))
+        # Ensure a fixed-length 3-tuple for matplotlib's to_hex to satisfy type checkers
+        rgb3 = (mixed[0], mixed[1], mixed[2])
+        shades.append(mcolors.to_hex(rgb3))
     return shades
 
 
@@ -89,7 +91,8 @@ def get_colors_for_labels(labels):
         else:
             fallback_indices.append(idx)
 
-    colors = [None] * len(labels)
+    # Initialize with a default hex color so list is typed as str and accepts assignments
+    colors = ['#7f7f7f'] * len(labels)
 
     # Assign shades for each engine group
     for engine, idxs in engine_indices.items():
@@ -101,18 +104,15 @@ def get_colors_for_labels(labels):
     # Fill fallback indices using matplotlib default cycle
     default_cycle = list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())
     # keep a small, deterministic selection from the default_cycle
-    fallback_cycle = [list(mcolors.TABLEAU_COLORS.values())[i % len(mcolors.TABLEAU_COLORS)] for i in range(max(1, len(fallback_indices)))]
+    tableau_values = list(mcolors.TABLEAU_COLORS.values())
+    cycle_len = len(tableau_values) or 1
+    fallback_cycle = [tableau_values[i % cycle_len] for i in range(max(1, len(fallback_indices)))]
     for i, idx in enumerate(fallback_indices):
         # fallback_cycle entries are color names; ensure hex via to_hex
         try:
             colors[idx] = mcolors.to_hex(fallback_cycle[i % len(fallback_cycle)])
         except Exception:
             colors[idx] = '#7f7f7f'
-
-    # For any remaining None (shouldn't happen), put a neutral gray
-    for i, c in enumerate(colors):
-        if c is None:
-            colors[i] = '#7f7f7f'
 
     return colors
 
@@ -297,7 +297,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
         table[(0, i)].set_facecolor('#40466e')
         table[(0, i)].set_text_props(weight='bold', color='white')
 
-    fig.tight_layout(rect=[0, 0.03, 1, 0.94])
+    fig.tight_layout(rect=(0, 0.03, 1, 0.94))
     fig.suptitle(title, y=0.99, fontsize=18)
     
     # Generate filename from comparisons
@@ -575,13 +575,16 @@ def create_performance_percentiles(data, output_dir):
 
         # Create box plot
         bp = ax.boxplot(box_data, positions=positions, widths=0.6,
-                        patch_artist=True, showmeans=True,
-                        labels=labels)
+                        patch_artist=True, showmeans=True)
 
         # Color the boxes
         for patch, color in zip(bp['boxes'], colors_list):
             patch.set_facecolor(color)
             patch.set_alpha(0.7)
+
+        # Set x ticks and labels manually
+        ax.set_xticks(positions)
+        ax.set_xticklabels(labels, rotation=45, ha='right')
 
         ax.set_ylabel('Execution Time (seconds)')
         ax.set_title(f'{query} - Execution Time Distribution (min, p50, avg, p95, max)')
