@@ -20,10 +20,7 @@ class DuckdbRunner:
         self.db_file = Path(db_file)
         self.cmd = cmd
         self.cwd = Path.cwd() if cwd is None else Path(cwd)
-        self.execution_result = None
         self.run_mode = run_mode
-        
-        self.cpu_result = None
         
         self.results_dir = self.cwd / str(run_mode.name)
         # Create results directory if it doesn't exist
