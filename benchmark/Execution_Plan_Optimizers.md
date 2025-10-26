@@ -41,6 +41,18 @@ The documentation explains many aspects of what the optimizer does, but it does 
 Looking at the [Pragma statements supported by SQLite](https://sqlite.org/pragma.html), the available controls are quite limited. For example,
 `PRAGMA automatic_index = ON|OFF` determines whether SQLite automatically creates transient indexes for equality joins and similar cases.
 
+--- 
+
+Based on the execution plan:
+SQLite optimizations that are not seen at first glance but help performance:
+
+JOINS: 
+- automatic indexing (explained [here](https://misfra.me/2022/sqlite-automatic-indexes/)
+- bloom filters (explained [here](https://avi.im/blag/2024/sqlite-past-present-future/) based on the article SQLite for OLAP
+
+GROUP BY/SORT:
+- temp B-trees (explained [here](https://micahkepe.com/blog/sqlite-query-optimizer/) search CTRL+F to get to the part about b trees)
+
 ---
 
 In addition, not only SQLite, but also various database engines' configurable items will include options for how many resources the database engine can use, such as setting `cache_size`, `mmap_size`, and so on. I don't think blindly increasing these settings in resource-constrained situations will be helpful - it may even be harmful, such as common jitter and paging problems in the operating system.
@@ -342,3 +354,4 @@ SET cross_to_inner_join_rewrite          = 0;
 -- Note: These settings can be safely applied in a session context.
 -- They affect only query optimization, not query correctness or stability.
 ```
+
