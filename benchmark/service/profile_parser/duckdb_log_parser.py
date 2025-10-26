@@ -23,10 +23,9 @@ class DuckdbLogParser:
         output_rows = self._parse_output_rows(stdout_file)
         
         # Parse profiling JSON files for timing, memory, and query count
-        timing_info, memory_info, query_count = self._parse_profiling_files()
+        timing_info, memory_info = self._parse_profiling_files()
         
         return QueryMetrics(
-            query_count=query_count,
             timing=timing_info,
             memory=memory_info,
             output_rows=output_rows
@@ -42,24 +41,22 @@ class DuckdbLogParser:
             logger.warning(f"Could not parse {stdout_file.name}: {e}")
             return 0
     
-    def _parse_profiling_files(self) -> tuple[TimingInfo, MemoryInfo, int]:
+    def _parse_profiling_files(self) -> tuple[TimingInfo, MemoryInfo]:
         """Parse all profiling_query_*.json files in the log directory.
         
         Returns:
-            tuple: (timing_info, memory_info, query_count)
+            tuple: (timing_info, memory_info)
         """
         timing_info = TimingInfo()
         memory_info = MemoryInfo()
-        query_count = 0
 
         # Find all profiling JSON files
         profiling_files = sorted(self.log_path.glob("profiling_query_*.json"))
-        query_count = len(profiling_files)
         
         if not profiling_files:
             logger.warning(f"No profiling files found in {self.log_path}")
-            return timing_info, memory_info, query_count
-        
+            return timing_info, memory_info
+
         total_latency = 0.0
         max_memory = 0
         
@@ -88,8 +85,8 @@ class DuckdbLogParser:
             
         except Exception as e:
             logger.warning(f"Could not parse profiling files: {e}")
-        
-        return timing_info, memory_info, query_count
+
+        return timing_info, memory_info
 
 if __name__ == "__main__":
     

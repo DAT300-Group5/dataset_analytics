@@ -19,21 +19,19 @@ class SqliteLogParser:
             raise FileNotFoundError(f"Log file {stdout_file} does not exist.")
         
         # Parse stdout file - it contains both data rows and statistics
-        output_rows, timing_info, memory_info, query_count = self._parse_stdout(stdout_file)
+        output_rows, timing_info, memory_info = self._parse_stdout(stdout_file)
         
         return QueryMetrics(
-            query_count=query_count,
             timing=timing_info,
             memory=memory_info,
             output_rows=output_rows
         )
     
-    def _parse_stdout(self, stdout_file: Path) -> tuple[int, TimingInfo, MemoryInfo, int]:
+    def _parse_stdout(self, stdout_file: Path) -> tuple[int, TimingInfo, MemoryInfo]:
         """Parse stdout.log which contains both data rows and statistics."""
         timing_info = TimingInfo()
         memory_info = MemoryInfo()
         output_rows = 0
-        query_count = 0
         
         try:
             with open(stdout_file, 'r', encoding='utf-8') as f:
@@ -79,7 +77,6 @@ class SqliteLogParser:
             # Parse timing information and count queries
             # Format: "Run Time: real 17.338 user 14.308602 sys 2.313507"
             timing_matches = re.findall(r'Run Time: real\s+([\d.]+)\s+user\s+([\d.]+)\s+sys\s+([\d.]+)', stats_content)
-            query_count = len(timing_matches)
             
             if timing_matches:
                 # Sum up all timing results for multiple queries
@@ -127,8 +124,8 @@ class SqliteLogParser:
             
         except Exception as e:
             logger.warning(f"Could not parse {stdout_file.name}: {e}")
-        
-        return output_rows, timing_info, memory_info, query_count
+
+        return output_rows, timing_info, memory_info
 
 if __name__ == "__main__":
     

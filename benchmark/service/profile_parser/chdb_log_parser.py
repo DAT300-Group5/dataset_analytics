@@ -22,7 +22,6 @@ class ChdbLogParser:
         timing_info, memory_info, output_rows = self._parse_stdout(stdout_file)
         
         return QueryMetrics(
-            query_count=1,
             timing=timing_info,
             memory=memory_info,
             output_rows=output_rows
