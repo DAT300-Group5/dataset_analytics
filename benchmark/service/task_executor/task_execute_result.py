@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+import dataclasses
 
 
-@dataclass
+@dataclasses.dataclass
 class StatSummary:
     """Statistical summary of a list of numeric values"""
     raw_data: list[float]
@@ -14,7 +14,7 @@ class StatSummary:
 
     def to_summary_dict(self):
         """Convert to dictionary for JSON serialization"""
-        data = self.__dict__.copy()
+        data = dataclasses.asdict(self)
         data.pop("raw_data")
         return data
 
@@ -22,7 +22,7 @@ class StatSummary:
         """Convert only raw data to dictionary for JSON serialization"""
         return {"raw_data": self.raw_data}
 
-@dataclass
+@dataclasses.dataclass
 class TaskExecuteResult:
     cpu_peak_percent: StatSummary
     cpu_avg_percent: StatSummary
@@ -59,7 +59,7 @@ class TaskExecuteResult:
             "output_rows": self.output_rows
         }
 
-@dataclass
+@dataclasses.dataclass
 class SingleTaskExecuteResult:
     cpu_peak_percent: float
     cpu_avg_percent: float
@@ -72,4 +72,4 @@ class SingleTaskExecuteResult:
 
     def to_dict(self):
         """Convert to dictionary for JSON serialization"""
-        return self.__dict__
+        return dataclasses.asdict(self)
