@@ -84,7 +84,7 @@ if __name__ == "__main__":
     sqlite_cmd = "sqlite3"
     cwd = root / "benchmark/test"
 
-    runner = SQLiteRunner(sql_file=str(sql_file), db_file=str(db_file), cmd=sqlite_cmd, cwd=str(cwd))
+    runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd)
     sqlite_parser = SqliteLogParser(log_path=runner.results_dir)
     task_executor = TaskExecutor(runner=runner, log_parser=sqlite_parser, sample_count=10, std_repeat=3)
     task_executor.std_execute()

@@ -78,7 +78,7 @@ def project_root(start: Path | None = None) -> Path:
     )
 
 
-def prepare_profiling_duckdb_sql_file(sql_file: str) -> Path:
+def prepare_profiling_duckdb_sql_file(sql_file: Path) -> Path:
     """
     Prepare the SQL file by adding profiling configuration:
     1. Add PRAGMA enable_profiling='json' at the beginning if not present
@@ -92,11 +92,10 @@ def prepare_profiling_duckdb_sql_file(sql_file: str) -> Path:
     Returns:
         Path to the temporary profiling SQL file (original_name_profiling_tmp.sql)
     """
-    sql_path = Path(sql_file)
     
     # Create temporary file name
-    tmp_file = sql_path.parent / f"{sql_path.stem}_profiling_tmp{sql_path.suffix}"
-    
+    tmp_file = sql_file.parent / f"{sql_file.stem}_profiling_tmp{sql_file.suffix}"
+
     # Read the original SQL file
     with open(sql_file, 'r') as f:
         content = f.read()

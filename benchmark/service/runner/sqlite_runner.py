@@ -11,12 +11,12 @@ logger = setup_logger(__name__)
 
 class SQLiteRunner:
 
-    def __init__(self, sql_file: str, db_file: str, cmd: str = "sqlite3", cwd: str = None, run_mode : RunMode = RunMode.PROFILE):
+    def __init__(self, sql_file: Path, db_file: Path, cmd: str = "sqlite3", cwd: Path = None, run_mode: RunMode = RunMode.PROFILE):
 
-        self.sql_file = Path(sql_file)
-        self.db_file = Path(db_file)
+        self.sql_file = sql_file
+        self.db_file = db_file
         self.cmd = cmd
-        self.cwd = Path.cwd() if cwd is None else Path(cwd)
+        self.cwd = Path.cwd() if cwd is None else cwd
         self.run_mode = run_mode
         
         self.results_dir = self.cwd / str(run_mode.name)
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     db_file = root / "benchmark/db_vs14/vs14_data.sqlite"
     cwd = root / "benchmark/test"
 
-    runner = SQLiteRunner(sql_file=str(sql_file), db_file=str(db_file), cmd=sqlite_cmd, cwd=str(cwd), run_mode=RunMode.PROFILE)
+    runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd, run_mode=RunMode.PROFILE)
     
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()
