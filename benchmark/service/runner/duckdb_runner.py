@@ -3,13 +3,14 @@ import subprocess
 from pathlib import Path
 
 from consts.RunMode import RunMode
+from .runner import Runner
 from util.file_utils import prepare_profiling_duckdb_sql_file, resolve_cmd
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
 
 
-class DuckdbRunner:
+class DuckdbRunner(Runner):
 
     def __init__(self, sql_file: Path, db_file: Path, cmd: str = "duckdb", cwd: Path = None, run_mode: RunMode = RunMode.PROFILE):
 
