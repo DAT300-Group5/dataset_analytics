@@ -150,7 +150,7 @@ class ConfigLoader:
                             std_repeat=self.config_data.std_repeat
                         )
                         experiments.append(exp_params)
-                        print(f"Created experiment", exp_params)
+                        # print(f"Created experiment", exp_params)
 
                     sql_ban_optimizer = getattr(query_group, f"{engine.value}_sql_ban_ops", None)
                     if sql_ban_optimizer and db_file:
@@ -173,11 +173,13 @@ class ConfigLoader:
                             std_repeat=self.config_data.std_repeat
                         )
                         experiments.append(exp_params)
-                        print(f"Created experiment with banned optimizer", exp_params)
+                        # print(f"Created experiment with banned optimizer", exp_params)
+
         self.experiments = experiments
         return experiments
     
 if __name__ == "__main__":
+    
     # python3 -m config.config_loader
     
     from util.file_utils import project_root
