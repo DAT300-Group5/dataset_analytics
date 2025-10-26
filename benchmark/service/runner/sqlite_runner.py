@@ -77,7 +77,7 @@ if __name__ == "__main__":
     db_file = root / "benchmark/db_vs14/vs14_data.sqlite"
     cwd = root / "benchmark/test"
 
-    runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd, run_mode=RunMode.PROFILE)
+    runner = SQLiteRunner(sql_file=str(sql_file), db_file=str(db_file), cmd=sqlite_cmd, cwd=str(cwd), run_mode=RunMode.PROFILE)
     
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()

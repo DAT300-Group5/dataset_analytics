@@ -43,6 +43,9 @@ class TaskExecutor:
             logger.info(f"  Run {i + 1}/{repeat}: Executing query...")
             process = self.runner.run_subprocess()
             monitor_result = monitor_subprocess(process, interval=interval)
+            if monitor_result is None:
+                logger.error("monitor_subprocess returned None for run %d/%d; aborting.", i + 1, repeat)
+                raise RuntimeError("monitor_subprocess returned None")
             query_metric = self.log_parser.parse_log()
             task_execute_result = combine_results(monitor_result, query_metric)
             logger.info(f"  Run {i + 1}/{repeat}: Time={task_execute_result.execution_time:.2f}s, "
@@ -80,8 +83,8 @@ if __name__ == "__main__":
     db_file = root / "benchmark/db_vs14/vs14_data.sqlite"
     sqlite_cmd = "sqlite3"
     cwd = root / "benchmark/test"
-    
-    runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd)
+
+    runner = SQLiteRunner(sql_file=str(sql_file), db_file=str(db_file), cmd=sqlite_cmd, cwd=str(cwd))
     sqlite_parser = SqliteLogParser(log_path=runner.results_dir)
     task_executor = TaskExecutor(runner=runner, log_parser=sqlite_parser, sample_count=10, std_repeat=3)
     task_executor.std_execute()

@@ -85,7 +85,7 @@ if __name__ == "__main__":
     db_file = root / "benchmark/db_vs14/vs14_data_chdb"
     cwd = root / "benchmark/test"
 
-    runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd, cmd=chdb_cmd, run_mode=RunMode.PROFILE)
+    runner = ChdbRunner(sql_file=str(sql_file), db_file=str(db_file), cwd=str(cwd), cmd=str(chdb_cmd), run_mode=RunMode.PROFILE)
 
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()

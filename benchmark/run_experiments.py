@@ -24,7 +24,7 @@ from util.log_config import setup_logger
 logger = setup_logger(__name__)
 
 
-def build_experiment(params : ExperimentParams) :
+def build_experiment(params : ExperimentParams) -> TaskExecutor:
     sql_file = str(params.sql_file.resolve())
     db_file = str(params.db_file.resolve())
     engine_cmd = params.engine_cmd
@@ -43,10 +43,14 @@ def build_experiment(params : ExperimentParams) :
         return task_executor
     elif params.engine == EngineType.CHDB:
         runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd)
-        runner.set_library_path(params.chdb_library_path)
+        if params.chdb_library_path is not None:
+            runner.set_library_path(params.chdb_library_path)
         chdb_parser = ChdbLogParser(log_path=runner.results_dir)
         task_executor = TaskExecutor(runner=runner, log_parser=chdb_parser, sample_count=params.sample_count, std_repeat=params.std_repeat)
         return task_executor
+
+    # Ensure we never return None; signal unsupported engine explicitly.
+    raise ValueError(f"Unsupported engine type: {params.engine}")
 
 def add_result_to_dict(data_dict: dict, exp: ExperimentParams, result: dict) -> None:
     group_id = exp.group_id

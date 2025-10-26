@@ -111,13 +111,18 @@ class ProcessMonitor:
         # Extract values for calculations
         cpu_values = [s.cpu_percent for s in self.snapshots]
 
+        # Safely compute execution time only when both timestamps are available
+        execution_time: Optional[float] = None
+        if self.start_time is not None and self.end_time is not None:
+            execution_time = self.end_time - self.start_time
+
         result = ProcessMonitorResult(
             # CPU statistics
             peak_cpu_percent=max(cpu_values),
             avg_cpu_percent=sum(cpu_values) / len(cpu_values),
             samples_count=len(self.snapshots),
             sampling_interval=self.interval,
-            execution_time=self.end_time - self.start_time,
+            execution_time=execution_time if execution_time is not None else 0.0,
             # All snapshots
             snapshots=self.snapshots
         )
@@ -158,7 +163,7 @@ if __name__ == "__main__":
     db_file = root / "benchmark/db_vs14/vs14_data.sqlite"
     cwd = root / "benchmark/test"
 
-    runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd)
+    runner = SQLiteRunner(sql_file=str(sql_file), db_file=str(db_file), cmd=sqlite_cmd, cwd=str(cwd))
     process = runner.run_subprocess()
     monitor = monitor_subprocess(process, interval=0.002)
     stdout, stderr = process.communicate()
