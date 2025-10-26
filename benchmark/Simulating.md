@@ -78,6 +78,7 @@ Enable SSH root password login:
 ```bash
 # 1) Ensure target directory exists
 sudo virt-customize -a ~/aarch64-img/work/gwatch-sim.qcow2 --mkdir /etc/ssh/sshd_config.d
+
 # 2) Write override snippet to temporary file
 cat > /tmp/zz-cloud-override.conf <<'EOF'
 PermitRootLogin yes
@@ -85,8 +86,10 @@ PasswordAuthentication yes
 ChallengeResponseAuthentication no
 UsePAM yes
 EOF
+
 # 3) Inject into image
-sudo virt-copy-in -a ~/aarch64-img/work/gwatch-sim.qcow2 /tmp/zz-cloud-override.conf /etc/ssh/sshd_config.d/
+sudo virt-copy-in -a ~/aarch64-img/work/gwatch-sim.qcow2 \
+  /tmp/zz-cloud-override.conf /etc/ssh/sshd_config.d/
 ```
 
 Set the `root` password:
@@ -146,9 +149,9 @@ packages:
 runcmd:
   - echo "alias python=python3" >> /root/.bashrc
 
-  - curl -fsSL https://install.duckdb.org | sh
-  - bash -lc 'echo export PATH=\"$HOME/.duckdb/cli/latest:\$PATH\" >> /root/.profile'
-  - bash -lc 'echo export PATH=\"$HOME/.duckdb/cli/latest:\$PATH\" >> /root/.bashrc'
+  # - curl -fsSL https://install.duckdb.org | sh
+  - bash -lc 'echo export PATH=\"/root/.duckdb/cli/latest:\$PATH\" >> /root/.profile'
+  - bash -lc 'echo export PATH=\"/root/.duckdb/cli/latest:\$PATH\" >> /root/.bashrc'
 
   - curl -fsSL https://lib.chdb.io | bash || true
   - mkdir -p /root/.local/bin
@@ -230,11 +233,14 @@ qemu-system-aarch64 \
 Login to verify environment:
 
 ```bash
+# Install DuckDB here
+curl -fsSL https://install.duckdb.org | sh
+
 # Verify Python environment and tools
-python3 -c "import pandas,matplotlib,psutil,yaml; print('Python env OK')"
+python -c "import pandas,matplotlib,psutil,yaml; print('Python env OK')"
 duckdb --version
 sqlite3 --version
-chdb_cli --help
+chdb_cli
 ```
 
 ### 7. Test SSH Login (on Host)
@@ -392,7 +398,7 @@ Download image:
 
 ```bash
 pip install gdown
-QCOW2="https://drive.google.com/uc?id=1ciPZ9iOy17D2KfCcIqjPRBcRj8OxU7Z8"
+QCOW2="https://drive.google.com/uc?id=1XKFniKNfB4hkA020rI3anY5TXYwm7Ipa"
 gdown $QCOW2
 ```
 

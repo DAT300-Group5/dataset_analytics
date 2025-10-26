@@ -30,7 +30,7 @@ source ~/.bashrc
 
 ```bash
 pip install gdown
-QCOW2="https://drive.google.com/uc?id=1ciPZ9iOy17D2KfCcIqjPRBcRj8OxU7Z8"
+QCOW2="https://drive.google.com/uc?id=1XKFniKNfB4hkA020rI3anY5TXYwm7Ipa"
 gdown $QCOW2
 ```
 
@@ -164,6 +164,11 @@ qemu-system-aarch64 \
 ```bash
 ssh -p 2222 root@localhost
 ```
+
+Login credentials:
+
+- **Username:** root
+- **Password:** DAT300
 
 ```bash
 cd benchmark/
