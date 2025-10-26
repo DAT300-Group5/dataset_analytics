@@ -56,7 +56,7 @@ class ConfigLoader:
         if "chdb_library_path" in data:
             config.chdb_library_path = data["chdb_library_path"]
         else:
-            config.chdb_library_path = ""
+            config.chdb_library_path = None
 
         # Parse simple fields
         config.repeat_pilot = data["repeat_pilot"]

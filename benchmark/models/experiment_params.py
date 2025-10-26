@@ -7,18 +7,18 @@ from consts.EngineType import EngineType
 
 @dataclass
 class ExperimentParams:
-    engine : EngineType
-    sql_file : Path
-    db_file : Path
+    engine: EngineType
+    sql_file: Path
+    db_file: Path
     db_name: str
-    exp_name : str
-    group_id : str
+    exp_name: str
+    group_id: str
     ban_optimizer: bool
-    engine_cmd : str
-    chdb_library_path : Optional[str]
-    cwd : Path
-    sample_count : int
-    std_repeat : int
+    engine_cmd: str
+    chdb_library_path: Optional[str]
+    cwd: Path
+    sample_count: int
+    std_repeat: int
 
     def __str__(self):
         return (f"ExperimentParams(\n"
