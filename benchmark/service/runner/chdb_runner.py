@@ -4,26 +4,27 @@ import subprocess
 from pathlib import Path
 
 from consts.RunMode import RunMode
+from .runner import Runner
 from util.file_utils import resolve_cmd
 from util.log_config import setup_logger
+
 
 logger = setup_logger(__name__)
 
 
-class ChdbRunner:
+class ChdbRunner(Runner):
 
-    def __init__(self, sql_file: str, db_file: str, cmd: str = "chdb", cwd: str = None, run_mode : RunMode = RunMode.PROFILE):
-
-        self.sql_file = Path(sql_file)
-        self.db_file = Path(db_file)
-        self.cmd = cmd
-        self.cwd = Path.cwd() if cwd is None else Path(cwd)
-        self.execution_result = None
-        self.run_mode = run_mode
+    def __init__(self, sql_file: Path, db_file: Path, cwd: Path = Path.cwd(), cmd: str = "chdb", run_mode: RunMode = RunMode.PROFILE):
         
-        self.cpu_result = None
+        super().__init__(
+            sql_file,
+            db_file,
+            cmd,
+            cwd,
+            run_mode,
+            cwd / str(run_mode.name)
+        )
         
-        self.results_dir = self.cwd / str(run_mode.name)
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
         
@@ -85,7 +86,7 @@ if __name__ == "__main__":
     db_file = root / "benchmark/db_vs14/vs14_data_chdb"
     cwd = root / "benchmark/test"
 
-    runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd, cmd=chdb_cmd, run_mode=RunMode.PROFILE)
+    runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd, cmd=str(chdb_cmd), run_mode=RunMode.PROFILE)
 
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()

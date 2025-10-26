@@ -9,7 +9,7 @@ comprehensive performance comparison charts.
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
@@ -29,7 +29,7 @@ ENGINE_BASE_COLORS = {
 }
 
 
-def _find_engine_in_label(label: str) -> str:
+def _find_engine_in_label(label: str) -> Optional[str]:
     """Try to extract the engine name from a label string.
 
     The label patterns in this file commonly include the engine name as a
@@ -64,7 +64,9 @@ def _generate_shades(hex_color: str, n: int):
         # t from 0.0 (base) to 0.7 (much lighter) depending on index
         t = (i / max(1, n - 1)) * 0.7 if n > 1 else 0.0
         mixed = tuple((1 - t) * c + t * 1.0 for c in base_rgb)  # interpolate to white
-        shades.append(mcolors.to_hex(mixed))
+        # Ensure a fixed-length 3-tuple for matplotlib's to_hex to satisfy type checkers
+        rgb3 = (mixed[0], mixed[1], mixed[2])
+        shades.append(mcolors.to_hex(rgb3))
     return shades
 
 
@@ -89,7 +91,8 @@ def get_colors_for_labels(labels):
         else:
             fallback_indices.append(idx)
 
-    colors = [None] * len(labels)
+    # Initialize with a default hex color so list is typed as str and accepts assignments
+    colors = ['#7f7f7f'] * len(labels)
 
     # Assign shades for each engine group
     for engine, idxs in engine_indices.items():
@@ -98,21 +101,16 @@ def get_colors_for_labels(labels):
         for i, idx in enumerate(idxs):
             colors[idx] = shades[i]
 
-    # Fill fallback indices using matplotlib default cycle
-    default_cycle = list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())
     # keep a small, deterministic selection from the default_cycle
-    fallback_cycle = [list(mcolors.TABLEAU_COLORS.values())[i % len(mcolors.TABLEAU_COLORS)] for i in range(max(1, len(fallback_indices)))]
+    tableau_values = list(mcolors.TABLEAU_COLORS.values())
+    cycle_len = len(tableau_values) or 1
+    fallback_cycle = [tableau_values[i % cycle_len] for i in range(max(1, len(fallback_indices)))]
     for i, idx in enumerate(fallback_indices):
         # fallback_cycle entries are color names; ensure hex via to_hex
         try:
             colors[idx] = mcolors.to_hex(fallback_cycle[i % len(fallback_cycle)])
         except Exception:
             colors[idx] = '#7f7f7f'
-
-    # For any remaining None (shouldn't happen), put a neutral gray
-    for i, c in enumerate(colors):
-        if c is None:
-            colors[i] = '#7f7f7f'
 
     return colors
 
@@ -158,34 +156,33 @@ def plot_bar_chart(params : PlotParams):
     plt.close()
 
 
-def load_summary_data(file_path):
+def load_summary_data(file: Path):
     """
     Load benchmark summary data from JSON file.
     
     Args:
-        file_path (Path): Path to summary.json file
+        file (Path): Path to summary.json file
         
     Returns:
         dict: Parsed JSON data
     """
-    path = Path(file_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Summary file not found: {path}")
+    if not file.exists():
+        raise FileNotFoundError(f"Summary file not found: {file}")
 
     try:
-        with open(path, 'r') as f:
+        with open(file, 'r') as f:
             return json.load(f)
     except json.JSONDecodeError as e:
         # Provide a clearer error for invalid JSON content
-        raise ValueError(f"Invalid JSON in summary file {path}: {e}") from e
+        raise ValueError(f"Invalid JSON in summary file {file}: {e}") from e
     except PermissionError as e:
-        raise PermissionError(f"Permission denied reading summary file {path}: {e}") from e
+        raise PermissionError(f"Permission denied reading summary file {file}: {e}") from e
     except Exception as e:
         # Catch-all to convert unexpected IO errors into a runtime error with context
-        raise RuntimeError(f"Unexpected error reading summary file {path}: {e}") from e
+        raise RuntimeError(f"Unexpected error reading summary file {file}: {e}") from e
 
 
-def compare_specific_results(title : str , data_list, output_dir : Path):
+def compare_specific_results(title: str, data_list: list, output_dir: Path):
     """
     Compare specific (group_id, engine) combinations and generate visualization.
     
@@ -297,7 +294,7 @@ def compare_specific_results(title : str , data_list, output_dir : Path):
         table[(0, i)].set_facecolor('#40466e')
         table[(0, i)].set_text_props(weight='bold', color='white')
 
-    fig.tight_layout(rect=[0, 0.03, 1, 0.94])
+    fig.tight_layout(rect=(0, 0.03, 1, 0.94))
     fig.suptitle(title, y=0.99, fontsize=18)
     
     # Generate filename from comparisons
@@ -542,7 +539,7 @@ def create_throughput_comparison(data, compare_pairs, output_dir):
     plot_bar_chart(params)
 
 
-def create_performance_percentiles(data, output_dir):
+def create_performance_percentiles(data, output_dir: Path):
     """
     Create box plot showing performance percentiles for execution time.
     
@@ -575,13 +572,16 @@ def create_performance_percentiles(data, output_dir):
 
         # Create box plot
         bp = ax.boxplot(box_data, positions=positions, widths=0.6,
-                        patch_artist=True, showmeans=True,
-                        labels=labels)
+                        patch_artist=True, showmeans=True)
 
         # Color the boxes
         for patch, color in zip(bp['boxes'], colors_list):
             patch.set_facecolor(color)
             patch.set_alpha(0.7)
+
+        # Set x ticks and labels manually
+        ax.set_xticks(positions)
+        ax.set_xticklabels(labels, rotation=45, ha='right')
 
         ax.set_ylabel('Execution Time (seconds)')
         ax.set_title(f'{query} - Execution Time Distribution (min, p50, avg, p95, max)')
@@ -594,7 +594,7 @@ def create_performance_percentiles(data, output_dir):
         plt.close()
 
 
-def create_comprehensive_dashboard(title, data_list, output_dir):
+def create_comprehensive_dashboard(title: str, data_list: list, output_dir: Path):
     """
     Create a comprehensive dashboard with multiple metrics.
     Simply calls compare_specific_results with all available combinations.
@@ -612,7 +612,7 @@ def create_comprehensive_dashboard(title, data_list, output_dir):
     compare_specific_results(title, data_list, output_dir)
 
 
-def create_performance_summary_table(data, output_dir):
+def create_performance_summary_table(data, output_dir: Path):
     """
     Create a text summary of performance metrics.
     
@@ -648,7 +648,6 @@ def create_performance_summary_table(data, output_dir):
             f.write("\n")
     
     print(f"✓ Generated: {output_file.name}")
-
 
 
 def aggregate_by_group_default(data: Dict) -> Dict[str, List[dict]]:
@@ -705,44 +704,6 @@ def create_dashboard_by_optimizer(data: Dict, output_dir: Path):
         create_comprehensive_dashboard(f"Comparison by optimizer {group_key}" , entries, output_dir / group_key)
 
 
-def generate_custom_comparison(summary_file_path, comparisons, output_dir=None):
-    """
-    Public API for generating custom comparisons.
-    
-    Args:
-        summary_file_path (str or Path): Path to summary.json
-        comparisons (list): List of tuples [(group_id, engine), ...]
-        output_dir (str or Path, optional): Output directory. Defaults to results/visual/
-        
-    Example:
-        generate_custom_comparison(
-            'results/summary.json',
-            [('Q1', 'duckdb'), ('Q1', 'sqlite'), ('Q2', 'duckdb')],
-            'results/visual/'
-        )
-    """
-    summary_file = Path(summary_file_path)
-    
-    if output_dir is None:
-        output_dir = summary_file.parent / "visual"
-    else:
-        output_dir = Path(output_dir)
-    
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    print(f"Loading data from {summary_file}...")
-    try:
-        data = load_summary_data(summary_file)
-    except (FileNotFoundError, ValueError, PermissionError, RuntimeError) as e:
-        print(f"❌ Failed to load summary data: {e}")
-        return False
-
-    print(f"Generating comparison for {len(comparisons)} combinations...")
-
-    print(f"✅ Comparison saved to {output_dir.resolve()}")
-    return True
-
-
 def main():
     """Main function: load data and generate all visualizations."""
     args = parse_env_args("Analyze benchmark experiment results")
@@ -768,7 +729,7 @@ def main():
         print("Generating visualizations...")
         print("-" * 50)
 
-        clean_path(str(output_dir.resolve()))
+        clean_path(output_dir.resolve())
         create_dashboard_by_group(data, output_dir / "comparison_by_group")
         create_dashboard_by_engine(data, output_dir / "comparison_by_engine")
         create_dashboard_by_optimizer(data, output_dir / "comparison_by_optimizer")

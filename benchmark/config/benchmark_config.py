@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional
 
 from config.dataset import Dataset
 from config.execution_unit import ExecutionUnit
@@ -13,7 +13,7 @@ class BenchmarkConfig:
     std_repeat: int
     cwd: str
     engine_paths: Dict[str, str]  # Map engine name to executable path
-    chdb_library_path: str
+    chdb_library_path: Optional[str]
     datasets: List[Dataset]
     query_groups: List[QueryGroup]
     execute_pairs: List[ExecutionUnit]

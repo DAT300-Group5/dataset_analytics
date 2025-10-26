@@ -111,13 +111,18 @@ class ProcessMonitor:
         # Extract values for calculations
         cpu_values = [s.cpu_percent for s in self.snapshots]
 
+        # Safely compute execution time only when both timestamps are available
+        execution_time: Optional[float] = None
+        if self.start_time is not None and self.end_time is not None:
+            execution_time = self.end_time - self.start_time
+
         result = ProcessMonitorResult(
             # CPU statistics
             peak_cpu_percent=max(cpu_values),
             avg_cpu_percent=sum(cpu_values) / len(cpu_values),
             samples_count=len(self.snapshots),
             sampling_interval=self.interval,
-            execution_time=self.end_time - self.start_time,
+            execution_time=execution_time if execution_time is not None else 0.0,
             # All snapshots
             snapshots=self.snapshots
         )

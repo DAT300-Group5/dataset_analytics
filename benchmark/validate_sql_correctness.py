@@ -1,7 +1,7 @@
 import itertools
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import pandas as pd
 import numpy as np
@@ -21,10 +21,10 @@ logger = setup_logger(__name__)
 
 
 def build_experiment(params: ExperimentParams):
-    sql_file = str(params.sql_file.resolve())
-    db_file = str(params.db_file.resolve())
+    sql_file = params.sql_file.resolve()
+    db_file = params.db_file.resolve()
     engine_cmd = params.engine_cmd
-    cwd = str((params.cwd / params.db_name / params.exp_name).resolve())
+    cwd = (params.cwd / params.db_name / params.exp_name).resolve()
     if params.engine == EngineType.SQLITE:
         runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd, run_mode=RunMode.VALIDATE)
         return runner
@@ -33,10 +33,11 @@ def build_experiment(params: ExperimentParams):
         return runner
     elif params.engine == EngineType.CHDB:
         runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cmd=engine_cmd, cwd=cwd, run_mode=RunMode.VALIDATE)
-        runner.set_library_path(params.chdb_library_path)
+        if params.chdb_library_path is not None:
+            runner.set_library_path(params.chdb_library_path)
         return runner
-    else:
-        raise ValueError(f"Unsupported engine for validation: {params.engine}")   
+    
+    raise ValueError(f"Unsupported engine for validation: {params.engine}")   
 
 
 # Numeric comparison tolerance
@@ -49,7 +50,7 @@ NUMERIC_ATOL = 1e-8
 SAMPLE_ROWS = 10
 
 
-def try_parse_timestamp(value) -> pd.Timestamp:
+def try_parse_timestamp(value) -> Optional[pd.Timestamp]:
     """
     Try to parse a value as timestamp (Unix timestamp or datetime string).
 
@@ -78,13 +79,13 @@ def try_parse_timestamp(value) -> pd.Timestamp:
         # Try parsing as datetime string
         return pd.to_datetime(str_val)
     except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime):
-        return None 
+        return None
 
 
 def _parse_timestamp_series(series: pd.Series) -> pd.Series:
     """Vectorized timestamp parsing that mimics try_parse_timestamp semantics."""
     # Ensure string dtype for consistent string accessors
-    str_series = series.astype("string[python]").str.strip()
+    str_series = series.astype(pd.StringDtype()).str.strip()
     result = pd.Series(pd.NaT, index=str_series.index, dtype="datetime64[ns, UTC]")
 
     not_na = str_series.notna()
@@ -130,7 +131,7 @@ def _infer_column_type(series1: pd.Series, series2: pd.Series, sample_rows: int 
     if sample.empty:
         return "string"
 
-    sample_str = sample.astype("string[python]").str.strip()
+    sample_str = sample.astype(pd.StringDtype()).str.strip()
 
     # Check timestamp first (before numeric), since Unix timestamps are also numeric
     timestamp_candidate = sample_str.map(lambda v: try_parse_timestamp(v) is not None)
@@ -168,13 +169,14 @@ def _print_diff_summary(
     max_columns_per_row: int = 5,
 ) -> None:
     """Print a concise table of differing rows/columns."""
-    diff_row_indices = np.flatnonzero(diff_rows.values)
+    # Use .to_numpy() to get a NumPy ndarray (avoids ExtensionArray typing issues)
+    diff_row_indices = np.flatnonzero(diff_rows.to_numpy())
 
     truncated_columns = False
     records = []
 
     for row_idx in diff_row_indices[:max_diff_rows]:
-        diff_columns = np.flatnonzero(diff_mask.iloc[row_idx].values)
+        diff_columns = np.flatnonzero(diff_mask.iloc[row_idx].to_numpy())
         truncated_columns |= len(diff_columns) > max_columns_per_row
         for col_pos in diff_columns[:max_columns_per_row]:
             column_name = diff_mask.columns[col_pos]
@@ -241,8 +243,8 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
     one_na = df1.isna() ^ df2.isna()
     both_na = df1.isna() & df2.isna()
 
-    df1_string = df1.astype("string[python]").apply(lambda col: col.str.strip())
-    df2_string = df2.astype("string[python]").apply(lambda col: col.str.strip())
+    df1_string = df1.astype(pd.StringDtype()).apply(lambda col: col.str.strip())
+    df2_string = df2.astype(pd.StringDtype()).apply(lambda col: col.str.strip())
 
     column_types = {
         column: _infer_column_type(df1[column], df2[column]) for column in df1.columns
@@ -306,7 +308,7 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
     return has_diff, diff_count
 
 
-def compare_files(result_info: List[Tuple[Path, str, str]]) -> Tuple[int, int]:
+def compare_files(result_info: List[Tuple[Path, str, EngineType]]) -> Tuple[int, int]:
     """Compare all files pairwise with experiment context.
 
     Args:
@@ -322,8 +324,11 @@ def compare_files(result_info: List[Tuple[Path, str, str]]) -> Tuple[int, int]:
     failed_comparisons = 0
 
     for (f1, g1, e1), (f2, g2, e2) in itertools.combinations(result_info, 2):
-        label1 = f"{g1}_{e1.value}"
-        label2 = f"{g2}_{e2.value}"
+        # e1/e2 may be an Enum (EngineType) or a plain string; handle both safely
+        e1_label = e1.value if hasattr(e1, "value") else str(e1)
+        e2_label = e2.value if hasattr(e2, "value") else str(e2)
+        label1 = f"{g1}_{e1_label}"
+        label2 = f"{g2}_{e2_label}"
         has_diff, _ = compare_pair(f1, label1, f2, label2, rtol=NUMERIC_RTOL, atol=NUMERIC_ATOL)
         total_comparisons += 1
         if has_diff:

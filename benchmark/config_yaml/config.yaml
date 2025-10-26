@@ -52,10 +52,6 @@ engine_paths:
   sqlite: sqlite3
   chdb: ./chdb_cli/chdb_cli
 
-# chdb_library_path: Path to chDB shared library (libchdb.so)
-# Provide for macOS / Linux if don't set default system path
-chdb_library_path: /usr/local/lib
-
 # ------------------------------------------------------------
 # Datasets
 # ------------------------------------------------------------

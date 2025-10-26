@@ -15,7 +15,7 @@ def resolve_cmd(cmd: str) -> str:
     )
 
 
-def clean_path(path: str):
+def clean_path(path: Path):
     """
     Delete all files and subdirectories in the given path, but keep the path itself.
     
@@ -26,18 +26,17 @@ def clean_path(path: str):
         FileNotFoundError: If the path does not exist
         NotADirectoryError: If the path is not a directory
     """
-    path_obj = Path(path)
     
     # Check if path exists
-    if not path_obj.exists():
+    if not path.exists():
         raise FileNotFoundError(f"Path does not exist: {path}")
     
     # Check if path is a directory
-    if not path_obj.is_dir():
+    if not path.is_dir():
         raise NotADirectoryError(f"Path is not a directory: {path}")
     
     # Delete all contents
-    for item in path_obj.iterdir():
+    for item in path.iterdir():
         if item.is_file() or item.is_symlink():
             item.unlink()
         elif item.is_dir():
@@ -78,7 +77,7 @@ def project_root(start: Path | None = None) -> Path:
     )
 
 
-def prepare_profiling_duckdb_sql_file(sql_file: str) -> Path:
+def prepare_profiling_duckdb_sql_file(sql_file: Path) -> Path:
     """
     Prepare the SQL file by adding profiling configuration:
     1. Add PRAGMA enable_profiling='json' at the beginning if not present
@@ -92,11 +91,10 @@ def prepare_profiling_duckdb_sql_file(sql_file: str) -> Path:
     Returns:
         Path to the temporary profiling SQL file (original_name_profiling_tmp.sql)
     """
-    sql_path = Path(sql_file)
     
     # Create temporary file name
-    tmp_file = sql_path.parent / f"{sql_path.stem}_profiling_tmp{sql_path.suffix}"
-    
+    tmp_file = sql_file.parent / f"{sql_file.stem}_profiling_tmp{sql_file.suffix}"
+
     # Read the original SQL file
     with open(sql_file, 'r') as f:
         content = f.read()

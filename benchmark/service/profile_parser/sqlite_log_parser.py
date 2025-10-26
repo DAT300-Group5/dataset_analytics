@@ -3,13 +3,12 @@ import re
 
 from service.profile_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
 from util.log_config import setup_logger
+from .log_parser import LogParser
 
 logger = setup_logger(__name__)
 
 
-class SqliteLogParser:
-    def __init__(self, log_path):
-        self.log_path = Path(log_path)
+class SqliteLogParser(LogParser):
 
     def parse_log(self) -> QueryMetrics:
         """Parse SQLite log files and extract metrics."""
@@ -19,21 +18,19 @@ class SqliteLogParser:
             raise FileNotFoundError(f"Log file {stdout_file} does not exist.")
         
         # Parse stdout file - it contains both data rows and statistics
-        output_rows, timing_info, memory_info, query_count = self._parse_stdout(stdout_file)
+        output_rows, timing_info, memory_info = self._parse_stdout(stdout_file)
         
         return QueryMetrics(
-            query_count=query_count,
             timing=timing_info,
             memory=memory_info,
             output_rows=output_rows
         )
     
-    def _parse_stdout(self, stdout_file: Path) -> tuple[int, TimingInfo, MemoryInfo, int]:
+    def _parse_stdout(self, stdout_file: Path) -> tuple[int, TimingInfo, MemoryInfo]:
         """Parse stdout.log which contains both data rows and statistics."""
         timing_info = TimingInfo()
         memory_info = MemoryInfo()
         output_rows = 0
-        query_count = 0
         
         try:
             with open(stdout_file, 'r', encoding='utf-8') as f:
@@ -79,7 +76,6 @@ class SqliteLogParser:
             # Parse timing information and count queries
             # Format: "Run Time: real 17.338 user 14.308602 sys 2.313507"
             timing_matches = re.findall(r'Run Time: real\s+([\d.]+)\s+user\s+([\d.]+)\s+sys\s+([\d.]+)', stats_content)
-            query_count = len(timing_matches)
             
             if timing_matches:
                 # Sum up all timing results for multiple queries
@@ -127,12 +123,11 @@ class SqliteLogParser:
             
         except Exception as e:
             logger.warning(f"Could not parse {stdout_file.name}: {e}")
-        
-        return output_rows, timing_info, memory_info, query_count
+
+        return output_rows, timing_info, memory_info
 
 if __name__ == "__main__":
     
-    # python3 -m service.runner.sqlite_runner
     # python3 -m service.profile_parser.sqlite_log_parser
 
     from util.file_utils import project_root
@@ -140,7 +135,7 @@ if __name__ == "__main__":
     root = project_root()
     
     # need sqlite log files in test directory
-    log_path = root / "benchmark/service/profile_parser"
+    log_path = root / "benchmark/test/"
     
     parser = SqliteLogParser(log_path=log_path)
     metrics = parser.parse_log()

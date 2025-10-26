@@ -22,13 +22,21 @@ def calculate_stat_summary(values: list[float]) -> StatSummary:
     )
 
 def combine_results(monitor_result : ProcessMonitorResult, query_metric : QueryMetrics) -> SingleTaskExecuteResult:
+    # safely get max_memory_used if memory is present
+    memory_obj = getattr(query_metric, "memory", None)
+    mem_max = getattr(memory_obj, "max_memory_used", 0) if memory_obj is not None else 0
+
+    # safely get run_time from timing if timing is present
+    timing_obj = getattr(query_metric, "timing", None)
+    run_time = getattr(timing_obj, "run_time", 0.0) if timing_obj is not None else 0.0
+
     return SingleTaskExecuteResult(
         cpu_peak_percent=monitor_result.peak_cpu_percent,
         cpu_avg_percent=monitor_result.avg_cpu_percent,
         cpu_samples_count=monitor_result.samples_count,
         cpu_sampling_interval=monitor_result.sampling_interval,
-        peak_memory_bytes=query_metric.memory.max_memory_used,
-        execution_time=query_metric.timing.run_time,
-        output_rows=query_metric.output_rows,
+        peak_memory_bytes=int(mem_max or 0),
+        execution_time=float(run_time or 0.0),
+        output_rows=int(query_metric.output_rows or 0),
         monitor_record_execution_time=monitor_result.execution_time
     )
