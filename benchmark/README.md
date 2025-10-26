@@ -143,7 +143,7 @@ mkdir -p $DB_NAME
 python create_db.py $NAME "./${DB_NAME}/${NAME}_data.sqlite" --engine sqlite
 
 # Create DuckDB database
-python create_db.py $NAME "./${DB_NAME}/${NAME}.duckdb" --engine duckdb
+python create_db.py $NAME "./${DB_NAME}/${NAME}_data.duckdb" --engine duckdb
 
 # Create chDB database
 # chDB uses directory as DB, and need to specify the table
@@ -398,7 +398,7 @@ NAME="vs14"
 DB_NAME="db_${NAME}"
 mkdir -p $DB_NAME
 python create_db.py $NAME "./${DB_NAME}/${NAME}_data.sqlite" --engine sqlite
-python create_db.py $NAME "./${DB_NAME}/${NAME}.duckdb" --engine duckdb
+python create_db.py $NAME "./${DB_NAME}/${NAME}_data.duckdb" --engine duckdb
 python create_db.py $NAME "./${DB_NAME}/${NAME}_data_chdb" --engine chdb
 
 # Optional: Create with post-SQL (indexes, etc.)
