@@ -8,8 +8,8 @@ logger = setup_logger(__name__)
 
 
 class SqliteLogParser:
-    def __init__(self, log_path):
-        self.log_path = Path(log_path)
+    def __init__(self, log_path: Path):
+        self.log_path = log_path
 
     def parse_log(self) -> QueryMetrics:
         """Parse SQLite log files and extract metrics."""
@@ -129,7 +129,6 @@ class SqliteLogParser:
 
 if __name__ == "__main__":
     
-    # python3 -m service.runner.sqlite_runner
     # python3 -m service.profile_parser.sqlite_log_parser
 
     from util.file_utils import project_root
@@ -137,7 +136,7 @@ if __name__ == "__main__":
     root = project_root()
     
     # need sqlite log files in test directory
-    log_path = root / "benchmark/service/profile_parser"
+    log_path = root / "benchmark/test/"
     
     parser = SqliteLogParser(log_path=log_path)
     metrics = parser.parse_log()

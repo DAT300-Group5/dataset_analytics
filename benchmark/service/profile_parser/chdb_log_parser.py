@@ -8,8 +8,8 @@ logger = setup_logger(__name__)
 
 
 class ChdbLogParser:
-    def __init__(self, log_path):
-        self.log_path = Path(log_path)
+    def __init__(self, log_path: Path):
+        self.log_path = log_path
 
     def parse_log(self) -> QueryMetrics:
         """Parse chdb log files and extract metrics."""

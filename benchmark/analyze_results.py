@@ -771,7 +771,7 @@ def main():
         print("Generating visualizations...")
         print("-" * 50)
 
-        clean_path(str(output_dir.resolve()))
+        clean_path(output_dir.resolve())
         create_dashboard_by_group(data, output_dir / "comparison_by_group")
         create_dashboard_by_engine(data, output_dir / "comparison_by_engine")
         create_dashboard_by_optimizer(data, output_dir / "comparison_by_optimizer")

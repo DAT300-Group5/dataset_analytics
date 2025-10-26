@@ -9,8 +9,8 @@ logger = setup_logger(__name__)
 
 
 class DuckdbLogParser:
-    def __init__(self, log_path):
-        self.log_path = Path(log_path)
+    def __init__(self, log_path: Path):
+        self.log_path = log_path
 
     def parse_log(self) -> QueryMetrics:
         """Parse DuckDB log files and extract metrics."""
@@ -89,7 +89,7 @@ class DuckdbLogParser:
         return timing_info, memory_info
 
 if __name__ == "__main__":
-    
+
     # python3 -m service.profile_parser.duckdb_log_parser
 
     from util.file_utils import project_root
