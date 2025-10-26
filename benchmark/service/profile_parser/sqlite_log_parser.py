@@ -3,13 +3,12 @@ import re
 
 from service.profile_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
 from util.log_config import setup_logger
+from .log_parser import LogParser
 
 logger = setup_logger(__name__)
 
 
-class SqliteLogParser:
-    def __init__(self, log_path: Path):
-        self.log_path = log_path
+class SqliteLogParser(LogParser):
 
     def parse_log(self) -> QueryMetrics:
         """Parse SQLite log files and extract metrics."""

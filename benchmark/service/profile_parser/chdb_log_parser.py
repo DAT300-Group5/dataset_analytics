@@ -3,13 +3,12 @@ import re
 
 from service.profile_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
 from util.log_config import setup_logger
+from .log_parser import LogParser
 
 logger = setup_logger(__name__)
 
 
-class ChdbLogParser:
-    def __init__(self, log_path: Path):
-        self.log_path = log_path
+class ChdbLogParser(LogParser):
 
     def parse_log(self) -> QueryMetrics:
         """Parse chdb log files and extract metrics."""

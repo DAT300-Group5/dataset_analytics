@@ -1,6 +1,7 @@
 from service.monitor.process_monitor import monitor_subprocess
 from service.task_executor.task_execute_result import TaskExecuteResult
 from service.runner.runner import Runner
+from service.profile_parser.log_parser import LogParser
 from util.cal_utils import calculate_stat_summary, combine_results
 from util.file_utils import clean_path
 from util.log_config import setup_logger
@@ -10,7 +11,7 @@ DEFAULT_PIVOT_INTERVAL = 10  # seconds
 logger = setup_logger(__name__)
 
 class TaskExecutor:
-    def __init__(self, runner: Runner, log_parser, sample_count: int = 20, pivot_repeat: int = 3, std_repeat: int = 1):
+    def __init__(self, runner: Runner, log_parser: LogParser, sample_count: int = 20, pivot_repeat: int = 3, std_repeat: int = 1):
         self.runner = runner
         self.log_parser = log_parser
         self.std_repeat = std_repeat
