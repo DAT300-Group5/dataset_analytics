@@ -26,10 +26,6 @@ validate_pairs:
   - [ category-Q3, sqlite ]
   - [ category-Q3, chdb ]
 
-  - [ category-Q4, duckdb ]
-  - [ category-Q4, sqlite ]
-  - [ category-Q4, chdb ]
-
 # ------------------------------------------------------------
 # Experiment Execution Pairs
 # ------------------------------------------------------------
@@ -51,11 +47,6 @@ execute_pairs:
   - [ category-Q3, sqlite ]
   - [ category-Q3, chdb ]
 
-  - [ category-Q4, duckdb ]
-  - [ category-Q4, sqlite ]
-  - [ category-Q4, chdb ]
-
-
 # ------------------------------------------------------------
 # Visualization Comparison Pairs
 # ------------------------------------------------------------
@@ -76,7 +67,3 @@ compare_pairs:
   - [ category-Q3, duckdb ]
   - [ category-Q3, sqlite ]
   - [ category-Q3, chdb ]
-
-  - [ category-Q4, duckdb ]
-  - [ category-Q4, sqlite ]
-  - [ category-Q4, chdb ]
