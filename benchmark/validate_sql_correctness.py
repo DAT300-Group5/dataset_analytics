@@ -124,7 +124,9 @@ def _parse_timestamp_series(series: pd.Series) -> pd.Series:
     return result
 
 
-def _infer_column_type(series1: pd.Series, series2: pd.Series, sample_rows: int = SAMPLE_ROWS) -> str:
+def _infer_column_type(
+    series1: pd.Series, series2: pd.Series, sample_rows: int = SAMPLE_ROWS
+) -> str:
     """Infer column comparison strategy based on the first few rows of both series."""
     sample = pd.concat([series1.head(sample_rows), series2.head(sample_rows)], ignore_index=True)
     sample = sample.dropna()
@@ -195,7 +197,14 @@ def _print_diff_summary(
     print(tabulate(formatted_records, headers=headers, tablefmt="github", stralign="left", numalign="left"))
 
 
-def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, atol=1e-8) -> Tuple[bool, int]:
+def compare_pair(
+    file1: Path,
+    label1: str,
+    file2: Path,
+    label2: str,
+    rtol=1e-5,
+    atol=1e-8
+) -> Tuple[bool, int]:
     """Compare two CSV files using pandas with numeric tolerance.
     
     Args:
@@ -209,7 +218,6 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
     Returns:
         Tuple of (has_diff, diff_count)
     """
-    print(f"\n🔍 {label1} ↔ {label2}")
     
     try:
         # Read CSV files with pandas, using the first row as header
@@ -228,8 +236,6 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
         if df1.shape[1] != df2.shape[1]:
             print(f"     Column count: {df1.shape[1]} vs {df2.shape[1]}")
         return has_diff, 1  # Stop further comparison if shapes differ
-    
-    rows = df1.shape[0]
 
     header_diff = False
     if list(df1.columns) != list(df2.columns):
@@ -308,11 +314,16 @@ def compare_pair(file1: Path, label1: str, file2: Path, label2: str, rtol=1e-5, 
     return has_diff, diff_count
 
 
-def compare_files(result_info: List[Tuple[Path, str, EngineType]]) -> Tuple[int, int]:
+def compare_files(result_info: List[Tuple[str, Path, str, EngineType]]) -> Tuple[int, int]:
     """Compare all files pairwise with experiment context.
 
     Args:
-        result_info: List of tuples (file_path, group_id, engine)
+        result_info: List of tuples (database_name, file_path, group_id, engine)
+        
+        database_name (str): Name of the database
+        file_path (Path): Path to result CSV file
+        group_id (str): Query group identifier
+        engine (EngineType): EngineType enum or string representing the engine
     
     Returns:
         Tuple of (total_comparisons, failed_comparisons)
@@ -323,13 +334,20 @@ def compare_files(result_info: List[Tuple[Path, str, EngineType]]) -> Tuple[int,
     total_comparisons = 0
     failed_comparisons = 0
 
-    for (f1, g1, e1), (f2, g2, e2) in itertools.combinations(result_info, 2):
-        # e1/e2 may be an Enum (EngineType) or a plain string; handle both safely
+    for (db1, f1, g1, e1), (db2, f2, g2, e2) in itertools.combinations(result_info, 2):
+        if db1 != db2:
+            continue  # Only compare same database
         e1_label = e1.value if hasattr(e1, "value") else str(e1)
         e2_label = e2.value if hasattr(e2, "value") else str(e2)
         label1 = f"{g1}_{e1_label}"
         label2 = f"{g2}_{e2_label}"
-        has_diff, _ = compare_pair(f1, label1, f2, label2, rtol=NUMERIC_RTOL, atol=NUMERIC_ATOL)
+        
+        print(f"\n🔍 for '{db1}': {label1} vs {label2}")
+        has_diff, _ = compare_pair(
+            f1, label1,
+            f2, label2,
+            rtol=NUMERIC_RTOL, atol=NUMERIC_ATOL
+        )
         total_comparisons += 1
         if has_diff:
             failed_comparisons += 1
@@ -346,7 +364,7 @@ def main():
 
     config_path = Path(__file__).parent / "config_yaml"
     config = ConfigLoader(config_path, env=args.env)
-    experiments = config.get_validation_experiments()
+    experiments = config.filter_experiments(config.config_data.execute_pairs, True)
     validate_pairs = [(experiment.group_id, experiment.engine) for experiment in config.config_data.validate_pairs]
 
     print(f"\n📋 Configuration:")
@@ -357,17 +375,17 @@ def main():
 
     print(f"\n🔧 Running validations...")
     result_info = []
-    for idx, experiment in enumerate(experiments, 1):
-        if (experiment.group_id, experiment.engine) in validate_pairs:
-            print(f"   [{idx}] {experiment.exp_name}...", end=" ", flush=True)
-            runner = build_experiment(experiment)
+    for idx, exp in enumerate(experiments, 1):
+        if (exp.group_id, exp.engine) in validate_pairs:
+            print(f"   [{idx}] {exp.db_name} {exp.exp_name}...", end=" ", flush=True)
+            runner = build_experiment(exp)
             process = runner.run_subprocess()
             process.wait()
             stderr = (runner.results_dir / "stderr.log").read_text()
             if process.returncode != 0 or stderr:
                 print("❌")
                 print(f"\n{'=' * 60}")
-                print(f"  ERROR: Validation failed for {experiment.exp_name}")
+                print(f"  ERROR: Validation failed for {exp.exp_name}")
                 print("=" * 60)
                 print(f"   Return code: {process.returncode}")
                 if stderr:
@@ -378,7 +396,13 @@ def main():
                 print("=" * 60 + "\n")
                 sys.exit(1)
             result_file = runner.results_dir / "result.csv"
-            result_info.append((result_file, experiment.group_id, experiment.engine))
+            
+            result_info.append((
+                exp.db_name,
+                result_file,
+                exp.group_id,
+                exp.engine
+            ))
             print("✓")
 
     print(f"\n{'=' * 60}")

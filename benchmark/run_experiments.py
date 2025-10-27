@@ -95,7 +95,7 @@ def main() -> None:
     # Execute experiments
     for idx, exp in enumerate(experiments, 1):
         logger.info("-" * 60)
-        logger.info(f"Experiment {idx}/{len(experiments)}: {exp.group_id} ({exp.engine.value})")
+        logger.info(f"Experiment {idx}/{len(experiments)}: {exp.db_name} {exp.group_id} ({exp.engine.value})")
         logger.info("-" * 60)
         task_executor = build_experiment(exp)
         result = task_executor.std_execute()
@@ -109,15 +109,17 @@ def main() -> None:
     logger.info("Exporting Results")
     logger.info("=" * 60)
     for db_name in summary.keys():
+        
+        logger.info(f"Exporting results for database: {db_name}")
+        
         summary_path = Path(config.config_data.cwd) / db_name / "summary.json"
         with open(summary_path, 'w') as f:
             json.dump(summary[db_name], f, indent=2)
-        logger.info(f"✓ Summary results exported to: {summary_path.resolve()}")
-        logger.info("")
+        logger.info(f"  ✓ Summary results exported to: {summary_path.resolve()}")
         raw_data_path = Path(config.config_data.cwd) / db_name / "raw_data.json"
         with open(raw_data_path, 'w') as f:
             json.dump(raw_data[db_name], f, indent=2)
-        logger.info(f"✓ Raw data exported to: {raw_data_path.resolve()}")
+        logger.info(f"  ✓ Raw data exported to: {raw_data_path.resolve()}")
         logger.info("")
     logger.info("All experiments completed successfully!")
 
