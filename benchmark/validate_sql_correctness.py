@@ -342,7 +342,7 @@ def compare_files(result_info: List[Tuple[str, Path, str, EngineType]]) -> Tuple
         label1 = f"{g1}_{e1_label}"
         label2 = f"{g2}_{e2_label}"
         
-        print(f"\n 🔍 for '{db1}': {label1} vs {label2}")
+        print(f"\n🔍 for '{db1}': {label1} vs {label2}")
         has_diff, _ = compare_pair(
             f1, label1,
             f2, label2,
