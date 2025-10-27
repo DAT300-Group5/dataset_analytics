@@ -128,7 +128,7 @@ INTO OUTFILE 'output_anomaly/Q4_anomaly_chdb.csv' FORMAT CSVWithNames;
 
 
 # ==================================================================
-db_path = "../db_ba30/ba30_data_chdb"
+db_path = "../db_ba30/ba30_data_chbd"
 conn = chdb.connect(db_path)
 conn.query("USE sensor;")
 

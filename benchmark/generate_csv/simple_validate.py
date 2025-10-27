@@ -161,5 +161,5 @@ def compare_files(csv_folder: Path):
 # --- Main ---
 if __name__ == "__main__":
     # THE PATH TO WHERE EQUIVALENT CSV FILES ARE SAVED
-    csv_folder = Path("./output_anomaly") 
+    csv_folder = Path("./output_category") 
     compare_files(csv_folder)
