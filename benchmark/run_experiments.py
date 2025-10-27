@@ -95,7 +95,7 @@ def main() -> None:
     # Execute experiments
     for idx, exp in enumerate(experiments, 1):
         logger.info("-" * 60)
-        logger.info(f"Experiment {idx}/{len(experiments)}: {exp.group_id} ({exp.engine.value})")
+        logger.info(f"Experiment {idx}/{len(experiments)}: {exp.db_name} {exp.group_id} ({exp.engine.value})")
         logger.info("-" * 60)
         task_executor = build_experiment(exp)
         result = task_executor.std_execute()
