@@ -318,12 +318,12 @@ def compare_files(result_info: List[Tuple[str, Path, str, EngineType]]) -> Tuple
     """Compare all files pairwise with experiment context.
 
     Args:
-        result_info: List of tuples (str, file_path, group_id, engine)
+        result_info: List of tuples (database_name, file_path, group_id, engine)
         
-        str: database name
-        file_path: Path to result CSV file
-        group_id: Query group identifier
-        engine: EngineType enum or string representing the engine
+        database_name (str): Name of the database
+        file_path (Path): Path to result CSV file
+        group_id (str): Query group identifier
+        engine (EngineType): EngineType enum or string representing the engine
     
     Returns:
         Tuple of (total_comparisons, failed_comparisons)
