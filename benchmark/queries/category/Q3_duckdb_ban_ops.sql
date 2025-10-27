@@ -19,25 +19,27 @@ ACC_intervals AS
     time_bucket(INTERVAL '5m', ts) AS time_interval,
     AVG(x*x + y*y + z*z) AS acc_magnitude,
 FROM acc
-GROUP BY time_interval),
-
-LIT_intervals AS
-(SELECT 
-    time_bucket(INTERVAL '5m', ts) AS time_interval,
-FROM lit
-GROUP BY time_interval
-HAVING AVG(ambient_light_intensity) > 100)
+GROUP BY time_interval)
 
 SELECT 
     h.time_interval, h.interval_HR, 
     a.acc_magnitude, g.gyr_magnitude,
-    CASE 
-        WHEN h.interval_HR < 80 OR (a.acc_magnitude < 2 AND g.gyr_magnitude < 2) THEN 'sitting' 
-        WHEN h.interval_HR < 110 OR (a.acc_magnitude < 10 AND g.gyr_magnitude < 10) THEN 'light_activity'
-        WHEN h.interval_HR >= 110 OR (a.acc_magnitude < 100 AND g.gyr_magnitude < 100) THEN 'heavy_activity'
-        ELSE 'misc' END AS type_of_activity
+    CASE
+        WHEN h.interval_HR < 80 THEN
+            CASE WHEN a.acc_magnitude < 90 AND g.gyr_magnitude < 5000 THEN 'sitting'
+            ELSE 'light_activity' END
+
+        WHEN h.interval_HR < 110 THEN
+            CASE WHEN a.acc_magnitude < 90 AND g.gyr_magnitude < 5000 THEN 'sitting'
+            ELSE 'light_activity' END
+
+        WHEN h.interval_HR >= 110 THEN 
+            CASE WHEN a.acc_magnitude > 110 AND g.gyr_magnitude > 8000 THEN 'heavy_activity'
+            ELSE 'light_activity' END
+        ELSE 'misc'  
+    END AS type_of_activity  
 FROM HR_intervals as h 
-JOIN LIT_intervals l ON h.time_interval = l.time_interval
 JOIN ACC_intervals a ON h.time_interval = a.time_interval
 JOIN GYR_intervals g ON h.time_interval = g.time_interval
+WHERE h.time_interval BETWEEN TIMESTAMP '2021-03-14 00:00:00' AND TIMESTAMP '2021-03-21 23:59:59'
 ORDER BY h.time_interval;

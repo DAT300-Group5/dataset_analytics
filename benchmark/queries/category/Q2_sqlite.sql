@@ -1,8 +1,3 @@
--- === CTE
--- DESCRIPTION: 
--- - saves precomputed values
--- - filtering during the join
-
 WITH HR_intervals AS (
 SELECT 
     (CAST(ts AS INTEGER) / 300000) * 300000 AS time_interval,  
@@ -16,6 +11,7 @@ SELECT
     (CAST(ts AS INTEGER) / 300000) * 300000 AS time_interval,  
     AVG(x*x + y*y + z*z) AS gyr_magnitude
 FROM gyr
+WHERE ts BETWEEN 1615680000 AND 1616371199
 GROUP BY time_interval
 ),
 
@@ -25,27 +21,26 @@ SELECT
     AVG(x*x + y*y + z*z) AS acc_magnitude
 FROM acc
 GROUP BY time_interval
-),
-
-LIT_intervals AS (
-SELECT 
-    (CAST(ts AS INTEGER) / 300000) * 300000 AS time_interval, 
-    CASE WHEN AVG(ambient_light_intensity) > 100 THEN 1 ELSE 0 END AS is_light
-FROM lit
-GROUP BY time_interval
 )
 
 SELECT 
 h.time_interval, h.interval_HR, 
 a.acc_magnitude, g.gyr_magnitude,
-CASE 
-    WHEN h.interval_HR < 80 OR (a.acc_magnitude < 2 and g.gyr_magnitude < 2) THEN 'sitting' 
-    WHEN h.interval_HR < 110 OR (a.acc_magnitude < 10 and g.gyr_magnitude < 10) THEN 'light_activity'
-    WHEN h.interval_HR >= 110 OR (a.acc_magnitude < 100 and g.gyr_magnitude < 100) THEN 'heavy_activity'
-    ELSE 'misc'
-END AS type_of_activity
+CASE
+    WHEN h.interval_HR < 80 THEN
+        CASE WHEN a.acc_magnitude < 90 AND g.gyr_magnitude < 5000 THEN 'sitting'
+        ELSE 'light_activity' END
+
+    WHEN h.interval_HR < 110 THEN
+        CASE WHEN a.acc_magnitude < 90 AND g.gyr_magnitude < 5000 THEN 'sitting'
+        ELSE 'light_activity' END
+
+    WHEN h.interval_HR >= 110 THEN 
+        CASE WHEN a.acc_magnitude > 110 AND g.gyr_magnitude > 8000 THEN 'heavy_activity'
+        ELSE 'light_activity' END
+    ELSE 'misc'  
+END AS type_of_activity  
 FROM HR_intervals h
-JOIN LIT_intervals l ON h.time_interval = l.time_interval AND l.is_light = 1
-JOIN ACC_intervals a ON h.time_interval = a.time_interval
+JOIN ACC_intervals a ON h.time_interval = a.time_interval AND h.time_interval BETWEEN 1615680000 AND 1616371199
 JOIN GYR_intervals g ON h.time_interval = g.time_interval
 ORDER BY h.time_interval;
