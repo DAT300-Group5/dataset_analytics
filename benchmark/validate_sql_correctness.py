@@ -364,7 +364,7 @@ def main():
 
     config_path = Path(__file__).parent / "config_yaml"
     config = ConfigLoader(config_path, env=args.env)
-    experiments = config.filter_experiments(config.config_data.execute_pairs, True)
+    experiments = config.filter_experiments(config.config_data.execute_pairs, False)
     validate_pairs = [(experiment.group_id, experiment.engine) for experiment in config.config_data.validate_pairs]
 
     print(f"\n📋 Configuration:")
