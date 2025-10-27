@@ -602,11 +602,11 @@ query_groups:
 Try this one:
 
 ```bash
-python validate_sql_correctness.py --env compare_in_trend
+python validate_sql_correctness.py --env trend
 
-python run_experiments.py --env compare_in_trend
+python run_experiments.py --env trend
 
-python analyze_results.py --env compare_in_trend
+python analyze_results.py --env trend
 ```
 
 ### Adjusting Monitoring Interval

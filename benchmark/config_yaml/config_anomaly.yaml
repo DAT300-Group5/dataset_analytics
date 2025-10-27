@@ -52,7 +52,7 @@ execute_pairs:
   - [ anomaly-Q3, chdb ]
 
   - [ anomaly-Q4, duckdb ]
-  - [ anomaly-Q4, sqlite ]
+#  - [ anomaly-Q4, sqlite ] it takes too long, about 6h on VM, skip
   - [ anomaly-Q4, chdb ]
 
 
@@ -78,5 +78,5 @@ compare_pairs:
   - [ anomaly-Q3, chdb ]
 
   - [ anomaly-Q4, duckdb ]
-  - [ anomaly-Q4, sqlite ]
+#  - [ anomaly-Q4, sqlite ]
   - [ anomaly-Q4, chdb ]
