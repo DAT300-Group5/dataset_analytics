@@ -1,5 +1,7 @@
-from pathlib import Path
 import re
+from pathlib import Path
+from io import StringIO
+import pandas as pd
 
 from service.profile_parser.query_metric import QueryMetrics, TimingInfo, MemoryInfo
 from util.log_config import setup_logger
@@ -36,42 +38,41 @@ class SqliteLogParser(LogParser):
             with open(stdout_file, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
             
-            # Find statistics section boundaries
-            # Statistics section starts with "Memory Used:" and ends with "Run Time:"
-            memory_used_idx = None
-            run_time_idx = None
-            
-            for i, line in enumerate(lines):
-                if line.startswith('Memory Used:'):
-                    memory_used_idx = i
-                elif line.startswith('Run Time:'):
-                    run_time_idx = i
-                    break
-            
-            # If we found both boundaries, everything between them is statistics
-            if memory_used_idx is not None and run_time_idx is not None:
-                # Count output rows: all non-empty lines before "Memory Used:", excluding CSV header
-                data_lines = [line for line in lines[:memory_used_idx] if line.strip()]
-                output_rows = len(data_lines) - 1 if data_lines else 0  # Subtract CSV header
-                stats_start_idx = memory_used_idx
-            elif memory_used_idx is not None:
-                # Only found "Memory Used:", count rows before it, excluding CSV header
-                data_lines = [line for line in lines[:memory_used_idx] if line.strip()]
-                output_rows = len(data_lines) - 1 if data_lines else 0  # Subtract CSV header
-                stats_start_idx = memory_used_idx
-            elif run_time_idx is not None:
-                # Only found "Run Time:", count rows before it, excluding CSV header
-                data_lines = [line for line in lines[:run_time_idx] if line.strip()]
-                output_rows = len(data_lines) - 1 if data_lines else 0  # Subtract CSV header
-                stats_start_idx = run_time_idx
+            memory_used_indices = [i for i, line in enumerate(lines) if line.startswith('Memory Used:')]
+            run_time_indices = [i for i, line in enumerate(lines) if line.startswith('Run Time:')]
+
+            csv_start_idx = 0
+            csv_end_idx = len(lines)
+
+            if memory_used_indices:
+                last_memory_idx = memory_used_indices[-1]
+                run_times_before_memory = [idx for idx in run_time_indices if idx < last_memory_idx]
+                if run_times_before_memory:
+                    csv_start_idx = run_times_before_memory[-1] + 1
+                else:
+                    csv_start_idx = 0
+                csv_end_idx = last_memory_idx
+            elif run_time_indices:
+                csv_start_idx = run_time_indices[-1] + 1
+
+            csv_section = ''.join(lines[csv_start_idx:csv_end_idx]).strip()
+            if csv_section:
+                if pd is not None:
+                    try:
+                        df = pd.read_csv(StringIO(csv_section))
+                        output_rows = len(df)
+                    except Exception as csv_err:
+                        logger.warning(f"Could not parse CSV section in {stdout_file.name}: {csv_err}")
+                else:
+                    logger.warning("pandas is not available; falling back to manual CSV row counting.")
+                    csv_lines = [line for line in csv_section.splitlines() if line.strip()]
+                    output_rows = max(len(csv_lines) - 1, 0)
             else:
-                # No statistics found, count all lines, excluding CSV header
-                data_lines = [line for line in lines if line.strip()]
-                output_rows = len(data_lines) - 1 if data_lines else 0  # Subtract CSV header
-                stats_start_idx = len(lines)
-            
-            # Parse statistics section
-            stats_content = ''.join(lines[stats_start_idx:])
+                output_rows = 0
+
+            before_csv = ''.join(lines[:csv_start_idx])
+            after_csv = ''.join(lines[csv_end_idx:])
+            stats_content = before_csv + after_csv
             
             # Parse timing information and count queries
             # Format: "Run Time: real 17.338 user 14.308602 sys 2.313507"
