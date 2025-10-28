@@ -33,7 +33,7 @@ class SQLiteRunner(Runner):
         if self.run_mode == RunMode.VALIDATE:
             output_path = self.results_dir / "result.csv"
 
-        logger.debug(f"Running SQLite: {self.sql_file.name} on {self.db_file.name}")
+        logger.debug(f"Running SQLite: {self.sql_file.name} on {self.temp_db_file.name}")
         
         try:
             with open(self.sql_file, 'r') as sql_input, \
@@ -43,7 +43,7 @@ class SQLiteRunner(Runner):
                 # always output in CSV format with header
                 cmd_args = [
                     resolve_cmd(self.cmd),
-                    str(self.db_file),
+                    str(self.temp_db_file),
                     '-csv', '-header'
                 ]
                 if self.run_mode == RunMode.PROFILE:
@@ -79,6 +79,8 @@ if __name__ == "__main__":
 
     runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd, run_mode=RunMode.PROFILE)
     
+    runner.before_run()
+    
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()
     if process.returncode == 0:
@@ -89,3 +91,5 @@ if __name__ == "__main__":
         logger.error("Execution failed")
         if stderr:
             logger.error(stderr)
+
+    runner.after_run()

@@ -15,6 +15,7 @@ from service.runner.sqlite_runner import SQLiteRunner
 from service.runner.chdb_runner import ChdbRunner
 from cli.cli import parse_env_args
 from util.log_config import setup_logger
+from util.cache import drop_caches
 from tabulate import tabulate
 
 logger = setup_logger(__name__)
@@ -356,6 +357,7 @@ def compare_files(result_info: List[Tuple[str, Path, str, EngineType]]) -> Tuple
 
 
 def main():
+    drop_caches() # will ask for sudo password
     # Parse command line arguments
     args = parse_env_args("Validate SQL correctness across database engines")
     print("\n" + "=" * 60)
@@ -373,12 +375,15 @@ def main():
     print(f"   • Numeric tolerance: rtol={NUMERIC_RTOL}, atol={NUMERIC_ATOL}")
     print(f"   • Timestamp auto-conversion: enabled")
 
-    print(f"\n🔧 Running validations...")
+    print(f"\n🔧 Running validations...\n")
     result_info = []
     for idx, exp in enumerate(experiments, 1):
         if (exp.group_id, exp.engine) in validate_pairs:
-            print(f"   [{idx}] {exp.db_name} {exp.exp_name}...", end=" ", flush=True)
+            print(f"   [{idx}] {exp.db_name} {exp.exp_name}...\n", end=" ", flush=True)
             runner = build_experiment(exp)
+            
+            runner.before_run()
+            
             process = runner.run_subprocess()
             process.wait()
             stderr = (runner.results_dir / "stderr.log").read_text()
@@ -395,15 +400,16 @@ def main():
                 print("   Validation aborted due to execution failure.")
                 print("=" * 60 + "\n")
                 sys.exit(1)
-            result_file = runner.results_dir / "result.csv"
+
+            runner.after_run()
             
+            result_file = runner.results_dir / "result.csv"
             result_info.append((
                 exp.db_name,
                 result_file,
                 exp.group_id,
                 exp.engine
             ))
-            print("✓")
 
     print(f"\n{'=' * 60}")
     print("  RESULTS COMPARISON")

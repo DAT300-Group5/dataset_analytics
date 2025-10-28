@@ -40,7 +40,7 @@ class ChdbRunner(Runner):
         if self.run_mode == RunMode.VALIDATE:
             output_path = self.results_dir / "result.csv"
 
-        logger.debug(f"Running chDB: {self.sql_file.name} on {self.db_file.name}")
+        logger.debug(f"Running chDB: {self.sql_file.name} on {self.temp_db_file.name}")
         
         env = os.environ.copy()
         # Add or modify library path if needed
@@ -53,7 +53,7 @@ class ChdbRunner(Runner):
                         open(stderr_path, 'w') as stderr_file:
                 
                 # chDB outputs in CSV format by default
-                cmd_args = [resolve_cmd(self.cmd), str(self.db_file)]
+                cmd_args = [resolve_cmd(self.cmd), str(self.temp_db_file)]
                 if self.run_mode == RunMode.PROFILE:
                     cmd_args.append('-v')
                     cmd_args.append('-m')
@@ -88,6 +88,8 @@ if __name__ == "__main__":
 
     runner = ChdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd, cmd=str(chdb_cmd), run_mode=RunMode.PROFILE)
 
+    runner.before_run()
+    
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()
     if process.returncode == 0:
@@ -98,3 +100,5 @@ if __name__ == "__main__":
         logger.error("Execution failed")
         if stderr:
             logger.error(stderr)
+    
+    runner.after_run()

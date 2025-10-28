@@ -40,12 +40,14 @@ class TaskExecutor:
         clean_path(self.runner.results_dir)
         results = []
         for i in range(repeat):
+            self.runner.before_run()
             logger.info(f"  Run {i + 1}/{repeat}: Executing query...")
             process = self.runner.run_subprocess()
             monitor_result = monitor_subprocess(process, interval=interval)
             if monitor_result is None:
                 logger.error("monitor_subprocess returned None for run %d/%d; aborting.", i + 1, repeat)
                 raise RuntimeError("monitor_subprocess returned None")
+            self.runner.after_run()
             query_metric = self.log_parser.parse_log()
             task_execute_result = combine_results(monitor_result, query_metric)
             logger.info(f"  Run {i + 1}/{repeat}: Time={task_execute_result.execution_time:.2f}s, "
