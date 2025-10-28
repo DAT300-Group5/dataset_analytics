@@ -41,7 +41,11 @@ def drop_caches() -> None:
 
     try:
         # Capture stderr to print the reason on failure
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        error_output = e.stderr.decode(errors="replace") if e.stderr else ""
+        logger.error(f"Failed to drop caches: {e}\nStderr: {error_output}")
+        raise
     except Exception as e:
         logger.error(f"Failed to drop caches: {e}")
         raise
