@@ -26,7 +26,7 @@ class SQLiteRunner(Runner):
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
-    def run_subprocess(self) -> subprocess.Popen:
+    def _run_subprocess(self) -> subprocess.Popen:
 
         output_path = self.results_dir / "stdout.log"
         stderr_path = self.results_dir / "stderr.log"
