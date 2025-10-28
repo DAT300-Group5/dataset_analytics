@@ -164,6 +164,9 @@ if __name__ == "__main__":
     cwd = root / "benchmark/test"
 
     runner = SQLiteRunner(sql_file=sql_file, db_file=db_file, cmd=sqlite_cmd, cwd=cwd)
+    
+    runner.before_run()
+    
     process = runner.run_subprocess()
     monitor = monitor_subprocess(process, interval=0.002)
     stdout, stderr = process.communicate()
@@ -180,3 +183,5 @@ if __name__ == "__main__":
         logger.info(f"Avg CPU: {monitor.avg_cpu_percent:.1f}%")
         logger.info(f"Samples: {monitor.samples_count}")
         logger.info(f"Interval: {monitor.sampling_interval}s")
+    
+    runner.after_run()

@@ -33,37 +33,8 @@ class Runner(ABC):
         self.results_dir = results_dir
         self.temp_db_file = cwd / db_file.name
 
-    def run_subprocess(self) -> subprocess.Popen:
-        """
-        Start the subprocess and return the Popen instance promptly.
-
-        - Run `before_run()` synchronously and block until it completes.
-        - Call `_run_subprocess()` to start the subprocess and obtain the
-          `subprocess.Popen` instance.
-        - Start a background thread that waits for the subprocess to finish,
-          and calls `after_run()`. This ensures `after_run()` runs only after
-          the process exits while allowing this method to return the `Popen` quickly.
-        """
-
-        # Run the preparatory steps and block until they're done.
-        self.before_run()
-
-        # Start the subprocess and get the Popen instance.
-        process = self._run_subprocess()
-
-        # Background thread: wait for process completion, log output, then run after_run().
-        def _wait_and_finalize(p: subprocess.Popen) -> None:
-            p.wait()
-            self.after_run()
-
-        waiter = threading.Thread(target=_wait_and_finalize, args=(process,), daemon=True)
-        waiter.start()
-
-        # Return the running process immediately to the caller.
-        return process
-
     @abstractmethod
-    def _run_subprocess(self) -> subprocess.Popen:
+    def run_subprocess(self) -> subprocess.Popen:
         """
         Start the subprocess and return the Popen instance.
         Implementations should launch the command/process for the runner and
@@ -73,11 +44,14 @@ class Runner(ABC):
         pass
     
     def before_run(self) -> None:
-        
         self._copy_from_original_db()
-        
-        script_path = os.path.join(Path(__file__).parent / "before_run.sh")
-        os.chmod(script_path, 0o755)
+        self.drop_caches()
+
+    def after_run(self) -> None:
+        self._delete_temp_db()
+    
+    def drop_caches(self) -> None:
+        script_path = os.path.join(Path(__file__).parent / "drop_caches.sh")
         result = subprocess.run(
             ["sudo", "/bin/bash", script_path],
             check=True,
@@ -87,10 +61,7 @@ class Runner(ABC):
         if result.returncode != 0:
             logger.error(f"Before run script failed: {result.stderr}")
             raise RuntimeError("Before run script failed")
-
-    def after_run(self) -> None:
-        self._delete_temp_db()
-    
+          
     def _delete_temp_db(self) -> None:
         """
         Delete any existing temporary database (file or directory).

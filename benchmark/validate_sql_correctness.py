@@ -379,6 +379,9 @@ def main():
         if (exp.group_id, exp.engine) in validate_pairs:
             print(f"   [{idx}] {exp.db_name} {exp.exp_name}...", end=" ", flush=True)
             runner = build_experiment(exp)
+            
+            runner.before_run()
+            
             process = runner.run_subprocess()
             process.wait()
             stderr = (runner.results_dir / "stderr.log").read_text()
@@ -395,8 +398,10 @@ def main():
                 print("   Validation aborted due to execution failure.")
                 print("=" * 60 + "\n")
                 sys.exit(1)
-            result_file = runner.results_dir / "result.csv"
+
+            runner.after_run()
             
+            result_file = runner.results_dir / "result.csv"
             result_info.append((
                 exp.db_name,
                 result_file,

@@ -26,7 +26,7 @@ class DuckdbRunner(Runner):
         # Create results directory if it doesn't exist
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
-    def _run_subprocess(self) -> subprocess.Popen:
+    def run_subprocess(self) -> subprocess.Popen:
 
         output_path = self.results_dir / "stdout.log"
         stderr_path = self.results_dir / "stderr.log"
@@ -77,6 +77,8 @@ if __name__ == "__main__":
 
     runner = DuckdbRunner(sql_file=sql_file, db_file=db_file, cwd=cwd, run_mode=RunMode.PROFILE)
 
+    runner.before_run()
+    
     process = runner.run_subprocess()
     stdout, stderr = process.communicate()
     if process.returncode == 0:
@@ -87,3 +89,5 @@ if __name__ == "__main__":
         logger.error("Execution failed")
         if stderr:
             logger.error(stderr)
+    
+    runner.after_run()
