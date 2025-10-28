@@ -57,16 +57,8 @@ class SqliteLogParser(LogParser):
 
             csv_section = ''.join(lines[csv_start_idx:csv_end_idx]).strip()
             if csv_section:
-                if pd is not None:
-                    try:
-                        df = pd.read_csv(StringIO(csv_section))
-                        output_rows = len(df)
-                    except Exception as csv_err:
-                        logger.warning(f"Could not parse CSV section in {stdout_file.name}: {csv_err}")
-                else:
-                    logger.warning("pandas is not available; falling back to manual CSV row counting.")
-                    csv_lines = [line for line in csv_section.splitlines() if line.strip()]
-                    output_rows = max(len(csv_lines) - 1, 0)
+                df = pd.read_csv(StringIO(csv_section))
+                output_rows = len(df)
             else:
                 output_rows = 0
 
