@@ -373,7 +373,7 @@ def main():
     print(f"   • Numeric tolerance: rtol={NUMERIC_RTOL}, atol={NUMERIC_ATOL}")
     print(f"   • Timestamp auto-conversion: enabled")
 
-    print(f"\n🔧 Running validations...")
+    print(f"\n🔧 Running validations...\n")
     result_info = []
     for idx, exp in enumerate(experiments, 1):
         if (exp.group_id, exp.engine) in validate_pairs:

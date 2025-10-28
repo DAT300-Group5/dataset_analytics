@@ -33,7 +33,7 @@ class DuckdbRunner(Runner):
         if self.run_mode == RunMode.VALIDATE:
             output_path = self.results_dir / "result.csv"
         
-        logger.debug(f"Running DuckDB: {self.sql_file.name} on {self.db_file.name}")
+        logger.debug(f"Running DuckDB: {self.sql_file.name} on {self.temp_db_file.name}")
         
         try:
             # duckdb allows reading from file directly with -f, no need to redirect stdin
@@ -43,7 +43,7 @@ class DuckdbRunner(Runner):
                 # always output in CSV format with header
                 cmd_args = [
                     resolve_cmd(self.cmd), # duckdb executable
-                    str(self.db_file),
+                    str(self.temp_db_file),
                     '-no-stdin',
                     '-csv', '-header', # need to add before -f
                     '-f', str(self.sql_file),
