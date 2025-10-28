@@ -78,10 +78,11 @@ def copy_file(src: Path, dst: Path) -> None:
         args = ["cp", "-a", str(src), str(dst)]
         # Optional: for copy-on-write (COW) file systems like Btrfs or XFS:
         # args = ["cp", "-a", "--reflink=auto", str(src), str(dst)]
-        subprocess.run(args, check=True)
+        subprocess.run(args, check=True, stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
         # If `cp` exits with a non-zero status, log details
-        logger.error(f"`cp` failed with return code {e.returncode}. Command: {e.cmd}")
+        stderr_output = e.stderr.decode() if e.stderr else ""
+        logger.error(f"`cp` failed with return code {e.returncode}. Command: {e.cmd}\nStderr: {stderr_output}")
     except Exception as e:
         logger.error(f"Failed to copy: {e}")
 
