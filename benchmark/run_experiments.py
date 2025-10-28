@@ -19,6 +19,7 @@ from service.runner.duckdb_runner import DuckdbRunner
 from service.runner.sqlite_runner import SQLiteRunner
 from service.task_executor.task_executor import TaskExecutor
 from cli.cli import parse_env_args
+from util.cache import drop_caches
 from util.log_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -59,6 +60,7 @@ def add_result_to_dict(data_dict: dict, exp: ExperimentParams, result: dict) -> 
     data_dict.setdefault(db_name, {}).setdefault(group_id, {}).setdefault(exp.engine.value, {})[optimizer_status] = result
 
 def main() -> None:
+    drop_caches() # will ask for sudo password
     """
     Main entry point for benchmark experiment execution.
     

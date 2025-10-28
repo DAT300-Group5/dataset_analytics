@@ -9,6 +9,7 @@
 __pycache__/
 db*/
 sqlite*/
+*_chdb/
 
 # Temporary SQL files generated during benchmarking
 *_profiling_tmp.sql
