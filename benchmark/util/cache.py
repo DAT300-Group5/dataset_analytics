@@ -1,4 +1,5 @@
 import os
+import platform
 from pathlib import Path
 import shutil
 import subprocess
@@ -15,6 +16,11 @@ def drop_caches() -> None:
     - Else if sudo exists: run with `sudo`.
     - Else: fail with a clear error.
     """
+    system = platform.system().lower()
+    if system == "darwin":
+        print("macOS does not support dropping caches; skipping.")
+        return
+
     script_path = Path(__file__).parent / "drop_caches.sh"
     if not script_path.exists():
         raise FileNotFoundError(f"Script not found: {script_path}")
