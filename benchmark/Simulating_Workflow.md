@@ -29,6 +29,7 @@ source ~/.bashrc
 ## 2 Download image
 
 ```bash
+# in project root dir
 pip install gdown
 QCOW2="https://drive.google.com/uc?id=1XKFniKNfB4hkA020rI3anY5TXYwm7Ipa"
 gdown $QCOW2
@@ -37,6 +38,7 @@ gdown $QCOW2
 ## 3 Decompress image
 
 ```bash
+# in project root dir
 qemu-img convert -O qcow2 gwatch-sim.comp.qcow2 gwatch-sim.qcow2
 ```
 
@@ -49,6 +51,15 @@ engine_paths:
   duckdb: duckdb
   sqlite: sqlite3
   chdb: chdb_cli
+```
+
+The rest should be also prepared:
+
+```bash
+# in benchmark dir
+chmod +x ./prepare.sh
+# in your conda env
+sudo ./prepare.sh
 ```
 
 At this step, you can choose to use SFTP or `libguestfs`.
@@ -72,30 +83,13 @@ qemu-system-aarch64 \
   -nographic
 ```
 
-Upload all code related to `run_experiments.py` under `benchmark`:
+Simply upload benchmark dir:
 
 ```bash
-# in benchmark dir
+# in project root dir
 sftp -P 2222 root@localhost
 sftp>
-mkdir benchmark
-put -r ./cli /root/benchmark/
-put -r ./config /root/benchmark/
-put -r ./consts /root/benchmark/
-put -r ./models /root/benchmark/
-put -r ./service /root/benchmark/
-put -r ./util /root/benchmark/
-put ./run_experiments.py /root/benchmark/
-```
-
-Upload database files, YAML configs, SQL files:
-
-```bash
-sftp -P 2222 root@localhost
-sftp>
-put -r ./db_vs14 /root/benchmark/
-put -r ./config_yaml /root/benchmark/
-put -r ./queries /root/benchmark/
+put -r ./benchmark /root/
 ```
 
 Then power off:
@@ -106,32 +100,11 @@ poweroff
 
 ### Use `libguestfs`
 
-Create directory:
+Simply upload benchmark dir:
 
 ```bash
-sudo virt-customize -a gwatch-sim.qcow2 --mkdir /root/benchmark
-```
-
-Upload project code:
-
-```bash
-sudo virt-copy-in -a gwatch-sim.qcow2 \
-  ./cli ./config ./consts ./models ./service ./util ./run_experiments.py \
-  /root/benchmark/
-```
-
-Upload database files:
-
-```bash
-sudo virt-copy-in -a gwatch-sim.qcow2 ./db_vs14 /root/benchmark/
-```
-
-Upload SQL and YAML config files:
-
-```bash
-sudo virt-copy-in -a gwatch-sim.qcow2 \
-  ./config_yaml ./queries \
-  /root/benchmark/
+# in project root dir
+sudo virt-copy-in -a gwatch-sim.qcow2 ./benchmark /root/
 ```
 
 ## 4 Backup after first upload
@@ -180,11 +153,11 @@ python run_experiments.py --env dev
 Download experiment results (VM must be running):
 
 ```bash
-# In benchmark directory
+# in benchmark dir
 mkdir -p results
 
 # Experiment configuration name
-CONFIG_NAME="dev"
+CONFIG_NAME="anomaly"
 sftp -P 2222 root@localhost <<< $"get -r /root/benchmark/results/$CONFIG_NAME ./results/$CONFIG_NAME"
 ```
 
