@@ -1,56 +1,7 @@
-=== Plan Q1 
+Execution plan for SQLite category query Q1 
 
 CO-ROUTINE HR_intervals
     SCAN hrm
-    USE TEMP B-TREE FOR GROUP BY
-MATERIALIZE LIT_intervals
-    SCAN lit
-    USE TEMP B-TREE FOR GROUP BY
-MATERIALIZE ACC_intervals
-    SCAN acc
-    USE TEMP B-TREE FOR GROUP BY
-MATERIALIZE GYR_intervals
-    SCAN gyr
-    USE TEMP B-TREE FOR GROUP BY
-SCAN l
-BLOOM FILTER ON h (time_interval=?)
-SEARCH h USING AUTOMATIC COVERING INDEX (time_interval=?)
-BLOOM FILTER ON a (time_interval=?)
-SEARCH a USING AUTOMATIC COVERING INDEX (time_interval=?)
-BLOOM FILTER ON g (time_interval=?)
-SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
-USE TEMP B-TREE FOR ORDER BY
-
-=== Plan Q2 
-
-CO-ROUTINE HR_intervals
-    SCAN hrm
-    USE TEMP B-TREE FOR GROUP BY
-MATERIALIZE LIT_intervals
-    SCAN lit
-    USE TEMP B-TREE FOR GROUP BY
-MATERIALIZE ACC_intervals
-    SCAN acc
-    USE TEMP B-TREE FOR GROUP BY
-MATERIALIZE GYR_intervals
-    SCAN gyr
-    USE TEMP B-TREE FOR GROUP BY
-SCAN l
-BLOOM FILTER ON h (time_interval=?)
-SEARCH h USING AUTOMATIC COVERING INDEX (time_interval=?)
-BLOOM FILTER ON a (time_interval=?)
-SEARCH a USING AUTOMATIC COVERING INDEX (time_interval=?)
-BLOOM FILTER ON g (time_interval=?)
-SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
-USE TEMP B-TREE FOR ORDER BY
-
-=== Plan Q3 
-
-CO-ROUTINE HR_intervals
-    SCAN hrm
-    USE TEMP B-TREE FOR GROUP BY
-MATERIALIZE LIT_intervals
-    SCAN lit
     USE TEMP B-TREE FOR GROUP BY
 MATERIALIZE ACC_intervals
     SCAN acc
@@ -59,33 +10,44 @@ MATERIALIZE GYR_intervals
     SCAN gyr
     USE TEMP B-TREE FOR GROUP BY
 SCAN h
-BLOOM FILTER ON l (time_interval=?)
-SEARCH l USING AUTOMATIC COVERING INDEX (time_interval=?)
 BLOOM FILTER ON a (time_interval=?)
 SEARCH a USING AUTOMATIC COVERING INDEX (time_interval=?)
 BLOOM FILTER ON g (time_interval=?)
 SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
 USE TEMP B-TREE FOR ORDER BY
+---------------------------------------------------------------------------------------------------- 
 
-=== Plan Q4 
+
+Execution plan for SQLite category query Q2 
 
 CO-ROUTINE HR_intervals
-    MATERIALIZE LIT_intervals
-        SCAN lit
-        USE TEMP B-TREE FOR GROUP BY
-    SCAN h
-    BLOOM FILTER ON l (time_interval=?)
-    SEARCH l USING AUTOMATIC COVERING INDEX (time_interval=?)
+    SCAN hrm
     USE TEMP B-TREE FOR GROUP BY
 MATERIALIZE ACC_intervals
-    SCAN a
-    BLOOM FILTER ON l (time_interval=?)
-    SEARCH l USING AUTOMATIC COVERING INDEX (time_interval=?)
+    SCAN acc
     USE TEMP B-TREE FOR GROUP BY
 MATERIALIZE GYR_intervals
-    SCAN g
-    BLOOM FILTER ON l (time_interval=?)
-    SEARCH l USING AUTOMATIC COVERING INDEX (time_interval=?)
+    SCAN gyr
+    USE TEMP B-TREE FOR GROUP BY
+SCAN h
+BLOOM FILTER ON a (time_interval=?)
+SEARCH a USING AUTOMATIC COVERING INDEX (time_interval=?)
+BLOOM FILTER ON g (time_interval=?)
+SEARCH g USING AUTOMATIC COVERING INDEX (time_interval=?)
+USE TEMP B-TREE FOR ORDER BY
+---------------------------------------------------------------------------------------------------- 
+
+
+Execution plan for SQLite category query Q3 
+
+CO-ROUTINE HR_intervals
+    SCAN hrm
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE ACC_intervals
+    SCAN acc
+    USE TEMP B-TREE FOR GROUP BY
+MATERIALIZE GYR_intervals
+    SCAN gyr
     USE TEMP B-TREE FOR GROUP BY
 SCAN h
 BLOOM FILTER ON a (time_interval=?)
