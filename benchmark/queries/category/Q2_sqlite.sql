@@ -11,7 +11,6 @@ SELECT
     (CAST(ts AS INTEGER) / 300000) * 300000 AS time_interval,  
     AVG(x*x + y*y + z*z) AS gyr_magnitude
 FROM gyr
-WHERE ts BETWEEN 1615676400000 AND 1616367599000
 GROUP BY time_interval
 ),
 
@@ -44,3 +43,4 @@ FROM HR_intervals h
 JOIN ACC_intervals a ON h.time_interval = a.time_interval AND h.time_interval BETWEEN 1615676400000 AND 1616367599000
 JOIN GYR_intervals g ON h.time_interval = g.time_interval
 ORDER BY h.time_interval;
+
