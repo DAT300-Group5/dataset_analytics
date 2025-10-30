@@ -1,14 +1,4 @@
-# chDB Query Performance Difference Complete Analysis Report
-
-## Table of Contents
-
-1. [Query Syntax Comparison](#query-syntax-comparison)
-2. [Execution Plan Analysis](#execution-plan-analysis)
-3. [Source Code Deep Dive](#source-code-deep-dive)
-4. [Performance Test Results](#performance-test-results)
-5. [Summary and Best Practices](#summary-and-best-practices)
-
----
+# chDB Query Performance Difference
 
 ## 1. Query Syntax Comparison
 
@@ -63,11 +53,10 @@ ORDER BY h.time_interval;
 ```
 
 **Syntax Features:**
+
 - ✅ JOIN condition includes equality: `h.time_interval = a.time_interval`
 - ✅ JOIN condition also includes filter: `h.time_interval BETWEEN ... AND ...`
 - ✅ BETWEEN condition is part of the ON clause
-
----
 
 ### Query 2: BETWEEN in WHERE Clause
 
@@ -120,29 +109,26 @@ ORDER BY h.time_interval;
 ```
 
 **Syntax Features:**
+
 - ✅ JOIN condition only has equality: `h.time_interval = a.time_interval`
 - ✅ Filter condition in WHERE clause: `WHERE h.time_interval BETWEEN ... AND ...`
 - ✅ JOIN condition and filter condition are separated
 
----
-
 ### Syntax Difference Summary Table
 
-| Feature | Query 1 | Query 2 |
-|------|-------|-------|
-| **First JOIN Condition** | `h.time_interval = a.time_interval`<br>`AND h.time_interval BETWEEN ...` | `h.time_interval = a.time_interval` |
-| **Filter Condition Position** | ON clause (part of JOIN condition) | WHERE clause (independent) |
-| **Second JOIN Condition** | `h.time_interval = g.time_interval` | `h.time_interval = g.time_interval` |
-| **JOIN Condition Complexity** | Complex condition (equality + range) | Simple condition (equality only) |
-| **Semantics** | BETWEEN is a semantic part of JOIN | BETWEEN is a result filter condition |
-
----
+| Feature                       | Query 1                                                                  | Query 2                              |
+| ----------------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
+| **First JOIN Condition**      | `h.time_interval = a.time_interval`<br>`AND h.time_interval BETWEEN ...` | `h.time_interval = a.time_interval`  |
+| **Filter Condition Position** | ON clause (part of JOIN condition)                                       | WHERE clause (independent)           |
+| **Second JOIN Condition**     | `h.time_interval = g.time_interval`                                      | `h.time_interval = g.time_interval`  |
+| **JOIN Condition Complexity** | Complex condition (equality + range)                                     | Simple condition (equality only)     |
+| **Semantics**                 | BETWEEN is a semantic part of JOIN                                       | BETWEEN is a result filter condition |
 
 ## 2. Execution Plan Analysis
 
 ### 2.1 Query 1 Execution Plan (Actual Execution Plan)
 
-```
+```bash
 Expression ((Project names + Projection))
   Aggregating
     Expression (Before GROUP BY)
@@ -159,16 +145,15 @@ Expression ((Project names + Projection))
 ```
 
 **Execution Plan Features:**
+
 - Filter step after Aggregating, before Join
 - JOIN operation has two input streams (left and right tables)
 - Filter appears on both branches (both left and right tables have Filter)
 - **Note**: Although Filter is before JOIN, the BETWEEN in the ON clause will still be evaluated as residual_condition during JOIN
 
----
-
 ### 2.2 Query 2 Execution Plan (Actual Execution Plan)
 
-```
+```bash
 Expression ((Project names + Projection))
   Aggregating
     Expression ((Before GROUP BY + ))
@@ -185,18 +170,17 @@ Expression ((Project names + Projection))
 ```
 
 **Execution Plan Features:**
+
 - Filter step also after Aggregating, before Join
 - WHERE condition is pushed down to the same Filter position as Query 1
 - JOIN operation only handles simple equality conditions (no residual_condition)
 - **Key Difference**: Although Filter position is the same, the JOIN expression tree is different
 
----
-
 ### 2.3 Pipeline Execution Plan Comparison
 
 #### Query 1 Pipeline (Actual Execution Plan)
 
-```
+```bash
 (Expression)
 ExpressionTransform × 10
   (Aggregating)
@@ -230,13 +214,14 @@ ExpressionTransform × 10
 ```
 
 **Pipeline Features:**
+
 - `ColumnPermuteTransform`: Extra column permutation operation (because JOIN contains complex condition)
 - Filter at the same position in execution plan (after Aggregating)
 - JOIN needs to handle residual_condition
 
 #### Query 2 Pipeline (Actual Execution Plan)
 
-```
+```bash
 (Expression)
 ExpressionTransform × 10
   (Aggregating)
@@ -270,23 +255,20 @@ ExpressionTransform × 10
 ```
 
 **Pipeline Features:**
+
 - **No** `ColumnPermuteTransform` (JOIN condition is simple, no column permutation needed)
 - Filter at the same position in execution plan (WHERE push-down)
 - JOIN only needs to handle simple equality conditions
 
----
-
 ### 2.4 Execution Plan Difference Analysis
 
-| Dimension | Query 1 | Query 2 |
-|------|-------|-------|
-| **Filter Position** | After Aggregating, before Join | After Aggregating, before Join (same) |
-| **JOIN Condition Complexity** | Complex condition (equality + BETWEEN residual_condition) | Simple condition (equality only) |
-| **Pipeline Difference** | Contains `ColumnPermuteTransform` | Does not contain `ColumnPermuteTransform` |
-| **BETWEEN Evaluation Count** | 2 times (Filter filtering + JOIN residual_condition evaluation) | 1 time (only in Filter step) |
-| **JOIN Expression** | Contains `mixed_join_expression` (BETWEEN) | No extra expression |
-
----
+| Dimension                     | Query 1                                                         | Query 2                                   |
+| ----------------------------- | --------------------------------------------------------------- | ----------------------------------------- |
+| **Filter Position**           | After Aggregating, before Join                                  | After Aggregating, before Join (same)     |
+| **JOIN Condition Complexity** | Complex condition (equality + BETWEEN residual_condition)       | Simple condition (equality only)          |
+| **Pipeline Difference**       | Contains `ColumnPermuteTransform`                               | Does not contain `ColumnPermuteTransform` |
+| **BETWEEN Evaluation Count**  | 2 times (Filter filtering + JOIN residual_condition evaluation) | 1 time (only in Filter step)              |
+| **JOIN Expression**           | Contains `mixed_join_expression` (BETWEEN)                      | No extra expression                       |
 
 ## 3. Source Code Deep Dive
 
@@ -385,11 +367,10 @@ static size_t tryPushDownOverJoinStep(QueryPlan::Node * parent_node,
 ```
 
 **Key Mechanism:**
+
 1. **Analyze Filter Expression**: `splitActionsForJOINFilterPushDown` splits the WHERE condition's ActionsDAG
 2. **Determine Push-Down Position**: Identify which columns belong to left stream, which to right stream
 3. **Add Filter Step**: Add Filter step before JOIN (after Aggregating)
-
----
 
 ### 3.2 BETWEEN Processing in ON Clause
 
@@ -450,11 +431,10 @@ bool addJoinConditionToTableJoin(JoinCondition & join_condition,
 ```
 
 **Key Mechanism:**
+
 1. **Equality Condition** (like `=`): Becomes JOIN key, used to build hash table
 2. **Non-Equality Condition** (like `BETWEEN`): Moved to `residual_conditions` (residual condition)
 3. **residual_conditions** need to be evaluated additionally during JOIN matching
-
----
 
 #### Key Function: `convertToPhysical` - residual_condition Processing
 
@@ -516,11 +496,10 @@ JoinPtr JoinStepLogical::convertToPhysical(...)
 ```
 
 **Key Mechanism:**
+
 1. **residual_condition Processing**: BETWEEN is collected as residual_condition
 2. **Push-Down Check**: `canPushDownFromOn` determines if it can be pushed down
 3. **mixed_join_expression**: If cannot be pushed down, BETWEEN becomes part of the JOIN expression and must be evaluated on every match
-
----
 
 #### Key Function: `canPushDownFromOn`
 
@@ -543,18 +522,17 @@ bool canPushDownFromOn(const JoinInfo & join_info, std::optional<JoinTableSide> 
 ```
 
 **For Query 1's case:**
+
 - ✅ JOIN type is Inner (can push down)
 - ✅ No disjunctive_conditions
 - ✅ strictness is All
 - **However**: Even though it can be pushed down, because BETWEEN is in the ON clause, it still needs to be evaluated as a semantic part of the JOIN expression
 
----
-
 ### 3.3 Execution Flow Comparison
 
 #### Query 1 Execution Flow (Source Code Level)
 
-```
+```bash
 1. Parsing Phase (Planner)
    ├─ ON clause parsing
    │   ├─ Equality condition → JOIN key
@@ -585,7 +563,7 @@ bool canPushDownFromOn(const JoinInfo & join_info, std::optional<JoinTableSide> 
 
 #### Query 2 Execution Flow (Source Code Level)
 
-```
+```bash
 1. Parsing Phase (Planner)
    ├─ JOIN condition: Equality condition only
    ├─ WHERE condition: Independent filter condition
@@ -613,19 +591,15 @@ bool canPushDownFromOn(const JoinInfo & join_info, std::optional<JoinTableSide> 
               → No additional evaluation needed!
 ```
 
----
-
 ### 3.4 Source Code Key Differences Summary
 
-| Difference Point | Query 1 | Query 2 |
-|--------|-------|-------|
-| **Condition Parsing Location** | `addJoinConditionToTableJoin` | WHERE condition not in JOIN condition |
-| **BETWEEN Processing** | → `residual_condition` | → Independent Filter step |
-| **residual_condition** | Exists, needs evaluation | Does not exist |
-| **JOIN Expression** | Contains `mixed_join_expression` (BETWEEN) | None, only JOIN keys |
-| **Runtime Evaluation** | Evaluate BETWEEN on every match | No evaluation needed |
-
----
+| Difference Point               | Query 1                                    | Query 2                               |
+| ------------------------------ | ------------------------------------------ | ------------------------------------- |
+| **Condition Parsing Location** | `addJoinConditionToTableJoin`              | WHERE condition not in JOIN condition |
+| **BETWEEN Processing**         | → `residual_condition`                     | → Independent Filter step             |
+| **residual_condition**         | Exists, needs evaluation                   | Does not exist                        |
+| **JOIN Expression**            | Contains `mixed_join_expression` (BETWEEN) | None, only JOIN keys                  |
+| **Runtime Evaluation**         | Evaluate BETWEEN on every match            | No evaluation needed                  |
 
 ## 4. Performance Test Results
 
@@ -642,23 +616,20 @@ bool canPushDownFromOn(const JoinInfo & join_info, std::optional<JoinTableSide> 
 
 #### Full Three-Table JOIN Test (5-run average)
 
-| Query | Average Time | Fastest Time | Slowest Time | Standard Deviation |
-|------|---------|---------|---------|-------|
-| **Query 1** | 68.5 ms | 67.7 ms | 68.9 ms | 0.4 ms |
-| **Query 2** | 43.9 ms | 35.6 ms | 73.9 ms | 15.0 ms |
+| Query       | Average Time | Fastest Time | Slowest Time | Standard Deviation |
+| ----------- | ------------ | ------------ | ------------ | ------------------ |
+| **Query 1** | 68.5 ms      | 67.7 ms      | 68.9 ms      | 0.4 ms             |
+| **Query 2** | 43.9 ms      | 35.6 ms      | 73.9 ms      | 15.0 ms            |
 
-**Performance Difference: Query 2 is 55.81% faster**
-
----
+Performance Difference: Query 2 is 55.81% faster
 
 ### 4.4 Performance Difference Cause Analysis
 
 **Key Differences:**
+
 1. **JOIN Algorithm Complexity**: Query 1 needs to evaluate complex conditions, Query 2 only needs hash matching
 2. **residual_condition Overhead**: Query 1 must evaluate BETWEEN on every match (even if already filtered)
 3. **Hash Table Construction**: Query 1's hash key calculation may be more complex
-
----
 
 ## 5. Summary and Best Practices
 
@@ -716,17 +687,17 @@ Disadvantages:
 3. **Separate Concerns**: Separate JOIN logic and filter logic for clearer code and better performance
 4. **Theory Needs Verification**: Theoretical analysis must be combined with actual testing, optimizer behavior may exceed intuition
 
----
-
 ## Appendix: Related Source Code Locations
 
 ### Filter Push-Down Optimization
+
 - `src/Processors/QueryPlan/Optimizations/filterPushDown.cpp`
   - `tryPushDownFilter` (Line 472)
   - `tryPushDownOverJoinStep` (Line 223)
   - `splitActionsForJOINFilterPushDown` (Line 367)
 
 ### JOIN Condition Parsing
+
 - `src/Processors/QueryPlan/JoinStepLogical.cpp`
   - `addJoinConditionToTableJoin` (Line 402)
   - `canPushDownFromOn` (Line 320)
@@ -734,12 +705,13 @@ Disadvantages:
   - `residual_condition` processing (Lines 665-734)
 
 ### Optimizer Execution Order
+
 - `src/Processors/QueryPlan/Optimizations/Optimizations.h`
   - Optimization list (Lines 108-124)
   - `tryPushDownFilter` is the 6th optimization
 
 ### Optimizer Main Flow
+
 - `src/Processors/QueryPlan/Optimizations/optimizeTree.cpp`
   - `optimizeTreeFirstPass` (Line 24)
   - `optimizeTreeSecondPass` (Line 123)
-

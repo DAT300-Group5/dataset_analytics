@@ -7,10 +7,8 @@
 
 ## Core Question
 
-**Can chDB push down filters from category_Q3 (outer WHERE clause on aggregated columns) to CTE definitions, so that GROUP BY only processes filtered rows?**
-**Can DuckDB achieve the same?**
-
----
+- **Can chDB push down filters from category_Q3 (outer WHERE clause on aggregated columns) to CTE definitions, so that GROUP BY only processes filtered rows?**
+- **Can DuckDB achieve the same?**
 
 ## Test Scenario: Comparison of Two WHERE Clause Types
 
@@ -49,6 +47,7 @@ ORDER BY h.time_interval;
 ```
 
 **Key Points:**
+
 - ⚠️ `h.time_interval` is an aggregated column (`toStartOfInterval(ts, INTERVAL 5 MINUTE)`)
 - ⚠️ WHERE condition is in the **outer main query**
 - ⚠️ **Reverse derivation** needed: `time_interval BETWEEN X AND Y` → `ts BETWEEN ...`
@@ -89,18 +88,18 @@ ORDER BY h.time_interval;
 ```
 
 **Key Points:**
+
 - ✅ `ts` is a source table column (not aggregated)
 - ✅ WHERE condition is in the **CTE definition**
 - ✅ Can directly use index scan, no reverse derivation needed
 
----
-
-## ✅ chDB/ClickHouse: Can Push Down!
+## ✅ chDB/ClickHouse: Can Push Down
 
 ### Execution Plan Analysis
 
 **chDB Execution Plan:**
-```
+
+```bash
 ReadFromMergeTree (sensor.hrm)
     ↓
 Filter  ← WHERE condition pushed down here! ✅
@@ -111,6 +110,7 @@ Join
 ```
 
 **Key Findings:**
+
 - ✅ WHERE condition is **automatically pushed down** by the optimizer to after ReadFromMergeTree and before Aggregating in each CTE
 - ✅ Optimizer can **reverse derive**: `time_interval BETWEEN X AND Y` → `ts BETWEEN ...`
 - ✅ GROUP BY only processes filtered data
@@ -120,7 +120,8 @@ Join
 **Source Location:** `src/Processors/QueryPlan/Optimizations/filterPushDown.cpp`
 
 **Optimization Process:**
-```
+
+```bash
 1. Identify WHERE condition
    └─ WHERE h.time_interval BETWEEN ...
 
@@ -137,6 +138,7 @@ Join
 ```
 
 **Key Capabilities:**
+
 - ✅ **Reverse derivation of aggregation expressions**: `toStartOfInterval` function can be reverse derived
 - ✅ **Automatic pushdown**: No manual optimization needed, optimizer does it automatically
 - ✅ **Early filtering**: Filter before aggregation, GROUP BY only processes filtered data
@@ -144,7 +146,8 @@ Join
 ### Performance Impact
 
 **category_Q3 (Outer WHERE) Execution Flow:**
-```
+
+```bash
 Stage 1: CTE Materialization
 ├─ ReadFromMergeTree (hrm)  ← Reading full table
 ├─ Filter (BETWEEN)  ← WHERE pushed down here! ✅
@@ -155,13 +158,12 @@ Result: Only aggregate filtered data, same performance as category_Q1
 ```
 
 **Performance Test Results:**
+
 - ✅ category_Q3 (outer WHERE) performance ≈ category_Q1 (WHERE in CTE)
 - ✅ Both only aggregate filtered data
 - ✅ Execution plans are identical
 
----
-
-## ⚠️ DuckDB: Cannot Fully Push Down!
+## ⚠️ DuckDB: Cannot Fully Push Down
 
 ### Key Limitations
 
@@ -180,6 +182,7 @@ else if (op.type == LogicalOperatorType::LOGICAL_FILTER &&
 ```
 
 **Key Limitations:**
+
 - ✅ CTEFilterPusher **can handle** WHERE clauses (Filters on CTE references)
 - ⚠️ **However**, for aggregated columns (such as `time_bucket` function), **cannot reverse derive**
 
@@ -204,6 +207,7 @@ case LogicalOperatorType::LOGICAL_AGGREGATE_AND_GROUP_BY: {
 ```
 
 **Key Limitations:**
+
 - ⚠️ `PushdownJoinFilterExpression` can only handle **simple column references** or **simple expressions**
 - ⚠️ For functions like `time_bucket(INTERVAL '5m', ts)`, **cannot push down**
 - ⚠️ **Cannot reverse derive**: `time_interval BETWEEN X AND Y` → `ts BETWEEN ...`
@@ -211,7 +215,8 @@ case LogicalOperatorType::LOGICAL_AGGREGATE_AND_GROUP_BY: {
 ### Execution Flow
 
 **DuckDB category_Q3 (Outer WHERE) Execution Flow:**
-```
+
+```bash
 Stage 1: CTE Materialization
 ├─ Scan hrm table (full table scan) ⚠️
 │   └─ No WHERE condition, scan all rows
@@ -228,11 +233,10 @@ Stage 2: Main Query Execution
 ```
 
 **Performance Issues:**
+
 - ⚠️ Need to Materialize all data
 - ⚠️ GROUP BY processes all rows
 - ⚠️ Can only filter after JOIN (too late)
-
----
 
 ## Comparison Summary Table
 
@@ -243,8 +247,6 @@ Stage 2: Main Query Execution
 | **Can Reverse Derive Aggregation Expressions** | ✅ Yes (e.g., `toStartOfInterval`) | ⚠️ No (e.g., `time_bucket`) |
 | **Pushdown WHERE Before GROUP BY** | ✅ Can | ⚠️ Cannot (for complex functions) |
 | **category_Q3 vs category_Q1 Performance** | ✅ Same after optimization | ⚠️ category_Q3 slower |
-
----
 
 ## Execution Plan Verification
 
@@ -260,6 +262,7 @@ python3 verify_execution_plans.py
 ```
 
 **Verification Queries:**
+
 - category_Q3: Outer WHERE condition (on aggregated `time_interval` column)
 - category_Q1: WHERE condition inside CTE (on source table `ts` column)
 
@@ -270,7 +273,7 @@ Use `EXPLAIN PLAN` to obtain execution plans for both queries, compare execution
 
 #### category_Q3 Execution Plan (Outer WHERE)
 
-```
+```bash
 1. Expression (Project names)
 2.   Limit (preliminary LIMIT (without OFFSET))
 3.     Sorting (Sorting for ORDER BY)
@@ -289,13 +292,14 @@ Use `EXPLAIN PLAN` to obtain execution plans for both queries, compare execution
 ```
 
 **Key Observations:**
+
 - Line 13 shows `Expression (( + (Before GROUP BY + Change column names to column identifiers)))`
 - This Expression is located after `ReadFromMergeTree` and before `Aggregating`
 - **Indicates WHERE condition has been pushed down before Aggregating**
 
 #### category_Q1 Execution Plan (WHERE Inside CTE)
 
-```
+```bash
 1. Expression (Project names)
 2.   Limit (preliminary LIMIT (without OFFSET))
 3.     Sorting (Sorting for ORDER BY)
@@ -315,6 +319,7 @@ Use `EXPLAIN PLAN` to obtain execution plans for both queries, compare execution
 ```
 
 **Key Observations:**
+
 - Lines 9 and 14 show `Expression (Before GROUP BY)`
 - Expression is located after `ReadFromMergeTree` and before `Aggregating`
 - **WHERE condition is in CTE definition, already before Aggregating**
@@ -347,14 +352,17 @@ Use `EXPLAIN PLAN` to obtain execution plans for both queries, compare execution
 For DuckDB, since it cannot push down WHERE conditions from category_Q3 (outer WHERE on aggregated columns) to CTE definitions, the execution plan will show:
 
 **category_Q3 Execution Plan:**
+
 - CTE Materialization stage: No Filter, full table scan
 - Main query stage: Filter after JOIN
 
 **category_Q1 Execution Plan:**
+
 - CTE Materialization stage: Has Filter, only scans filtered data
 - Main query stage: No additional Filter needed
 
 **Comparison Differences:**
+
 - category_Q3 needs to Materialize all data first, then filter
 - category_Q1 only Materializes filtered data
 - **Different execution plan structures prove DuckDB cannot push down category_Q3's WHERE condition**
@@ -373,6 +381,7 @@ We verify DuckDB's WHERE pushdown capability by running actual queries to obtain
 #### category_Q3 Execution Plan (Outer WHERE) - Actual Results
 
 **Key Observations:**
+
 - **FILTER Step Position:** FILTER is located after `PROJECTION` and before `HASH_GROUP_BY`
 - **FILTER Condition:** `time_bucket('00:05:00'::INTERVAL, CAST(ts AS TIMESTAMP)) BETWEEN ...`
 - **SEQ_SCAN Stage:**
@@ -380,7 +389,8 @@ We verify DuckDB's WHERE pushdown capability by running actual queries to obtain
   - hrm table: Scans `~1,495,193 rows` (full table scan, **no Filters**)
 
 **Execution Flow:**
-```
+
+```bash
 SEQ_SCAN (full table scan, no Filter) 
   ↓
 PROJECTION (compute time_bucket expression)
@@ -395,8 +405,9 @@ HASH_JOIN
 #### category_Q1 Execution Plan (WHERE Inside CTE) - Actual Results
 
 **Key Observations:**
+
 - **Filters Position:** Filters are directly at the `SEQ_SCAN` stage
-- **Filters Conditions:** 
+- **Filters Conditions:**
   - hrm table: `ts>='2021-03-14 00:00:00'::TIMESTAMP_NS AND ts<='2021-03-21 23:59:59'::TIMESTAMP_NS`
   - acc table: `ts>='2021-03-14 00:00:00'::TIMESTAMP_NS AND ts<='2021-03-21 23:59:59'::TIMESTAMP_NS`
 - **SEQ_SCAN Stage:**
@@ -404,7 +415,8 @@ HASH_JOIN
   - hrm table: Applies Filters during scan (**filtering at scan stage**)
 
 **Execution Flow:**
-```
+
+```bash
 SEQ_SCAN (with Filters, filter during scan) ✅ Early filtering
   ↓
 PROJECTION (compute time_bucket expression)
@@ -441,8 +453,6 @@ HASH_JOIN
    - category_Q1: Filters at scan stage, only Materializes filtered data
    - **Different execution plan structures prove DuckDB cannot push down outer WHERE (on aggregated columns) to CTE definition**
 
----
-
 ## Technical Difference Analysis
 
 ### chDB's Optimization Capability
@@ -476,13 +486,11 @@ HASH_JOIN
    - DuckDB's optimizer may not fully understand `time_bucket`'s reverse derivation logic
    - Requires explicit semantic analysis of functions to reverse derive
 
----
-
 ## Practical Impact
 
 ### For chDB Users
 
-**✅ Recommended: category_Q3 (Outer WHERE Style)**
+✅ Recommended: category_Q3 (Outer WHERE Style)
 
 ```sql
 WITH HR_intervals AS (
@@ -498,13 +506,14 @@ WHERE h.time_interval BETWEEN ...  -- ✅ category_Q3: Outer WHERE, optimizer au
 ```
 
 **Advantages:**
+
 - ✅ Conditions are centralized, easy to maintain
 - ✅ Optimizer automatically pushes down, same performance as category_Q1
 - ✅ GROUP BY only processes filtered data
 
 ### For DuckDB Users
 
-**⚠️ Recommended: category_Q1 (WHERE Inside CTE, for complex functions)**
+⚠️ Recommended: category_Q1 (WHERE Inside CTE, for complex functions)
 
 ```sql
 WITH HR_intervals AS (
@@ -521,11 +530,10 @@ JOIN ...
 ```
 
 **Reasons:**
+
 - ⚠️ DuckDB cannot reverse derive `time_interval BETWEEN` to `ts BETWEEN`
 - ⚠️ category_Q3 (outer WHERE) will cause Materialization of all data
 - ✅ category_Q1 (WHERE in CTE) can filter early
-
----
 
 ## 🎯 Core Answer
 
@@ -534,6 +542,7 @@ JOIN ...
 **✅ Yes! chDB can push down filters from category_Q3 (outer WHERE condition) to CTE definitions, so GROUP BY only processes filtered rows.**
 
 **Reasons:**
+
 - ✅ Optimizer can reverse derive aggregation expressions (e.g., `toStartOfInterval`)
 - ✅ FilterPushdown optimizer automatically pushes down WHERE conditions
 - ✅ Filters before aggregation, GROUP BY only processes filtered data
@@ -542,32 +551,34 @@ JOIN ...
 
 **⚠️ Cannot fully achieve!**
 
-**⚠️ For simple expressions: May be possible**
+**⚠️ For simple expressions: May be possible.**
+
 - DuckDB's CTEFilterPusher can handle Filters on CTE references
 - But for simple expressions, pushdown may be possible
 
-**⚠️ For complex functions (e.g., `time_bucket`): Cannot achieve**
+**⚠️ For complex functions (e.g., `time_bucket`): Cannot achieve.**
+
 - category_Q3 (outer WHERE) cannot reverse derive aggregated columns
 - WHERE condition pushdown fails
 - Needs to Materialize all data, can only filter after JOIN
 
 **category_Q3 vs category_Q1:**
+
 - ⚠️ **category_Q3 (outer WHERE, on aggregated columns)**: Materialize all data → GROUP BY all rows → slower performance
 - ✅ **category_Q1 (WHERE in CTE, on source table columns)**: Early filtering → GROUP BY filtered rows → better performance
 
----
-
 ## 🔗 Related Source Code Locations
 
-### chDB/ClickHouse
+chDB/ClickHouse:
+
 - **FilterPushdown:** `src/Processors/QueryPlan/Optimizations/filterPushDown.cpp`
   - Reverse derive aggregation expressions
   - Automatically push down WHERE conditions
 
-### DuckDB
+DuckDB:
+
 - **CTEFilterPusher:** `duckdb/src/optimizer/cte_filter_pusher.cpp`
   - Only handles Filters on CTE references
   - Cannot reverse derive complex functions
 - **JoinFilterPushdownOptimizer:** `duckdb/src/optimizer/join_filter_pushdown_optimizer.cpp`
   - `PushdownJoinFilterExpression` restricts complex expressions
-
