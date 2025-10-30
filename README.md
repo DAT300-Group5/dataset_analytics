@@ -1,9 +1,5 @@
 # High-performance Embedded​ Data Analytics
 
-- [Dataset (Deprecated)](Dataset.md)
-- [Edge Device (Deprecated)](Edge_Device.md)
-- [Benchmarks (Deprecated)](Benchmarks.md)
-
 ## Dataset Selection
 
 For this project, we chose the [**in-situ Samsung dataset**](https://doi.org/10.6084/m9.figshare.28509740) because it provides **complete raw signals** (not only raw data). The dataset size is about **18 GB**, with per-sensor files:
