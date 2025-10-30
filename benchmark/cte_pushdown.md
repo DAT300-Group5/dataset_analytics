@@ -367,18 +367,9 @@ For DuckDB, since it cannot push down WHERE conditions from category_Q3 (outer W
 - category_Q1 only Materializes filtered data
 - **Different execution plan structures prove DuckDB cannot push down category_Q3's WHERE condition**
 
-### DuckDB Execution Plan Verification Results (Actual Execution)
+### DuckDB Execution Plan Verification Results
 
-We verify DuckDB's WHERE pushdown capability by running actual queries to obtain execution plans.
-
-**Verification Script:** `get_duckdb_plans.sh`
-
-```bash
-# Run verification script
-./get_duckdb_plans.sh
-```
-
-#### category_Q3 Execution Plan (Outer WHERE) - Actual Results
+#### category_Q3 Execution Plan (Outer WHERE)
 
 **Key Observations:**
 
@@ -402,7 +393,7 @@ HASH_GROUP_BY (aggregate)
 HASH_JOIN
 ```
 
-#### category_Q1 Execution Plan (WHERE Inside CTE) - Actual Results
+#### category_Q1 Execution Plan (WHERE Inside CTE)
 
 **Key Observations:**
 
