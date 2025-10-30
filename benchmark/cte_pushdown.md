@@ -240,13 +240,13 @@ Stage 2: Main Query Execution
 
 ## Comparison Summary Table
 
-| Dimension | chDB/ClickHouse | DuckDB |
-|-----------|----------------|--------|
-| **Supports WHERE Pushdown** | ✅ Yes | ✅ Yes (partial) |
-| **Can Handle Filters on CTE References** | ✅ Yes | ✅ Yes |
-| **Can Reverse Derive Aggregation Expressions** | ✅ Yes (e.g., `toStartOfInterval`) | ⚠️ No (e.g., `time_bucket`) |
-| **Pushdown WHERE Before GROUP BY** | ✅ Can | ⚠️ Cannot (for complex functions) |
-| **category_Q3 vs category_Q1 Performance** | ✅ Same after optimization | ⚠️ category_Q3 slower |
+| Dimension                                      | chDB/ClickHouse                   | DuckDB                           |
+| ---------------------------------------------- | --------------------------------- | -------------------------------- |
+| **Supports WHERE Pushdown**                    | ✅ Yes                             | ✅ Yes (partial)                  |
+| **Can Handle Filters on CTE References**       | ✅ Yes                             | ✅ Yes                            |
+| **Can Reverse Derive Aggregation Expressions** | ✅ Yes (e.g., `toStartOfInterval`) | ⚠️ No (e.g., `time_bucket`)       |
+| **Pushdown WHERE Before GROUP BY**             | ✅ Can                             | ⚠️ Cannot (for complex functions) |
+| **category_Q3 vs category_Q1 Performance**     | ✅ Same after optimization         | ⚠️ category_Q3 slower             |
 
 ## Execution Plan Verification
 
@@ -326,12 +326,12 @@ Use `EXPLAIN PLAN` to obtain execution plans for both queries, compare execution
 
 #### Comparison Analysis
 
-| Step | category_Q3 | category_Q1 | Conclusion |
-|------|------------|-------------|------------|
-| **ReadFromMergeTree** | ✅ Present | ✅ Present | Both have it |
-| **Expression (Filter position)** | ✅ Present (Line 13, contains Before GROUP BY) | ✅ Present (Lines 9, 14, Before GROUP BY) | ✅ Same |
-| **Aggregating** | ✅ Present | ✅ Present | Both after Expression |
-| **Execution Plan Structure** | ✅ Similar | ✅ Similar | ✅ **Structure is the same** |
+| Step                             | category_Q3                                   | category_Q1                              | Conclusion                  |
+| -------------------------------- | --------------------------------------------- | ---------------------------------------- | --------------------------- |
+| **ReadFromMergeTree**            | ✅ Present                                     | ✅ Present                                | Both have it                |
+| **Expression (Filter position)** | ✅ Present (Line 13, contains Before GROUP BY) | ✅ Present (Lines 9, 14, Before GROUP BY) | ✅ Same                      |
+| **Aggregating**                  | ✅ Present                                     | ✅ Present                                | Both after Expression       |
+| **Execution Plan Structure**     | ✅ Similar                                     | ✅ Similar                                | ✅ **Structure is the same** |
 
 **Verification Conclusion:**
 
@@ -428,13 +428,13 @@ HASH_JOIN
 
 #### Actual Execution Plan Comparison Analysis
 
-| Dimension | category_Q3 | category_Q1 | Conclusion |
-|-----------|------------|-------------|------------|
-| **Filters at SEQ_SCAN Stage** | ❌ No | ✅ Yes (`ts BETWEEN ...`) | **Key Difference** |
-| **FILTER Position** | ⚠️ After PROJECTION | ✅ SEQ_SCAN stage | **Different position** |
-| **Scan Rows (acc table)** | ⚠️ ~7,573,354 (full table) | ✅ Reduced after filtering | **Data volume difference** |
-| **Scan Rows (hrm table)** | ⚠️ ~1,495,193 (full table) | ✅ Reduced after filtering | **Data volume difference** |
-| **Filter Timing** | ⚠️ After computing time_bucket | ✅ At scan stage | **Timing difference** |
+| Dimension                     | category_Q3                   | category_Q1               | Conclusion                 |
+| ----------------------------- | ----------------------------- | ------------------------- | -------------------------- |
+| **Filters at SEQ_SCAN Stage** | ❌ No                          | ✅ Yes (`ts BETWEEN ...`)  | **Key Difference**         |
+| **FILTER Position**           | ⚠️ After PROJECTION            | ✅ SEQ_SCAN stage          | **Different position**     |
+| **Scan Rows (acc table)**     | ⚠️ ~7,573,354 (full table)     | ✅ Reduced after filtering | **Data volume difference** |
+| **Scan Rows (hrm table)**     | ⚠️ ~1,495,193 (full table)     | ✅ Reduced after filtering | **Data volume difference** |
+| **Filter Timing**             | ⚠️ After computing time_bucket | ✅ At scan stage           | **Timing difference**      |
 
 **Verification Conclusion:**
 
