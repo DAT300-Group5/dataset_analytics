@@ -569,7 +569,7 @@ JOIN ...
 
 ## 🔗 Related Source Code Locations
 
-chDB/ClickHouse:
+chDB:
 
 - **FilterPushdown:** `src/Processors/QueryPlan/Optimizations/filterPushDown.cpp`
   - Reverse derive aggregation expressions
