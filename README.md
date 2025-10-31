@@ -16,6 +16,12 @@ For this project, we chose the [**in-situ Samsung dataset**](https://doi.org/10.
 
 Since the raw data is very large in size, we split each category of data by `deviceId` and created a separate CSV file for each `deviceId`. The segmented data can be accessed via the following link: [Google Drive](https://drive.google.com/drive/folders/1mVqSyZ9wtxTrftwRxnFE4f0CQtuapSw0), or you can download the raw data and run `python split_data.py` yourself.
 
+## Benchmark
+
+![structure](./pic/benchmark_structure.png)
+
+More detailed Doc: [benchmark/README.md](benchmark/README.md)
+
 ## Scenarios (queries)
 
 ### Reach an agreement
