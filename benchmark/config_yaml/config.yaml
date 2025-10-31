@@ -13,7 +13,7 @@
 engines: [duckdb, sqlite, chdb]
 
 # repeat_pilot: Number of pilot runs to calculate sampling interval
-# Purpose: Stage 1/2 runs this many times with DEFAULT_PIVOT_INTERVAL (10s)
+# Purpose: Stage 1/2 runs this many times with DEFAULT_PILOT_INTERVAL (10s)
 # to estimate query execution time and determine optimal monitoring interval
 # Formula: sampling_interval = avg_execution_time / sample_count
 # Default: 3 runs

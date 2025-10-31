@@ -6,22 +6,22 @@ from util.cal_utils import calculate_stat_summary, combine_results
 from util.file_utils import clean_path
 from util.log_config import setup_logger
 
-DEFAULT_PIVOT_INTERVAL = 10  # seconds
+DEFAULT_PILOT_INTERVAL = 10  # seconds
 
 logger = setup_logger(__name__)
 
 class TaskExecutor:
-    def __init__(self, runner: Runner, log_parser: LogParser, sample_count: int = 20, pivot_repeat: int = 3, std_repeat: int = 1):
+    def __init__(self, runner: Runner, log_parser: LogParser, sample_count: int = 20, pilot_repeat: int = 3, std_repeat: int = 1):
         self.runner = runner
         self.log_parser = log_parser
         self.std_repeat = std_repeat
-        self.pivot_repeat = pivot_repeat
+        self.pilot_repeat = pilot_repeat
         self.sample_count = sample_count
 
     def calculate_interval(self) -> float:
-        logger.info(f"Stage 1/2: Calculating sampling interval (pivot runs: {self.pivot_repeat})")
-        pivot_result = self._execute(self.pivot_repeat, interval=DEFAULT_PIVOT_INTERVAL, is_pivot=True)
-        avg_execution_time = pivot_result.execution_time.avg
+        logger.info(f"Stage 1/2: Calculating sampling interval (pilot runs: {self.pilot_repeat})")
+        pilot_result = self._execute(self.pilot_repeat, interval=DEFAULT_PILOT_INTERVAL, is_pilot=True)
+        avg_execution_time = pilot_result.execution_time.avg
         interval = avg_execution_time / self.sample_count
         logger.info(f"✓ Stage 1/2 completed: interval={interval:.3f}s (avg time={avg_execution_time:.3f}s)")
         return interval
@@ -29,14 +29,14 @@ class TaskExecutor:
     def std_execute(self) -> TaskExecuteResult:
         interval = self.calculate_interval()
         logger.info(f"Stage 2/2: Running benchmark ({self.std_repeat} iterations, interval={interval:.3f}s)")
-        result = self._execute(self.std_repeat, interval=interval, is_pivot=False)
+        result = self._execute(self.std_repeat, interval=interval, is_pilot=False)
         logger.info(f"✓ Stage 2/2 completed: "
                    f"Time(avg)={result.execution_time.avg:.3f}s, "
                    f"CPU(avg)={result.cpu_avg_percent.avg:.1f}%, "
                    f"Memory(peak)={result.peak_memory_bytes.max / 1024 / 1024:.1f}MB")
         return result
 
-    def _execute(self, repeat: int, interval: float, is_pivot: bool = False) -> TaskExecuteResult:
+    def _execute(self, repeat: int, interval: float, is_pilot: bool = False) -> TaskExecuteResult:
         clean_path(self.runner.results_dir)
         results = []
         for i in range(repeat):

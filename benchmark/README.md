@@ -450,7 +450,7 @@ python run_experiments.py --env dev
 [INFO] ------------------------------------------------------------
 [INFO] Experiment 1/4: Q1_aggregation (DUCKDB)
 [INFO] ------------------------------------------------------------
-[INFO] Stage 1/2: Calculating sampling interval (pivot runs: 3)
+[INFO] Stage 1/2: Calculating sampling interval (pilot runs: 3)
 [INFO]   Run 1/3: Executing query...
 [INFO]   Run 1/3: Time=0.85s, CPU=92.5%, Memory=128.4MB, Rows=25051
 [INFO]   Run 2/3: Executing query...
