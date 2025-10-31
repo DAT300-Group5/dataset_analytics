@@ -1,6 +1,6 @@
 # Simulating Experiments on Embedded Devices
 
-Users can directly refer to the [User Manual](#user-manual).
+Users can directly refer to the [Simulating Workflow](Simulating_Workflow.md).
 
 ## Samsung Galaxy Watch Active 2
 
@@ -10,6 +10,7 @@ Users can directly refer to the [User Manual](#user-manual).
 | **GPU**             | Mali-T720                                                |
 | **Memory (RAM)**    | 1.5 GB (LTE version); 0.75 GB (Bluetooth version)        |
 | **Storage (ROM)**   | 4 GB eMMC (approx. 1.4 GB available to users)            |
+| **OS**              | Tizen                                                    |
 
 ## What We Need to Simulate
 
@@ -354,246 +355,71 @@ sudo virt-copy-out -a <image_path> <guest_file_path> <host_target_path>
 sudo virt-copy-out -a <image_path> <guest_directory> <host_target_path>
 ```
 
-## User Manual
+## Appendix
 
-### Roles of the Virtual Machine
+### QEMU – The Image Is Just a Disk
 
-The virtual machine runs on the ARM64 platform, emulated entirely in software via QEMU’s TCG.
-
-A Python environment is preinstalled, along with CLI tools for three database engines.
-
-The virtual machine **does not** handle `create`, `validate`, or final `analyze` stages. It only performs the **`run_experiments`** step.
-
-### Workflow
-
-1. Install required tools + download the image
-2. Decompress image
-3. Create directory, upload project code and database files (SQL/YAML config)
-4. Backup after first upload
-5. Start the VM
-6. SSH login and run an experiment
-7. Download results
-8. Shut down the VM
-9. Repeat steps 5–8 for each experiment
-
-[Simulating Workflow](Simulating_Workflow.md) outlines the 1st to 8th steps of the simulating workflow.
-
-### Install Required Tools
+In QEMU, parameters like:
 
 ```bash
-# Debian/Ubuntu
-sudo apt-get update
-sudo apt-get install -y qemu-system-aarch64 qemu-utils qemu-efi-aarch64
-
-# libguestfs doesn't support Apple Silicon
-sudo apt-get install -y libguestfs-tools
-# Avoid "direct mode" issues required by libguestfs on some distributions
-echo 'export LIBGUESTFS_BACKEND=direct' >> ~/.bashrc
-source ~/.bashrc
+-smp 2 -m 1536 -machine virt -cpu cortex-a53 ...
 ```
 
-### Download and Decompress Image
+are **runtime configurations**, not permanently written into the virtual disk image (`.qcow2`).
 
-Download image:
+In the QEMU model:
 
-```bash
-pip install gdown
-QCOW2="https://drive.google.com/uc?id=1XKFniKNfB4hkA020rI3anY5TXYwm7Ipa"
-gdown $QCOW2
-```
+- `.qcow2` or `.img` = the guest system’s **disk content**
+- It stores the OS, files, and user data
+- But **CPU, memory, motherboard, NIC, BIOS** are **externally specified**
 
-Decompress:
+This means QEMU **decouples** “hardware configuration” (CPU, memory, devices) from “disk content.”
 
-```bash
-qemu-img convert -O qcow2 gwatch-sim.comp.qcow2 gwatch-sim.qcow2
-```
+You can boot the same disk image under different virtual hardware configurations (e.g. 1 core / 512 MB vs. 4 cores / 2 GB).
 
-### Upload/Download Files
+| Feature        | VirtualBox / VMware                       | QEMU                                        |
+| -------------- | ----------------------------------------- | ------------------------------------------- |
+| Config storage | Saved in `.vbox` / `.vmx` (CPU, RAM, NIC) | User-defined via CLI                        |
+| Disk format    | `.vdi` / `.vmdk`                          | `.qcow2` / `.img`                           |
+| Launch method  | GUI-based                                 | Command-line                                |
+| Flexibility    | Fixed                                     | Extremely flexible (for automation/testing) |
 
-Note: Modify the `chdb` path in `config_yaml/config.yaml` to:
+QEMU’s design advantages:
 
-```yaml
-engine_paths:
-  duckdb: duckdb
-  sqlite: sqlite3
-  chdb: chdb_cli
-```
+1. **Flexibility** — test the same image under different virtual hardware.
+2. **Scriptability** — fully automatable for CI or batch experiments.
+3. **Portability** — `.qcow2` is self-contained and transferable.
 
-Because all these executables are preinstalled and included in the `PATH`.
+### TCG Software Emulation
 
-#### Use SFTP
+QEMU has two fundamentally different operation modes:
 
-Interactive file transfer:
+| Mode                                         | Purpose        | Mechanism                                                        | CPU Type Customizable |
+| -------------------------------------------- | -------------- | ---------------------------------------------------------------- | --------------------- |
+| 🧠 **TCG (Tiny Code Generator)**              | Full emulation | Translates guest instructions into host instructions dynamically | ✅ Yes                 |
+| ⚙️ **Hardware Virtualization (KVM/HVF/WHPX)** | Virtualization | Executes guest instructions directly on host CPU                 | ❌ No                  |
 
-```bash
-# need to set fingerprint for first run
-sftp -P 2222 root@localhost
+Only **TCG mode** simulates detailed **CPU microarchitecture**. For example:
 
-# Upload a directory
-# (./dataset/) local -> (./root/) remote
-sftp> put -r ./dataset /root/
+| Feature               | Real Cortex-A53 | QEMU TCG (`-cpu cortex-a53`) | HVF/KVM         |
+| --------------------- | --------------- | ---------------------------- | --------------- |
+| ISA (AArch64)         | ✅               | ✅                            | ✅ (via host)    |
+| LSE (Atomics)         | ❌               | ❌                            | Depends on host |
+| PMU/Timer             | A53-specific    | Emulated A53 PMU             | Host PMU        |
+| Performance           | Native          | Slow (software emulated)     | Near-native     |
+| Architecture fidelity | ✅               | ✅                            | ❌               |
 
-# Download a directory
-# (/root/results) remote -> (./backup/) local
-sftp> get -r /root/results ./backup/
-```
+In short:
 
-Non-interactive transfer:
+- **TCG = Interpreter obeying your `-cpu` definition**
+- **HVF/KVM = Pass-through executor using host CPU directly**
 
-```bash
-# Upload
-sftp -P 2222 root@localhost:/remote/path/ <<< $"put -r /local/path/dir"
+When you use `-cpu cortex-a53`, QEMU defines:
 
-# Download
-sftp -P 2222 root@localhost <<< $"get -r /root/data ./backup/"
-```
+- Supported instruction sets (AArch64/AArch32)
+- Enabled/disabled extensions (LSE, CRC, Crypto, PMU)
+- Register behavior
+- Exception levels
+- Timer precision and system control registers
 
----
-
-Upload all code related to `run_experiments.py` under `benchmark`:
-
-```bash
-# in benchmark dir
-sftp -P 2222 root@localhost
-sftp>
-mkdir benchmark
-put -r ./cli /root/benchmark/
-put -r ./config /root/benchmark/
-put -r ./consts /root/benchmark/
-put -r ./models /root/benchmark/
-put -r ./service /root/benchmark/
-put -r ./util /root/benchmark/
-put ./run_experiments.py /root/benchmark/
-```
-
-Upload database files, YAML configs, SQL files:
-
-```bash
-sftp -P 2222 root@localhost
-sftp>
-put -r ./db_vs14 /root/benchmark/
-put -r ./config_yaml /root/benchmark/
-put -r ./queries /root/benchmark/
-```
-
-Download experiment results (VM must be running):
-
-```bash
-# In benchmark directory
-mkdir -p results
-
-# Experiment configuration name
-CONFIG_NAME="dev"
-sftp -P 2222 root@localhost <<< $"get -r /root/benchmark/results/$CONFIG_NAME ./results/$CONFIG_NAME"
-```
-
-#### Use `libguestfs`
-
-> `libguestfs` does **not** require the VM to be running!
-
-Create directory:
-
-```bash
-sudo virt-customize -a gwatch-sim.qcow2 --mkdir /root/benchmark
-```
-
-Upload project code:
-
-```bash
-sudo virt-copy-in -a gwatch-sim.qcow2 \
-  ./cli ./config ./consts ./models ./service ./util ./run_experiments.py \
-  /root/benchmark/
-```
-
-Upload database files:
-
-```bash
-sudo virt-copy-in -a gwatch-sim.qcow2 ./db_vs14 /root/benchmark/
-```
-
-Upload SQL and YAML config files:
-
-```bash
-sudo virt-copy-in -a gwatch-sim.qcow2 \
-  ./config_yaml ./queries \
-  /root/benchmark/
-```
-
-Download experiment results (**VM must be shut down**, not recommended):
-
-```bash
-# In benchmark directory
-mkdir -p results
-
-# Experiment configuration name
-CONFIG_NAME="dev"
-sudo virt-copy-out -a gwatch-sim.qcow2 /root/benchmark/results/$CONFIG_NAME ./results/$CONFIG_NAME
-```
-
-### Start/Stop the VM
-
-> For macOS, BIOS path should be `/opt/homebrew/share/qemu/edk2-aarch64-code.fd`.
-> For macOS with Apple Silicon, `-accel hvf` can be used instead of `-accel tcg,thread=multi,tb-size=2048`.
-> If the default SSH port is occupied, change `hostfwd=tcp::2223-:22`.
-
-```bash
-BIOS=$(dpkg -L qemu-efi-aarch64 | grep QEMU_EFI.fd | head -n1)
-FILE="gwatch-sim.qcow2"
-
-qemu-system-aarch64 \
-  -machine virt \
-  -accel tcg,thread=multi,tb-size=2048 \
-  -cpu cortex-a53 \
-  -smp 2 -m 1536 \
-  -bios "${BIOS}" \
-  -drive if=virtio,file="${FILE}",format=qcow2,cache=writeback \
-  -nic user,model=virtio-net-pci,hostfwd=tcp::2222-:22 \
-  -nographic
-```
-
-Login credentials:
-
-- **Username:** root
-- **Password:** DAT300
-
----
-
-You can safely power off:
-
-```bash
-poweroff
-```
-
-### SSH Connection
-
-```bash
-ssh -p 2222 root@localhost
-```
-
-### Backup After First Upload
-
-> A recommended practice is to start fresh for each config to avoid interference.
-> In practice, once the code and database files are stable, you can start from this checkpoint.
-
-After uploading project code and database files (SQL/YAML), shut down and back up:
-
-```bash
-cp gwatch-sim.qcow2 gwatch-sim-checkpoint.qcow2
-```
-
-For subsequent experiments, use the `snapshot=on` option. This avoids re-uploading data and keeps experiments isolated.
-
-```bash
-BIOS=$(dpkg -L qemu-efi-aarch64 | grep QEMU_EFI.fd | head -n1)
-FILE="gwatch-sim-checkpoint.qcow2"
-
-qemu-system-aarch64 \
-  -machine virt \
-  -accel tcg,thread=multi,tb-size=2048 \
-  -cpu cortex-a53 \
-  -smp 2 -m 1536 \
-  -bios /usr/share/qemu-efi-aarch64/QEMU_EFI.fd \
-  -drive if=virtio,file="${FILE}",format=qcow2,cache=writeback,snapshot=on \
-  -nic user,model=virtio-net-pci,hostfwd=tcp::2222-:22 \
-  -nographic
-```
+Thus, the environment is **logically equivalent to a real Cortex-A53**, though slower.

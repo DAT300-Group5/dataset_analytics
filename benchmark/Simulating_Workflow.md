@@ -1,5 +1,15 @@
 # Simulating Workflow
 
+Roles of the Virtual Machine
+
+The virtual machine runs on the ARM64 platform, emulated entirely in software via QEMU’s TCG.
+
+A Python environment is preinstalled, along with CLI tools for three database engines.
+
+The virtual machine **does not** handle `create`, `validate`, or final `analyze` stages. It only performs the **`run_experiments`** step.
+
+---
+
 1. Install required tools + download the image
 2. Decompress image
 3. Create directory, upload project code and database files (SQL/YAML config)

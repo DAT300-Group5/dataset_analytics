@@ -41,17 +41,19 @@ The documentation explains many aspects of what the optimizer does, but it does 
 Looking at the [Pragma statements supported by SQLite](https://sqlite.org/pragma.html), the available controls are quite limited. For example,
 `PRAGMA automatic_index = ON|OFF` determines whether SQLite automatically creates transient indexes for equality joins and similar cases.
 
---- 
+---
 
 Based on the execution plan:
 SQLite optimizations that are not seen at first glance but help performance:
 
-JOINS: 
-- automatic indexing (explained [here](https://misfra.me/2022/sqlite-automatic-indexes/)
-- bloom filters (explained [here](https://avi.im/blag/2024/sqlite-past-present-future/) based on the article SQLite for OLAP
+JOINS:
+
+- [automatic indexing](https://misfra.me/2022/sqlite-automatic-indexes/)
+- [bloom filters](https://avi.im/blag/2024/sqlite-past-present-future/) based on the article SQLite for OLAP
 
 GROUP BY/SORT:
-- temp B-trees (explained [here](https://micahkepe.com/blog/sqlite-query-optimizer/) search CTRL+F to get to the part about b trees)
+
+- [temp B-trees](https://micahkepe.com/blog/sqlite-query-optimizer/) search CTRL+F to get to the part about b trees
 
 ---
 
@@ -101,7 +103,7 @@ Then run your query.
 
 DuckDB will write the execution plan and detailed performance metrics of each operator (including time consumption, rows returned, rows scanned, bytes read, etc.) to the JSON file you specified.
 
-This JSON is used for **automation analysis / visualization tools / post-processing**, such as: 
+This JSON is used for **automation analysis / visualization tools / post-processing**, such as:
 
 - Parse the results using Python;
 - Compare the performance of multiple queries;
@@ -164,7 +166,7 @@ Then use:
 EXPLAIN SELECT ...;
 ```
 
-Observe the changes in the execution plan to see which step no longer occurs. 
+Observe the changes in the execution plan to see which step no longer occurs.
 
 The design of DuckDB is highly modular, and these 28 optimizers almost cover all its lightweight optimization stages from logical to physical.
 
@@ -354,4 +356,3 @@ SET cross_to_inner_join_rewrite          = 0;
 -- Note: These settings can be safely applied in a session context.
 -- They affect only query optimization, not query correctness or stability.
 ```
-
