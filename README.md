@@ -18,7 +18,7 @@ Since the raw data is very large in size, we split each category of data by `dev
 
 ## Benchmark
 
-![structure](./pic/benchmark_structure.png)
+![structure](./pic/benchmark_architecture.png)
 
 More detailed Doc: [benchmark/README.md](benchmark/README.md)
 
