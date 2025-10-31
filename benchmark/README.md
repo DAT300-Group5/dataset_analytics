@@ -14,64 +14,19 @@ This benchmark system provides:
 
 Key Features:
 
-1. **Two-stage execution model**:
+1. **SQL correctness validation**: Verify query equivalence across different database queries
+2. **Two-stage execution model**:
    - Stage 1: Automatic sampling interval calculation (pilot runs)
    - Stage 2: Full benchmark with optimized monitoring
-2. **Comprehensive metrics**:
+3. **Comprehensive metrics**:
    - Execution time statistics
    - CPU utilization
    - Memory usage
    - Query output validation (row counts)
-3. **Clear logging**: Structured logs with stage markers and progress indicators
-4. **Easy visualization**: Automated chart generation for performance comparison
-5. **SQL correctness validation**: Verify query equivalence across different database queries
+4. **Clear logging**: Structured logs with stage markers and progress indicators
+5. **Easy visualization**: Automated chart generation for performance comparison
 
-## Architecture
-
-```ASCII
-benchmark/
-├── run_experiments.py           # Execute benchmarks
-├── analyze_results.py           # Generate visualizations
-├── create_db.py                 # Create databases from CSV data
-├── validate_sql_correctness.py  # Validate SQL correctness across queries
-│
-├── config_yaml/           # Configuration yaml
-│   ├── config.yaml        # Main configuration file (EDIT THIS)
-│   ├── config_dev.yaml    # single experiment
-│   └── ...
-│
-├── config/                # Configuration loading
-│   ├── config_loader.py
-│   ├── benchmark_config.py
-│   ├── dataset.py
-│   ├── execution_unit.py
-│   └── query_group.py
-│
-├── cli/
-│   └── cli.py
-│
-└── service/
-    ├── runner/            # Database execution
-    │   ├── duckdb_runner.py
-    │   ├── chdb_runner.py
-    │   └── sqlite_runner.py
-    ├── monitor/           # Resource monitoring
-    │   ├── process_monitor.py
-    │   ├── process_monitor_result.py
-    │   └── process_snapshot.py
-    ├── task_executor/     # Experiment orchestration
-    │   ├── task_executor.py
-    │   └── task_execute_result.py
-    └── profile_parser/    # Log parsing
-        ├── query_metric.py
-        ├── chdb_log_parser.py
-        ├── duckdb_log_parser.py
-        └── sqlite_log_parser.py
-```
-
-## Runtime Environment
-
-Platform: `linux-x86_64`
+## Runtime Version
 
 - **SQLite:** >=3.43.2
 - **DuckDB:** >=1.4.1
@@ -83,13 +38,12 @@ Platform: `linux-x86_64`
 
 SQLite:
 
-⚠️ Important: Compile SQLite with Profiling Support
+Could use python version, like:
 
-Before running benchmarks with SQLite, you **must** compile SQLite with the `SQLITE_ENABLE_STMT_SCANSTATUS` flag enabled to support query profiling and performance metrics.
-
-📖 **See [COMPILE_SQLITE](COMPILE_SQLITE.md) for detailed compilation instructions.**
-
-Without this flag, SQLite profiling features will not work, and benchmark results will be incomplete.
+```bash
+$ which sqlite3
+/home/xuan/miniconda3/bin/sqlite3
+```
 
 chDB:
 
@@ -111,7 +65,7 @@ source ~/.profile
 ### 1. Install Dependencies
 
 ```bash
-pip install psutil pandas duckdb chdb matplotlib pyyaml
+pip install psutil pandas duckdb chdb matplotlib pyyaml numpy tabulate
 ```
 
 ### 2. Create Databases
@@ -152,7 +106,7 @@ python create_db.py $NAME "./${DB_NAME}/${NAME}_data_chdb" --engine chdb
 
 ### 3. Configure Experiments
 
-Edit `config.yaml` to define the base query settings, then edit `config_<exp>.yaml` for single experiment:
+Edit `config_yaml/config.yaml` to define the base query settings, then edit `config_<exp>.yaml` for single experiment:
 
 Example `config.yaml`:
 
@@ -238,6 +192,8 @@ The validation script will:
 # Use environment override to load config_<exp>.yaml alongside config.yaml
 python validate_sql_correctness.py --env dev
 ```
+
+Running `run_experiments.py` or `validate_sql_correctness.py` maye need sudo password in order to execute cache dropping.
 
 **Output example:**
 
@@ -347,10 +303,10 @@ All experiments are configured through `config.yaml`, with optional environment-
 
 | Parameter      | Description                                     | Default                  |
 | -------------- | ----------------------------------------------- | ------------------------ |
-| `engines`      | Database engines to benchmark                   | `[duckdb, sqlite，chdb]` |
+| `engines`      | Database engines to benchmark                   | `[duckdb, sqlite, chdb]` |
 | `repeat_pilot` | Pilot runs for interval calculation (Stage 1/2) | `3`                      |
 | `sample_count` | Target monitoring samples per query             | `10`                     |
-| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `5`                      |
+| `std_repeat`   | Benchmark iterations (Stage 2/2)                | `10`                     |
 | `output_cwd`   | Results output directory                        | `./results`              |
 
 ### Execution Model
@@ -369,16 +325,7 @@ Stage 2/2: Run Benchmark
 
 ### Example Configuration
 
-See detailed comments in [`config.yaml`](config.yaml) and [`config_dev.yaml`](config_dev.yaml) for more information.
-
-### Validation Configuration
-
-The `validate_pairs` parameter defines which experiments to run for SQL correctness validation:
-
-- **Purpose**: Verify that queries produce identical results across different database queries
-- **Format**: `[ query_group_id, engine ]` pairs
-- **Used by**: `validate_sql_correctness.py`
-- **Behavior**: The script executes specified queries and compares outputs line-by-line to ensure query equivalence.
+See detailed comments in [`config.yaml`](config_yaml/config.yaml) and [`config_dev.yaml`](config_yaml/config_dev.yaml) for more information.
 
 ## Complete Workflow Example
 
@@ -530,6 +477,38 @@ Charts will be saved to `visual/`:
 }
 ```
 
+### `raw_data.json` Structure
+
+```json
+{
+  "category-Q2": {
+    "sqlite": {
+      "default": {
+        "cpu_peak_percent": {
+          "raw_data": [100.0, 237.6, 100.1, 100.0, 99.9, 100.0, 99.9, 100.0, 100.0, 100.0]
+        },
+        "cpu_avg_percent": {
+          "raw_data": [89.84, 113.6, 89.82, 89.86, 89.55999999999999, 89.85, 89.83, 89.82, 89.86999999999999, 89.85]
+        },
+        "cpu_samples_count": 10,
+        "cpu_sampling_interval": 13.497699999999998,
+        "peak_memory_bytes": {
+          "raw_data": [9883944, 9883944, 9883944, 9883944, 9883944, 9883944, 9883944, 9883944, 9883944, 9883944]
+        },
+        "execution_time": {
+          "raw_data": [129.93, 128.515, 134.645, 124.105, 133.121, 125.072, 131.549, 123.742, 132.344, 124.686]
+        },
+        "monitor_record_execution_time": {
+          "raw_data": [ 129.93, 128.515, 134.645, 124.105, 133.121, 125.072, 131.549, 123.742, 132.344, 124.686]
+        },
+        "output_rows": 1456
+      }
+    }
+  },
+  ...
+}
+```
+
 ### Visualization Output
 
 Generated charts in `visual/`:
@@ -575,12 +554,12 @@ Query groups also accept: `duckdb_sql_ban_ops`, `sqlite_sql_ban_ops` and `chdb_s
 ```yaml
 query_groups:
   - id: sample-Q1
-    duckdb_sql: ./queries/Q1/Q1_duckdb.sql
-    sqlite_sql: ./queries/Q1/Q1_sqlite.sql
-    chdb_sql: ./queries/Q1/Q1_chdb.sql
-    duckdb_sql_ban_ops: ./queries/Q1/Q1_duckdb_ban_ops.sql
-    sqlite_sql_ban_ops: ./queries/Q1/Q1_sqlite_ban_ops.sql
-    chdb_sql_ban_ops: ./queries/Q1/Q1_chdb_ban_ops.sql
+    duckdb_sql: queries/Q1/Q1_duckdb.sql
+    sqlite_sql: queries/Q1/Q1_sqlite.sql
+    chdb_sql: queries/Q1/Q1_chdb.sql
+    duckdb_sql_ban_ops: queries/Q1/Q1_duckdb_ban_ops.sql
+    sqlite_sql_ban_ops: queries/Q1/Q1_sqlite_ban_ops.sql
+    chdb_sql_ban_ops: queries/Q1/Q1_chdb_ban_ops.sql
 ```
 
 They are viewed as variants, you don't need to add them in `execute_pairs` or `compare_pairs`.
@@ -630,21 +609,21 @@ Benchmark the same query across different datasets:
 ```yaml
 datasets:
   - name: small_dataset
-    duckdb_db: ./db_small/data.duckdb
-    sqlite_db: ./db_small/data.sqlite
+    duckdb_db: db_small/data.duckdb
+    sqlite_db: db_small/data.sqlite
 
   - name: large_dataset
-    duckdb_db: ./db_large/data.duckdb
-    sqlite_db: ./db_large/data.sqlite
+    duckdb_db: db_large/data.duckdb
+    sqlite_db: db_large/data.sqlite
 
 query_groups:
   - id: Q1_small
-    duckdb_sql: ./queries/Q1_duckdb.sql
-    sqlite_sql: ./queries/Q1_sqlite.sql
+    duckdb_sql: queries/Q1_duckdb.sql
+    sqlite_sql: queries/Q1_sqlite.sql
 
   - id: Q1_large
-    duckdb_sql: ./queries/Q1_duckdb.sql
-    sqlite_sql: ./queries/Q1_sqlite.sql
+    duckdb_sql: queries/Q1_duckdb.sql
+    sqlite_sql: queries/Q1_sqlite.sql
 ```
 
 ### Logging Configuration
